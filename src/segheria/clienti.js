@@ -1,10 +1,11 @@
 // =====================================================================
 //  CLIENTI
-//  Arrivano da destra, fuori dalle mura, e si mettono in fila. Il primo
-//  della fila va allo sportello della merce che vuole (legna o carne) e
-//  la prende dal bancone un pezzo alla volta; poi paga: i soldi volano
-//  nella pila di monete dentro la base, accanto allo sportello.
-//  Se la merce non c'è, aspetta (o cambia idea se c'è l'altra).
+//  Arrivano di continuo dal basso, fuori dalle mura, uno dopo l'altro.
+//  Ognuno vuole legna o carne e si mette nella fila davanti a quello
+//  sportello. Il primo della fila prende la merce dal bancone un pezzo
+//  alla volta; poi paga (i soldi volano nella pila di monete dentro la
+//  base) e se ne va. Se il deposito è vuoto, la fila aspetta finché il
+//  boscaiolo non porta altra merce.
 // =====================================================================
 
 import * as THREE from 'three';
@@ -32,42 +33,55 @@ export class Clienti {
   aggiorna(dt) {
     const cfg = CONFIG.clienti;
 
-    // --- Arrivo di nuovi clienti ---
+    // --- Arrivo di nuovi clienti, uno dopo l'altro (finché le file non sono piene) ---
     this.prossimoArrivo -= dt;
-    const inFila = this.lista.filter((c) => c.stato !== 'esce');
-    if (this.prossimoArrivo <= 0 && inFila.length < cfg.filaMassima) {
-      this.aggiungiCliente();
-      this.prossimoArrivo = cfg.intervalloMinimo + Math.random() * (cfg.intervalloMassimo - cfg.intervalloMinimo);
+    if (this.prossimoArrivo <= 0) {
+      const arrivato = this.aggiungiCliente();
+      this.prossimoArrivo = arrivato ? cfg.intervalloMinimo + Math.random() * (cfg.intervalloMassimo - cfg.intervalloMinimo) : 0.5;
     }
 
-    // --- Ogni cliente va al suo posto: il primo allo sportello, gli altri in fila ---
-    inFila.forEach((cliente, posto) => {
-      if (posto === 0) cliente.obiettivo.copy(this.sportelli[cliente.vuole].puntoCliente);
-      else cliente.obiettivo.copy(MAPPA.filaClienti(posto));
-      const arrivato = this.cammina(cliente, dt);
-      cliente.fumetto.visible = posto === 0 && arrivato;
-      if (posto === 0 && arrivato) {
-        cliente.modello.rotation.y = 0; // guarda il bancone
-        cliente.attesa += dt;
-        if (cliente.attesa > cfg.tempoAcquisto) this.compra(cliente, dt);
-      } else {
-        cliente.attesa = 0;
-      }
-      cliente.fumetto.rotation.set(-0.6, -cliente.modello.rotation.y, 0);
-    });
+    // --- Ogni fila: il primo al bancone, gli altri dietro, lungo le mura ---
+    for (const [tipo, sportello] of Object.entries(this.sportelli)) {
+      this.fila(tipo).forEach((cliente, posto) => {
+        sportello.posizioneFila(posto, cliente.obiettivo);
+        const arrivato = this.cammina(cliente, dt);
+        cliente.fumetto.visible = arrivato;
+        if (arrivato) {
+          // il primo guarda il bancone, gli altri guardano verso lo sportello
+          cliente.modello.rotation.y = posto === 0 ? 0 : sportello.versoFuori * (Math.PI / 2);
+        }
+        if (posto === 0 && arrivato) {
+          cliente.attesa += dt;
+          if (cliente.attesa > cfg.tempoAcquisto) this.compra(cliente, dt);
+        } else {
+          cliente.attesa = 0;
+        }
+        cliente.fumetto.rotation.set(-0.6, -cliente.modello.rotation.y, 0);
+      });
+    }
 
     // --- Chi ha comprato se ne va ---
     for (const cliente of this.lista) {
       if (cliente.stato !== 'esce') continue;
-      cliente.obiettivo.copy(MAPPA.uscitaClienti);
+      cliente.obiettivo.copy(this.sportelli[cliente.vuole].uscita);
       if (this.cammina(cliente, dt)) cliente.daTogliere = true;
     }
     for (const cliente of this.lista.filter((c) => c.daTogliere)) this.togli(cliente);
     this.lista = this.lista.filter((c) => !c.daTogliere);
   }
 
+  // I clienti di una fila (in ordine di arrivo)
+  fila(tipo) {
+    return this.lista.filter((c) => c.vuole === tipo && c.stato !== 'esce');
+  }
+
+  // Arriva un cliente nuovo: se la sua fila è piena va nell'altra; se sono piene tutte e due non arriva nessuno
   aggiungiCliente() {
     const cfg = CONFIG.clienti;
+    let vuole = Math.random() < cfg.probabilitaCarne ? 'carne' : 'legna';
+    if (this.fila(vuole).length >= cfg.filaPerSportello) vuole = vuole === 'carne' ? 'legna' : 'carne';
+    if (this.fila(vuole).length >= cfg.filaPerSportello) return false;
+
     const modello = creaCliente();
     modello.scale.setScalar(DIMENSIONE);
     modello.position.copy(MAPPA.ingressoClienti);
@@ -78,7 +92,7 @@ export class Clienti {
       posizione: MAPPA.ingressoClienti.clone(),
       obiettivo: new THREE.Vector3(),
       stato: 'inFila',
-      vuole: Math.random() < cfg.probabilitaCarne ? 'carne' : 'legna',
+      vuole,
       quantita: cfg.acquistoMinimo + Math.floor(Math.random() * (cfg.acquistoMassimo - cfg.acquistoMinimo + 1)),
       preso: 0,           // unità già prese dal bancone
       prossimoPezzo: 0,   // secondi prima di prendere il prossimo pezzo
@@ -87,6 +101,7 @@ export class Clienti {
     };
     this.creaFumetto(cliente);
     this.lista.push(cliente);
+    return true;
   }
 
   // Il fumetto sopra la testa dice cosa vuole comprare (e quanto ne manca)
@@ -119,19 +134,7 @@ export class Clienti {
     if (cliente.prossimoPezzo > 0) return;
     const sportello = this.sportelli[cliente.vuole];
 
-    if (sportello.quantita <= 0) {
-      // Merce finita: se ha già preso qualcosa paga quello, altrimenti prova l'altro sportello
-      if (cliente.preso > 0) {
-        this.paga(cliente);
-        return;
-      }
-      const altro = cliente.vuole === 'carne' ? 'legna' : 'carne';
-      if (this.sportelli[altro].quantita > 0) {
-        cliente.vuole = altro;
-        this.creaFumetto(cliente);
-      }
-      return; // niente merce: aspetta
-    }
+    if (sportello.quantita <= 0) return; // merce finita: aspetta al bancone che il boscaiolo ne porti altra
 
     // Un pezzo vola dalla pila dello sportello al cliente
     const partenza = sportello.cima();

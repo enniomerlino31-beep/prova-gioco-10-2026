@@ -49,8 +49,9 @@ export class Deposito {
       this.istanze = [new THREE.InstancedMesh(geometriaTronco, materialiTronco, this.posti.length)];
       this.posti.forEach((p, i) => this.istanze[0].setMatrixAt(i, m4.compose(p, traverso, scalaTronco)));
       for (const z of [-0.95, 0.95]) {
-        const paletto = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.2, 0.12), tinta(0x6e4022));
-        paletto.position.set(0, 1.1, z);
+        // paletti bassi: visti dall'alto non coprono il cerchio del miglioramento dietro la catasta
+        const paletto = new THREE.Mesh(new THREE.BoxGeometry(0.12, 1.2, 0.12), tinta(0x6e4022));
+        paletto.position.set(0, 0.6, z);
         paletto.castShadow = true;
         this.gruppo.add(paletto);
       }
@@ -104,9 +105,9 @@ export class Deposito {
     return Math.hypot(posizione.x - this.posizione.x, posizione.z - this.posizione.z) < CONFIG.segheria.raggioRaccolta;
   }
 
-  // Toglie un pezzo (al massimo "unitaPerPezzo" unità). Restituisce quante unità ha tolto (0 = vuoto).
-  prendiPezzo() {
-    const quantita = Math.min(CONFIG.segheria.unitaPerPezzo, this.quantita);
+  // Toglie un pezzo (di solito "unitaPerPezzo" unità, o quante se ne chiedono). Restituisce quante unità ha tolto (0 = vuoto).
+  prendiPezzo(richiesta = CONFIG.segheria.unitaPerPezzo) {
+    const quantita = Math.min(richiesta, this.quantita);
     this.quantita -= quantita;
     this.aggiornaGrafica();
     return quantita;

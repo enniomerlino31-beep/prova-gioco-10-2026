@@ -42,7 +42,6 @@ export class Schermate {
     $('schermata-inizio').classList.add('nascosto');
     $('schermata-fine').classList.add('nascosto');
     $('hud-segheria').classList.add('nascosto');
-    $('miglioramenti-terra').classList.add('nascosto');
     $('barra-mura').classList.add('nascosto');
     $('suggerimento-segheria').classList.add('nascosto');
     $('hud').classList.remove('nascosto');
@@ -56,7 +55,6 @@ export class Schermate {
     $('hud').classList.add('nascosto');
     $('contatore-squadra').classList.add('nascosto');
     $('hud-segheria').classList.remove('nascosto');
-    $('miglioramenti-terra').classList.remove('nascosto');
     $('barra-mura').classList.remove('nascosto');
     const suggerimento = $('suggerimento-segheria');
     suggerimento.classList.toggle('nascosto', !conSuggerimento);
@@ -71,41 +69,6 @@ export class Schermate {
     const ok = Math.max(0, Math.min(1, ratio));
     valore.style.width = `${Math.round(ok * 100)}%`;
     barra.classList.toggle('barra-mura--critica', ok < 0.35);
-  }
-
-  setMiglioramenti(miglioramenti) {
-    const contenitore = $('miglioramenti-terra');
-    if (!contenitore) return;
-    contenitore.innerHTML = '';
-    for (const upgrade of miglioramenti) {
-      const node = document.createElement('div');
-      node.className = 'upgrade-ring';
-      node.dataset.id = upgrade.id;
-      const kit = upgrade.iconeClass || 'stone';
-      node.innerHTML = `<span class="upgrade-ring__content"><span class="hud-icon hud-icon--${kit} upgrade-ring__icon"></span><span class="upgrade-ring__prezzo"><span class="hud-icon hud-icon--coin upgrade-ring__moneta"></span>${upgrade.prezzo}</span></span>`;
-      if (upgrade.bloccato) node.classList.add('upgrade-ring--bloccato');
-      node.style.left = '0px';
-      node.style.top = '0px';
-      contenitore.appendChild(node);
-    }
-  }
-
-  aggiornaMiglioramenti(miglioramenti, giocatore) {
-    const contenitore = $('miglioramenti-terra');
-    if (!contenitore) return;
-    for (const upgrade of miglioramenti) {
-      const node = contenitore.querySelector(`[data-id="${upgrade.id}"]`);
-      if (!node) continue;
-      const punto = new THREE.Vector3(upgrade.posizione.x, 0.05, upgrade.posizione.z);
-      const schermo = this.proietta(punto);
-      node.style.left = `${schermo.x}px`;
-      node.style.top = `${schermo.y}px`;
-      const dist = Math.hypot(giocatore.x - upgrade.posizione.x, giocatore.z - upgrade.posizione.z);
-      node.style.opacity = dist < 3.5 ? '1' : '0.6';
-      node.style.display = upgrade.visible ? 'flex' : 'none';
-      const progresso = Number(upgrade.progress ?? 0);
-      node.style.setProperty('--progress', String(Math.max(0, Math.min(1, progresso))));
-    }
   }
 
   preparaAnteprimaBase() {

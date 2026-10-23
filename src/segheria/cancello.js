@@ -1,9 +1,12 @@
 // =====================================================================
-//  CANCELLO DELLA CORSA
-//  Un varco nella palizzata di sinistra: due pali grossi e alti ai lati
-//  e due ante di legno in mezzo. Quando il boscaiolo si avvicina le ante
-//  si aprono verso il sentiero; se resta sul cerchio per "tempoCancello"
-//  secondi (il cerchio si riempie), parte una nuova corsa.
+//  CANCELLO (nella palizzata di sinistra)
+//  Un varco con due pali grossi e alti ai lati e due ante di legno in
+//  mezzo. Quando il boscaiolo si avvicina (da dentro o da fuori) le ante
+//  si aprono verso l'esterno; quando si allontana si richiudono. Da chiuse
+//  non si passa.
+//  Il cancello della CORSA ha anche un cerchio a terra: se il boscaiolo ci
+//  resta per "tempoCancello" secondi (il cerchio si riempie), parte una
+//  nuova corsa. Quello della FORESTA serve solo per uscire.
 //  Misure "locali": z lungo le mura, x negativo = fuori dalla base.
 // =====================================================================
 
@@ -19,16 +22,24 @@ const LARGHEZZA_ANTA = DISTANZA_PALI - RAGGIO_PALO;
 const ALTEZZA_ANTA = 1.6;
 const RAGGIO_ZONA = 1.3;
 const ZONA_X = 1.4;                   // il cerchio sta dentro la base, davanti al cancello
-const DISTANZA_APERTURA = 2.8;        // a questa distanza dal cerchio le ante si aprono
+const DISTANZA_APERTURA = 3.2;        // a questa distanza dal centro del varco le ante si aprono
 const ANGOLO_APERTO = 1.65;           // quanto si girano le ante (radianti, circa 95 gradi)
 
 export class Cancello {
   // posizione: il centro del varco, sulla linea della palizzata
-  constructor(genitore, posizione) {
+  // scritta: per il cancello della corsa, il testo nel cerchio a terra (senza scritta non c'è il cerchio)
+  constructor(genitore, posizione, { scritta = null } = {}) {
     this.posizione = posizione.clone();
+    this.conCerchio = Boolean(scritta);
     this.centroZona = posizione.clone().add(new THREE.Vector3(ZONA_X, 0, 0));
     this.carica = 0;    // da 0 a 1: quanto è pieno il cerchio
     this.apertura = 0;  // da 0 (chiuso) a 1 (ante spalancate)
+
+    // Rettangoli che il boscaiolo non può attraversare: i due pali sempre, le ante solo quando sono chiuse
+    this.ostacoliPali = [-1, 1].map((lato) => ({
+      x: posizione.x, z: posizione.z + lato * DISTANZA_PALI, mezzaX: RAGGIO_PALO, mezzaZ: RAGGIO_PALO,
+    }));
+    this.ostacoloAnte = { x: posizione.x, z: posizione.z, mezzaX: 0.25, mezzaZ: LARGHEZZA_ANTA };
     this.gruppo = new THREE.Group();
     this.gruppo.position.copy(posizione);
     genitore.add(this.gruppo);
@@ -77,7 +88,11 @@ export class Cancello {
       this.ante.push({ perno, lato });
     }
 
-    // --- Cerchio a terra (dentro la base) che si riempie, con la scritta ---
+    if (this.conCerchio) this.creaCerchio(scritta);
+  }
+
+  // Cerchio a terra (dentro la base) che si riempie, con la scritta, e freccia sul sentiero
+  creaCerchio(scritta) {
     const zona = creaZonaATerra(RAGGIO_ZONA, 0x7fc1ff);
     zona.position.x = ZONA_X;
     this.gruppo.add(zona);
@@ -89,11 +104,11 @@ export class Cancello {
     this.riempimento.position.set(ZONA_X, 0.025, 0);
     this.riempimento.scale.setScalar(0.001);
     this.gruppo.add(this.riempimento);
-    const scritta = creaScritta('CORSA', { larghezza: 1.9, altezza: 0.6, coloreTesto: '#ffffff', coloreBordo: '#1d4f9e' });
-    scritta.rotation.x = -Math.PI / 2;
-    scritta.position.set(ZONA_X, 0.04, 0);
-    scritta.renderOrder = 1;
-    this.gruppo.add(scritta);
+    const cartello = creaScritta(scritta, { larghezza: 1.9, altezza: 0.6, coloreTesto: '#ffffff', coloreBordo: '#1d4f9e' });
+    cartello.rotation.x = -Math.PI / 2;
+    cartello.position.set(ZONA_X, 0.04, 0);
+    cartello.renderOrder = 1;
+    this.gruppo.add(cartello);
 
     // Freccia a terra fuori dal cancello, sul sentiero
     const freccia = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.8, 3), tinta(0x7fc1ff));
@@ -103,17 +118,22 @@ export class Cancello {
     this.gruppo.add(freccia);
   }
 
+  // Le ante bloccano il passaggio finché non sono quasi del tutto aperte
+  get ostacoli() {
+    return this.apertura < 0.8 ? [...this.ostacoliPali, this.ostacoloAnte] : this.ostacoliPali;
+  }
+
   // Restituisce true quando il cerchio è pieno (= parte la corsa)
   aggiorna(dt, posizioneBoscaiolo) {
-    const distanza = Math.hypot(posizioneBoscaiolo.x - this.centroZona.x, posizioneBoscaiolo.z - this.centroZona.z);
-
-    // Le ante si aprono verso l'esterno quando il boscaiolo si avvicina
-    const voluta = distanza < DISTANZA_APERTURA ? 1 : 0;
+    // Le ante si aprono verso l'esterno quando il boscaiolo si avvicina al varco, da dentro o da fuori
+    const vicino = Math.hypot(posizioneBoscaiolo.x - this.posizione.x, posizioneBoscaiolo.z - this.posizione.z) < DISTANZA_APERTURA;
     const passo = dt * 2.5;
-    this.apertura += THREE.MathUtils.clamp(voluta - this.apertura, -passo, passo);
+    this.apertura += THREE.MathUtils.clamp((vicino ? 1 : 0) - this.apertura, -passo, passo);
     const morbido = THREE.MathUtils.smoothstep(this.apertura, 0, 1);
     for (const anta of this.ante) anta.perno.rotation.y = anta.lato * morbido * ANGOLO_APERTO;
 
+    if (!this.conCerchio) return false;
+    const distanza = Math.hypot(posizioneBoscaiolo.x - this.centroZona.x, posizioneBoscaiolo.z - this.centroZona.z);
     if (distanza < RAGGIO_ZONA) this.carica = Math.min(1, this.carica + dt / CONFIG.segheria.tempoCancello);
     else this.carica = Math.max(0, this.carica - dt * 3);
     this.riempimento.scale.setScalar(Math.max(0.001, this.carica));
@@ -122,7 +142,7 @@ export class Cancello {
 
   azzera() {
     this.carica = 0;
-    this.riempimento.scale.setScalar(0.001);
+    this.riempimento?.scale.setScalar(0.001);
     this.apertura = 0;
     for (const anta of this.ante) anta.perno.rotation.y = 0;
   }

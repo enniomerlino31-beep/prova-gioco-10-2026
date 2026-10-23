@@ -20,22 +20,32 @@ const R_PALO = 0.24;     // raggio alla base di ogni palo della palizzata
 const PASSO_PALI = 0.55; // distanza tra un palo e l'altro
 
 // Dove si trova ogni cosa nella segheria (x = destra/sinistra, z = avanti/indietro; z negativo = lontano)
+// Disposizione: a sinistra la colonna della LEGNA, a destra quella della CARNE, al centro una corsia libera.
+// Dall'alto in basso ogni colonna ha: cerchio del miglioramento, catasta (o dispensa), deposito e sportello.
+const COLONNA = 4.5; // distanza delle due colonne dal centro della base
 export const MAPPA = {
-  limiti: { xMin: -14, xMax: 14, zMin: -10, zMax: 12 }, // dove può camminare il boscaiolo
+  limiti: { xMin: -16, xMax: 16, zMin: -12, zMax: 13 }, // fin dove può andare il boscaiolo (anche fuori dalle mura)
   mura: { sinistra: -9.2, destra: 9.2, fondo: -6.1, fronte: 6.0 }, // le quattro file della palizzata
-  partenza: new THREE.Vector3(0, 0, 3),                  // dove compare il boscaiolo
-  catasta: new THREE.Vector3(-2.8, 0, -2.4),
-  dispensa: new THREE.Vector3(-2.8, 0, 0.9),             // la cassa della carne
-  cancello: new THREE.Vector3(-9.2, 0, 1),               // il varco nella palizzata di sinistra per partire per una nuova corsa
+  partenza: new THREE.Vector3(0, 0, 1),                  // dove compare il boscaiolo: in mezzo alla corsia centrale
+  catasta: new THREE.Vector3(-COLONNA, 0, -1.3),         // qui arriva la legna dalla corsa
+  dispensa: new THREE.Vector3(COLONNA, 0, -1.3),         // qui arriva la carne dalla corsa
+  // Cerchi dei miglioramenti, in cima alle colonne vicino a quello che migliorano
+  miglioramenti: {
+    aiutante: new THREE.Vector3(-COLONNA, 0, -4.6),      // sopra la catasta: l'aiutante porta la legna allo sportello
+    mura: new THREE.Vector3(COLONNA, 0, -4.6),           // vicino alle mura di fondo
+  },
+  // Due cancelli nella palizzata di sinistra (il punto è il centro del varco, sulla linea delle mura)
+  cancelli: {
+    foresta: new THREE.Vector3(-9.2, 0, -3.0),           // per uscire nella foresta
+    corsa: new THREE.Vector3(-9.2, 0, 2.5),              // per partire per una nuova corsa
+  },
   // Gli sportelli di vendita sono varchi nella palizzata davanti (in basso nello schermo)
   sportelli: {
-    legna: new THREE.Vector3(-5.5, 0, 6.0),
-    carne: new THREE.Vector3(5.5, 0, 6.0),
+    legna: new THREE.Vector3(-COLONNA, 0, 6.0),
+    carne: new THREE.Vector3(COLONNA, 0, 6.0),
   },
-  // I clienti arrivano da destra, fuori dalle mura, aspettano in fila e se ne vanno a sinistra
-  ingressoClienti: new THREE.Vector3(13, 0, 9.6),
-  filaClienti: (posto) => new THREE.Vector3(9.5 - posto * 2, 0, 9.6),
-  uscitaClienti: new THREE.Vector3(-13, 0, 9.6),
+  // I clienti arrivano dal basso, si mettono in fila davanti al loro sportello e se ne vanno di nuovo in basso
+  ingressoClienti: new THREE.Vector3(0, 0, 13),
   casa: new THREE.Vector3(-1, 0, -10),
 };
 
@@ -70,10 +80,12 @@ export function creaAmbiente() {
   scena.add(radura);
 
   // --- Palizzata continua attorno a tutta la base ---
-  // Si interrompe solo dove ci sono gli sportelli di vendita e il cancello della corsa:
+  // Si interrompe solo dove ci sono gli sportelli di vendita e i cancelli:
   // ogni fila di pali arriva fino ai pali grossi del varco e riprende subito dopo.
+  // Ogni fila è anche un "muro" solido: un rettangolo che il boscaiolo non può attraversare.
   const palizzata = new THREE.Group();
   const pali = [];
+  const muri = [];
   const aggiungiPalo = (x, z) => {
     const paloMesh = new THREE.Mesh(
       new THREE.CylinderGeometry(0.17, R_PALO, 1.45, 10),
@@ -88,10 +100,16 @@ export function creaAmbiente() {
     palizzata.add(paloMesh);
     pali.push(paloMesh);
   };
-  // Pali in fila dritta da (x1, z1) a (x2, z2), con un palo a ogni estremità
+  // Pali in fila dritta da (x1, z1) a (x2, z2), con un palo a ogni estremità (le file sono sempre dritte in x o in z)
   const filaDiPali = (x1, z1, x2, z2) => {
     const n = Math.max(1, Math.round(Math.hypot(x2 - x1, z2 - z1) / PASSO_PALI));
     for (let i = 0; i <= n; i++) aggiungiPalo(x1 + ((x2 - x1) * i) / n, z1 + ((z2 - z1) * i) / n);
+    muri.push({
+      x: (x1 + x2) / 2,
+      z: (z1 + z2) / 2,
+      mezzaX: Math.abs(x2 - x1) / 2 + R_PALO,
+      mezzaZ: Math.abs(z2 - z1) / 2 + R_PALO,
+    });
   };
   // Divide un lato (da "da" ad "a") nei tratti che restano fuori dai varchi { centro, mezzo }
   const tratti = (da, a, varchi) => {
@@ -106,19 +124,19 @@ export function creaAmbiente() {
   };
   const M = MAPPA.mura;
   const varchiFronte = Object.values(MAPPA.sportelli).map((p) => ({ centro: p.x, mezzo: MEZZO_INGOMBRO + R_PALO }));
-  const varcoCancello = { centro: MAPPA.cancello.z, mezzo: MEZZO_INGOMBRO_CANCELLO + R_PALO };
+  const varchiSinistra = Object.values(MAPPA.cancelli).map((p) => ({ centro: p.z, mezzo: MEZZO_INGOMBRO_CANCELLO + R_PALO }));
   for (const [a, b] of tratti(M.sinistra, M.destra, [])) filaDiPali(a, M.fondo, b, M.fondo);
   for (const [a, b] of tratti(M.sinistra, M.destra, varchiFronte)) filaDiPali(a, M.fronte, b, M.fronte);
   // i due lati partono un passo dopo gli angoli (i pali d'angolo ci sono già)
-  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, [varcoCancello])) filaDiPali(M.sinistra, a, M.sinistra, b);
+  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, varchiSinistra)) filaDiPali(M.sinistra, a, M.sinistra, b);
   for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, [])) filaDiPali(M.destra, a, M.destra, b);
   palizzata.userData.pali = pali;
   scena.add(palizzata);
 
-  // Sentiero che esce dal cancello verso la foresta (da lì parte la corsa)
+  // Sentiero che esce dal cancello della corsa verso la foresta
   const sentiero = new THREE.Mesh(new THREE.PlaneGeometry(14, 2.6), tinta(0xbfcfe2));
   sentiero.rotation.x = -Math.PI / 2;
-  sentiero.position.set(MAPPA.cancello.x - 7, -0.005, MAPPA.cancello.z);
+  sentiero.position.set(MAPPA.cancelli.corsa.x - 7, -0.005, MAPPA.cancelli.corsa.z);
   sentiero.receiveShadow = true;
   scena.add(sentiero);
 
@@ -130,7 +148,7 @@ export function creaAmbiente() {
     const x = Math.cos(angolo) * raggio;
     const z = Math.sin(angolo) * raggio * 0.95;
     if (Math.abs(x) < 12 && Math.abs(z) < 9) continue;
-    if (x < -7 && Math.abs(z - MAPPA.cancello.z) < 3.5) continue;
+    if (x < -7 && Math.abs(z - MAPPA.cancelli.corsa.z) < 3.5) continue;
     const scala = 1.1 + Math.random() * 1.3;
     posti.push(matrice([x, 0, z], [0, Math.random() * 6, 0], [scala, scala * 1.18, scala]));
   }
@@ -180,14 +198,15 @@ export function creaAmbiente() {
     scena,
     telecamera,
     palizzata,
+    muri,
     // La telecamera segue il boscaiolo con un po' di morbidezza
     segui(posizione, dt) {
       const cfg = CONFIG.telecameraSegheria;
-      // la telecamera non si allontana troppo dal centro della radura
+      // la telecamera non si allontana troppo dalla base (ma segue il boscaiolo anche quando esce)
       const obiettivo = new THREE.Vector3(
-        THREE.MathUtils.clamp(posizione.x, -6, 6),
+        THREE.MathUtils.clamp(posizione.x, -8, 8),
         0,
-        THREE.MathUtils.clamp(posizione.z, -4, 5)
+        THREE.MathUtils.clamp(posizione.z, -5, 6)
       );
       if (primaVolta) {
         puntoSeguito.copy(obiettivo);

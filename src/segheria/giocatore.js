@@ -1,8 +1,8 @@
 // =====================================================================
 //  IL BOSCAIOLO DELLA SEGHERIA (quello che controlla il giocatore)
-//  - cammina libero nella radura con il joystick o la tastiera
-//  - porta sulla schiena una pila di pezzi (tronchi o carne), visibili,
-//    fino a un massimo regolabile ("capacitaSchiena")
+//  - cammina con il joystick o la tastiera; le mura lo bloccano, esce solo dai cancelli aperti
+//  - porta sulla schiena legna e carne SENZA limiti: due colonne di pezzi
+//    (disegnate fino a un'altezza massima) con sopra il numero vero
 // =====================================================================
 
 import * as THREE from 'three';
@@ -10,9 +10,11 @@ import { CONFIG } from '../config.js';
 import { creaBoscaiolo } from '../modelli/boscaiolo.js';
 import { geometriaTronco, materialiTronco } from '../modelli/carro.js';
 import { creaCarne } from '../modelli/carne.js';
+import { creaEtichetta, liberaEtichetta } from '../modelli/materiali.js';
 import { MAPPA } from './ambiente.js';
 
 const ALTEZZA_PEZZO = 0.2;     // spazio occupato da ogni pezzo nella pila (misura del modello)
+const X_COLONNA = { legna: -0.28, carne: 0.28 }; // le due colonne sulla schiena, una accanto all'altra
 const RAGGIO_BOSCAIOLO = 0.35; // ingombro per non attraversare banconi e depositi degli sportelli
 
 export class Giocatore {
@@ -28,73 +30,93 @@ export class Giocatore {
     this.velocitaAttuale = 0;
     this.attaccoAnim = 0;
 
-    // La pila sulla schiena: un gruppo attaccato al boscaiolo, dietro le spalle
+    // Le pile sulla schiena: un gruppo attaccato al boscaiolo, dietro le spalle.
+    // Il carico NON ha limiti: si disegnano al massimo "pezziVisibiliSchiena" pezzi per colonna
+    // e sopra ogni colonna c'è il numero vero (es. "x150").
     this.schiena = new THREE.Group();
     this.schiena.position.set(0, 0.55, 0.24);
     this.modello.add(this.schiena);
-    this.pezzi = [];        // [{ tipo, quantita, mesh }]
-    this.inArrivo = 0;      // pezzi in volo verso la schiena (già "prenotati")
+    this.carico = { legna: 0, carne: 0 }; // unità portate sulla schiena
+    this.colonne = {};
+    for (const tipo of Object.keys(this.carico)) this.creaColonna(tipo);
     this.ostacoli = [];     // rettangoli { x, z, mezzaX, mezzaZ } che il boscaiolo non può attraversare
   }
 
-  get capacita() {
-    return CONFIG.segheria.capacitaSchiena;
-  }
-
-  // Quanti posti ci sono ancora sulla schiena (contando anche quelli in volo)
-  get spazioLibero() {
-    return this.capacita - this.pezzi.length - this.inArrivo;
-  }
-
-  get pieno() {
-    return this.spazioLibero <= 0;
-  }
-
-  // Mette un pezzo in cima alla pila
-  aggiungi(tipo, quantita) {
-    let mesh;
-    const xColonna = { legna: -0.35, carne: 0.1, soldi: 0.48 };
-    const yBase = this.pezzi.filter((p) => p.tipo === tipo).length * ALTEZZA_PEZZO + 0.06;
-    if (tipo === 'carne') {
-      mesh = creaCarne();
-      mesh.scale.setScalar(0.75);
-    } else if (tipo === 'soldi') {
-      mesh = new THREE.Mesh(geometriaTronco, materialiTronco);
-      mesh.rotation.z = Math.PI / 2;
-      mesh.scale.set(0.52, 0.25, 0.52);
-      mesh.castShadow = true;
-    } else {
-      mesh = new THREE.Mesh(geometriaTronco, materialiTronco);
-      mesh.rotation.z = Math.PI / 2; // tronco di traverso sulla schiena
-      mesh.scale.set(0.7, 0.32, 0.7);
-      mesh.castShadow = true;
+  // Prepara i pezzi (nascosti) di una colonna e il posto per la sua etichetta
+  creaColonna(tipo) {
+    const pezzi = [];
+    for (let i = 0; i < CONFIG.segheria.pezziVisibiliSchiena; i++) {
+      let mesh;
+      if (tipo === 'carne') {
+        mesh = creaCarne();
+        mesh.scale.setScalar(0.75);
+      } else {
+        mesh = new THREE.Mesh(geometriaTronco, materialiTronco);
+        mesh.rotation.z = Math.PI / 2; // tronco di traverso sulla schiena
+        mesh.scale.set(0.7, 0.32, 0.7);
+        mesh.castShadow = true;
+      }
+      mesh.position.set(X_COLONNA[tipo], i * ALTEZZA_PEZZO + 0.06, 0);
+      mesh.rotation.y = (Math.random() - 0.5) * 0.2;
+      mesh.visible = false;
+      this.schiena.add(mesh);
+      pezzi.push(mesh);
     }
-    mesh.position.set(xColonna[tipo] ?? 0, yBase, 0);
-    mesh.rotation.y = (Math.random() - 0.5) * 0.2;
-    this.schiena.add(mesh);
-    this.pezzi.push({ tipo, quantita, mesh });
+    this.colonne[tipo] = { pezzi, etichetta: null, numero: 0 };
   }
 
-  // Ha almeno un pezzo di questo tipo sulla schiena?
+  // Pezzi disegnati in una colonna (al massimo "pezziVisibiliSchiena")
+  pezziVisibili(tipo) {
+    return Math.min(CONFIG.segheria.pezziVisibiliSchiena, Math.ceil(this.carico[tipo] / CONFIG.segheria.unitaPerPezzo));
+  }
+
+  // Aggiunge legna o carne sulla schiena (nessun limite)
+  aggiungi(tipo, quantita) {
+    this.carico[tipo] += quantita;
+    this.aggiornaColonna(tipo);
+  }
+
+  // Ha qualcosa di questo tipo sulla schiena?
   ha(tipo) {
-    return this.pezzi.some((p) => p.tipo === tipo);
+    return this.carico[tipo] > 0;
   }
 
-  // Toglie il pezzo in cima alla pila (o in cima alla colonna di quel tipo) e lo restituisce
-  togliUltimo(tipoRichiesto = null) {
-    const indice = tipoRichiesto ? this.pezzi.findLastIndex((p) => p.tipo === tipoRichiesto) : this.pezzi.length - 1;
-    if (indice < 0) return null;
-    const [ultimo] = this.pezzi.splice(indice, 1);
-    this.schiena.remove(ultimo.mesh);
-    return ultimo;
+  // Toglie al massimo "quantita" unità di quel tipo: restituisce quante ne ha tolte davvero
+  togli(tipo, quantita) {
+    const tolta = Math.min(quantita, this.carico[tipo]);
+    this.carico[tipo] -= tolta;
+    this.aggiornaColonna(tipo);
+    return tolta;
   }
 
-  // Punto del mondo in cima alla pila (dove atterrano i pezzi raccolti)
-  cimaSchiena(risultato = new THREE.Vector3(), tipo = null) {
-    const colonna = tipo ?? this.pezzi[this.pezzi.length - 1]?.tipo ?? 'legna';
-    const conteggio = this.pezzi.filter((p) => p.tipo === colonna).length;
-    const xColonna = { legna: -0.35, carne: 0.1, soldi: 0.48 };
-    risultato.set(xColonna[colonna] ?? 0, (conteggio + 0.5) * ALTEZZA_PEZZO + 0.08, 0);
+  // Mostra i pezzi giusti e aggiorna il numero sopra la colonna
+  aggiornaColonna(tipo) {
+    const colonna = this.colonne[tipo];
+    const visibili = this.pezziVisibili(tipo);
+    colonna.pezzi.forEach((mesh, i) => (mesh.visible = i < visibili));
+    const numero = this.carico[tipo];
+    if (numero === colonna.numero) return;
+    colonna.numero = numero;
+    if (colonna.etichetta) {
+      this.schiena.remove(colonna.etichetta);
+      liberaEtichetta(colonna.etichetta);
+      colonna.etichetta = null;
+    }
+    if (numero <= 0) return;
+    colonna.etichetta = creaEtichetta(`x${numero}`, {
+      larghezza: 0.62,
+      altezza: 0.25,
+      icona: tipo,
+      coloreTesto: '#ffffff',
+      coloreBordo: 'rgba(0,0,0,0.75)',
+    });
+    colonna.etichetta.position.set(X_COLONNA[tipo], visibili * ALTEZZA_PEZZO + 0.3, 0);
+    this.schiena.add(colonna.etichetta);
+  }
+
+  // Punto del mondo in cima a una colonna (dove atterrano i pezzi raccolti, e da dove partono quelli scaricati)
+  cimaSchiena(risultato = new THREE.Vector3(), tipo = 'legna') {
+    risultato.set(X_COLONNA[tipo] ?? 0, (this.pezziVisibili(tipo) + 0.5) * ALTEZZA_PEZZO + 0.08, 0);
     this.modello.updateMatrixWorld();
     return this.schiena.localToWorld(risultato);
   }
@@ -150,7 +172,7 @@ export class Giocatore {
     const p = this.perni;
     p.gambaSx.rotation.x = passo * 0.7;
     p.gambaDx.rotation.x = -passo * 0.7;
-    const carica = this.pezzi.length > 0 ? 0.5 : 0;
+    const carica = this.carico.legna + this.carico.carne > 0 ? 0.5 : 0;
     this.attaccoAnim = Math.max(0, this.attaccoAnim - dt * 5);
     const swing = this.attaccoAnim > 0 ? Math.sin((1 - this.attaccoAnim) * Math.PI * 2) * 1.3 : 0;
     p.braccioSx.rotation.x = -passo * 0.5 + carica + swing * 0.3;

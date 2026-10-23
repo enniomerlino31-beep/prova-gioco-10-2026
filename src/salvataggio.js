@@ -14,7 +14,11 @@ function statoIniziale() {
     soldi: 0,                                  // soldi in tasca al giocatore
     catasta: CONFIG.segheria.legnaIniziale,    // legna nella catasta (unità)
     dispensa: 0,                               // carne nella dispensa (unità)
-    schiena: [],                               // pezzi sulla schiena del boscaiolo: [{ tipo, quantita }]
+    schiena: { legna: 0, carne: 0 },           // unità portate sulla schiena del boscaiolo (nessun limite)
+    miglioramenti: {                           // per ogni cerchio: livelli comprati e soldi già messi nel livello attuale
+      mura: { comprati: 0, pagato: 0 },
+      aiutante: { comprati: 0, pagato: 0 },
+    },
     sportelli: { legna: 0, carne: 0 },         // merce esposta negli sportelli di vendita (unità)
     soldiSportelli: { legna: 0, carne: 0 },    // soldi lasciati dai clienti accanto a ogni sportello, da raccogliere
     vendute: { legna: 0, carne: 0 },           // unità vendute in tutto (serviranno per sbloccare le basi)
@@ -38,6 +42,13 @@ export function carica() {
     }
     if (stato.soldiATerra) stato.soldiSportelli.legna += stato.soldiATerra;
     delete stato.soldiATerra;
+    // Salvataggi vecchi: la schiena era un elenco di pezzi { tipo, quantita }
+    if (Array.isArray(stato.schiena)) {
+      const schiena = { legna: 0, carne: 0 };
+      for (const pezzo of stato.schiena) if (pezzo.tipo in schiena) schiena[pezzo.tipo] += pezzo.quantita;
+      stato.schiena = schiena;
+    }
+    stato.miglioramenti = { ...statoIniziale().miglioramenti, ...stato.miglioramenti };
     return stato;
   } catch {
     return statoIniziale();

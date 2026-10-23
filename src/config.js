@@ -131,15 +131,18 @@ export const CONFIG = {
     legnaIniziale: 30,           // legna già nella catasta alla primissima partita (per provare subito a vendere)
     velocitaBoscaiolo: 6,        // velocità del boscaiolo che cammina (metri al secondo)
     dimensioneBoscaiolo: 1.6,    // grandezza del boscaiolo nella segheria
-    capacitaSchiena: 8,          // quanti pezzi (tronchi o carne) può portare sulla schiena al massimo
+    pezziVisibiliSchiena: 8,     // pezzi disegnati al massimo in ogni colonna sulla schiena (il carico NON ha limiti: sopra c'è il numero vero)
     unitaPerPezzo: 5,            // quante unità di legna (o carne) vale ogni pezzo trasportato
     intervalloRaccolta: 0.1,     // secondi tra un pezzo e l'altro quando raccoglie o scarica
+    voliPerTrasferimento: 12,    // una pila grande si sposta in circa questi voli (pezzi più "grossi"), così non serve aspettare minuti
+    velocitaAiutante: 3,         // velocità dell'aiutante che porta la legna dalla catasta allo sportello (metri al secondo)
+    caricoAiutante: 15,          // unità di legna che l'aiutante porta a ogni viaggio
     raggioRaccolta: 1.5,         // quanto vicino alla catasta (o alla pila di soldi) bisogna stare (metri)
     raggioSportello: 1.2,        // quanto vicino al punto di deposito di uno sportello bisogna stare per scaricare (metri)
     tempoCancello: 1.0,          // secondi da passare sul sentiero per partire per una nuova corsa
     raggioJoystick: 55,          // quanto si può spostare il pomello del joystick (pixel)
     pezziMassimiSportello: 24,   // pezzi che si vedono al massimo sulla rastrelliera (legna) o sul tavolo (carne) di uno sportello
-    hpMura: 120,                 // punti vita iniziali delle palafitte di legno
+    hpMura: 120,                 // punti vita delle mura di legno (con i miglioramenti diventano di più)
     dannoMura: 2.2,               // danno che un lupo fa a una muraglia ogni secondo (più rilassato)
     hpLupo: 3,                   // colpi d'ascia necessari per abbattere un lupo
     raggioAttaccoLupo: 2.4,      // distanza massima per colpire un lupo con l'ascia
@@ -150,15 +153,28 @@ export const CONFIG = {
 
   // ---------------- CLIENTI ----------------
   clienti: {
-    intervalloMinimo: 3,         // secondi minimi tra l'arrivo di un cliente e il successivo
-    intervalloMassimo: 6,        // secondi massimi tra l'arrivo di un cliente e il successivo
-    filaMassima: 4,              // quanti clienti al massimo aspettano in fila
+    intervalloMinimo: 1.2,       // secondi minimi tra l'arrivo di un cliente e il successivo
+    intervalloMassimo: 2.2,      // secondi massimi tra l'arrivo di un cliente e il successivo
+    filaPerSportello: 5,         // quanti clienti al massimo aspettano in fila davanti a ogni sportello
     velocita: 2.8,               // velocità dei clienti che camminano (metri al secondo)
     acquistoMinimo: 5,           // unità minime che compra un cliente
     acquistoMassimo: 15,         // unità massime che compra un cliente
     tempoAcquisto: 0.7,          // secondi che il cliente aspetta allo sportello prima di iniziare a comprare
     intervalloPezzi: 0.3,        // secondi tra un pezzo e l'altro che il cliente prende dal bancone
     probabilitaCarne: 0.35,      // probabilità che un cliente voglia carne invece di legna
+  },
+
+  // ---------------- MIGLIORAMENTI DELLA BASE ----------------
+  // Ogni catena ha un cerchio verde a terra. Comprato un livello, nello stesso cerchio compare il successivo.
+  miglioramenti: {
+    mura: [
+      { nome: 'Mura di pietra', prezzo: 80, icona: 'pietra', hpMura: 220 },
+      { nome: 'Mura di cemento', prezzo: 180, icona: 'cemento', hpMura: 360 },
+    ],
+    aiutante: [
+      { nome: 'Aiutante', prezzo: 120, icona: 'ascia' }, // porta da solo la legna dalla catasta allo sportello
+    ],
+    tempoPagamento: 1.5,     // secondi per pagare un livello intero stando sul cerchio (le monete volano dentro)
   },
 
   // ---------------- ECONOMIA ----------------

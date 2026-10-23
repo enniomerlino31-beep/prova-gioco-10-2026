@@ -3,8 +3,9 @@
 //  È un varco nelle mura con il bancone. Dal lato interno il boscaiolo
 //  passa sul punto di deposito e i pezzi volano dalla sua schiena alla
 //  rastrelliera (o al tavolo), uno alla volta, e restano impilati.
-//  Dal lato esterno i clienti comprano un pezzo alla volta e la pila si
-//  abbassa; i soldi finiscono nella pila di monete accanto, dentro la base.
+//  Dal lato esterno i clienti aspettano in fila lungo le mura, comprano un
+//  pezzo alla volta e la pila si abbassa; i soldi finiscono nella pila di
+//  monete accanto, dentro la base.
 // =====================================================================
 
 import * as THREE from 'three';
@@ -19,8 +20,9 @@ import { PilaSoldi } from './soldi.js';
 import { creaZonaATerra } from './catasta.js';
 
 const ZONA_Z = DEPOSITO_Z - 1.2;  // dove si mette il boscaiolo per scaricare (davanti al deposito, verso l'interno)
-const SOLDI_X = 2.3;              // la pila di monete sta accanto al deposito, dalla parte del centro della base
+const SOLDI_X = 2.5;              // la pila di monete sta accanto al deposito, dalla parte del centro della base
 const CLIENTE_Z = BANCO_FUORI + 0.7;
+const SPAZIO_FILA = 1.45;         // distanza tra un cliente e l'altro in fila (i fumetti non si toccano)
 
 export class Sportello {
   // posizione: il punto della palizzata dove si apre lo sportello
@@ -41,12 +43,13 @@ export class Sportello {
     anello.position.z = ZONA_Z;
     this.gruppo.add(anello);
 
-    // Dove si ferma il cliente, fuori dal bancone
+    // Dove si ferma il cliente che compra, fuori dal bancone; la fila si allunga lungo le mura, verso l'esterno
     this.puntoCliente = posizione.clone().add(new THREE.Vector3(0, 0, CLIENTE_Z));
+    this.versoFuori = posizione.x < 0 ? -1 : 1;
+    this.uscita = new THREE.Vector3(posizione.x + this.versoFuori * 3.5, 0, 13);
 
-    // Monete da raccogliere, dentro la base accanto al deposito
-    const verso = posizione.x < 0 ? 1 : -1;
-    this.soldi = new PilaSoldi(genitore, posizione.clone().add(new THREE.Vector3(verso * SOLDI_X, 0, DEPOSITO_Z)), soldiATerra);
+    // Monete da raccogliere, dentro la base accanto al deposito (dalla parte del centro)
+    this.soldi = new PilaSoldi(genitore, posizione.clone().add(new THREE.Vector3(-this.versoFuori * SOLDI_X, 0, DEPOSITO_Z)), soldiATerra);
 
     // Rettangoli che il boscaiolo non può attraversare: bancone (con i pali) e deposito
     this.ostacoli = [
@@ -96,6 +99,11 @@ export class Sportello {
       this.merce.add(mesh);
     }
     this.aggiornaGrafica();
+  }
+
+  // Dove aspetta il cliente al posto "posto" della fila (0 = quello al bancone)
+  posizioneFila(posto, risultato = new THREE.Vector3()) {
+    return risultato.copy(this.puntoCliente).setX(this.puntoCliente.x + this.versoFuori * posto * SPAZIO_FILA);
   }
 
   get pezzi() {
