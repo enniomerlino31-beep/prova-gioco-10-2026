@@ -111,7 +111,7 @@ export function liberaEtichetta(etichetta) {
   etichetta.material.dispose();
 }
 
-// Disegna un'iconcina ('legna', 'carne', 'moneta', 'pietra', 'cemento', 'ascia') in un quadrato di lato "lato"
+// Disegna un'iconcina ('legna', 'carne', 'moneta', 'pietra', 'metallo', 'ascia') in un quadrato di lato "lato"
 // (stessi disegni delle icone in stile.css). Niente emoji: non tutti i dispositivi le hanno.
 export function disegnaIcona(ctx, tipo, x, y, lato) {
   ctx.save();
@@ -164,9 +164,13 @@ export function disegnaIcona(ctx, tipo, x, y, lato) {
     blocco(3, 18, 12, 9, 3, '#8e97a3', '#5d6672', 1.5);
     blocco(17, 18, 12, 9, 3, '#a3acb7', '#5d6672', 1.5);
     blocco(9, 8, 14, 9, 3, '#b8c0ca', '#5d6672', 1.5);
-  } else if (tipo === 'cemento') {
-    blocco(3, 7, 26, 19, 2, '#c9ccd1', '#6b717a', 1.6);
-    tratto('M3 13.3h26M3 19.6h26M12 7v6.3M21 7v6.3M8 13.3v6.3M17 13.3v6.3M25 13.3v6.3M12 19.6V26M21 19.6V26', '#6b717a', 1.3);
+  } else if (tipo === 'metallo') {
+    // tre pali di legno tenuti insieme da due assi di ferro con i bulloni
+    for (const px of [5, 13.5, 22]) blocco(px, 3, 5.5, 26, 2, '#a0672f', '#6b4426', 1.2);
+    for (const py of [9, 19]) {
+      blocco(2, py, 28, 5, 1.2, '#3b4149', '#22262b', 1);
+      for (const px of [7.75, 16.25, 24.75]) ellisse(px, py + 2.5, 1.5, 1.5, 0, '#c9d0d8');
+    }
   } else if (tipo === 'ascia') {
     tratto('M8 29L21 6', '#8a5328', 3.6);
     pieno('M16.5 5.5L21.5 8.4Q29 8 28.4 16.6Q24.6 12.6 19.2 12.2Z', '#c9d2dc', '#6f7b88', 1.5);

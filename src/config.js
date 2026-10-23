@@ -148,6 +148,10 @@ export const CONFIG = {
     raggioAttaccoLupo: 2.4,      // distanza massima per colpire un lupo con l'ascia
     attaccoCooldown: 0.45,        // secondi tra un colpo e il successivo
     velocitaLupo: 1.2,           // velocità dei lupi intorno alla base
+    inizioLupi: 45,              // dopo quanti secondi di gioco i lupi iniziano ad avvicinarsi (poi il primo arriva dopo altrettanto)
+    intervalloLupiMinimo: 9.5,   // secondi minimi tra un lupo e il successivo
+    intervalloLupiMassimo: 15.5, // secondi massimi tra un lupo e il successivo (in tutto circa il 35% di lupi in più di prima)
+    unLupoInPiuOgni: 90,         // ogni quanti secondi può esserci un lupo in più contemporaneamente
     dannoGiocatore: 0.5,          // danno molto basso se il lupo sfiora il boscaiolo
   },
 
@@ -168,8 +172,8 @@ export const CONFIG = {
   // Ogni catena ha un cerchio verde a terra. Comprato un livello, nello stesso cerchio compare il successivo.
   miglioramenti: {
     mura: [
-      { nome: 'Mura di pietra', prezzo: 80, icona: 'pietra', hpMura: 220 },
-      { nome: 'Mura di cemento', prezzo: 180, icona: 'cemento', hpMura: 360 },
+      { nome: 'Mura di pietra', prezzo: 80, icona: 'pietra', hpMura: 220 },        // rocce appuntite alla base, verso fuori
+      { nome: 'Rinforzo in metallo', prezzo: 160, icona: 'metallo', hpMura: 360 }, // assi di ferro con i bulloni tra i pali
     ],
     aiutante: [
       { nome: 'Aiutante', prezzo: 120, icona: 'ascia' }, // porta da solo la legna dalla catasta allo sportello

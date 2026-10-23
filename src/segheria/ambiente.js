@@ -85,8 +85,10 @@ export function creaAmbiente() {
   // Ogni fila è anche un "muro" solido: un rettangolo che il boscaiolo non può attraversare.
   const palizzata = new THREE.Group();
   const pali = [];
+  const collegamenti = []; // coppie di pali vicini nella stessa fila [indiceA, indiceB] (servono per le assi di metallo)
   const muri = [];
-  const aggiungiPalo = (x, z) => {
+  // normale = da che parte è "fuori" per quel palo (serve per le rocce, che stanno solo all'esterno)
+  const aggiungiPalo = (x, z, normale) => {
     const paloMesh = new THREE.Mesh(
       new THREE.CylinderGeometry(0.17, R_PALO, 1.45, 10),
       new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL((0.07 + Math.abs(x) * 0.012 + Math.abs(z) * 0.01) % 1, 0.38, 0.41) })
@@ -97,13 +99,17 @@ export function creaAmbiente() {
     punta.position.set(0, 0.95, 0);
     punta.castShadow = true;
     paloMesh.add(punta);
+    paloMesh.userData.normale = normale;
     palizzata.add(paloMesh);
     pali.push(paloMesh);
   };
   // Pali in fila dritta da (x1, z1) a (x2, z2), con un palo a ogni estremità (le file sono sempre dritte in x o in z)
-  const filaDiPali = (x1, z1, x2, z2) => {
+  const filaDiPali = (x1, z1, x2, z2, normale) => {
     const n = Math.max(1, Math.round(Math.hypot(x2 - x1, z2 - z1) / PASSO_PALI));
-    for (let i = 0; i <= n; i++) aggiungiPalo(x1 + ((x2 - x1) * i) / n, z1 + ((z2 - z1) * i) / n);
+    for (let i = 0; i <= n; i++) {
+      if (i > 0) collegamenti.push([pali.length - 1, pali.length]);
+      aggiungiPalo(x1 + ((x2 - x1) * i) / n, z1 + ((z2 - z1) * i) / n, normale);
+    }
     muri.push({
       x: (x1 + x2) / 2,
       z: (z1 + z2) / 2,
@@ -125,12 +131,13 @@ export function creaAmbiente() {
   const M = MAPPA.mura;
   const varchiFronte = Object.values(MAPPA.sportelli).map((p) => ({ centro: p.x, mezzo: MEZZO_INGOMBRO + R_PALO }));
   const varchiSinistra = Object.values(MAPPA.cancelli).map((p) => ({ centro: p.z, mezzo: MEZZO_INGOMBRO_CANCELLO + R_PALO }));
-  for (const [a, b] of tratti(M.sinistra, M.destra, [])) filaDiPali(a, M.fondo, b, M.fondo);
-  for (const [a, b] of tratti(M.sinistra, M.destra, varchiFronte)) filaDiPali(a, M.fronte, b, M.fronte);
+  for (const [a, b] of tratti(M.sinistra, M.destra, [])) filaDiPali(a, M.fondo, b, M.fondo, { x: 0, z: -1 });
+  for (const [a, b] of tratti(M.sinistra, M.destra, varchiFronte)) filaDiPali(a, M.fronte, b, M.fronte, { x: 0, z: 1 });
   // i due lati partono un passo dopo gli angoli (i pali d'angolo ci sono già)
-  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, varchiSinistra)) filaDiPali(M.sinistra, a, M.sinistra, b);
-  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, [])) filaDiPali(M.destra, a, M.destra, b);
+  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, varchiSinistra)) filaDiPali(M.sinistra, a, M.sinistra, b, { x: -1, z: 0 });
+  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, [])) filaDiPali(M.destra, a, M.destra, b, { x: 1, z: 0 });
   palizzata.userData.pali = pali;
+  palizzata.userData.collegamenti = collegamenti;
   scena.add(palizzata);
 
   // Sentiero che esce dal cancello della corsa verso la foresta

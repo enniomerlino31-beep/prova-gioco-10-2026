@@ -23,6 +23,7 @@ import { Clienti } from './clienti.js';
 import { Cancello } from './cancello.js';
 import { CerchioMiglioramento } from './miglioramenti.js';
 import { Aiutante } from './aiutante.js';
+import { Mura } from './mura.js';
 import { creaLupo } from '../modelli/lupo.js';
 import { creaCarne } from '../modelli/carne.js';
 
@@ -30,14 +31,6 @@ const OGNI_QUANTO_SALVARE = 2; // secondi
 
 // Opzioni dei voli dentro la segheria (più brevi e piccoli di quelli della corsa)
 const VOLO_CORTO = { durata: 0.35, altezza: 1.4, scala: 0.55, sbuffo: false };
-
-// Colore dei pali per ogni materiale delle mura: 0 = legno, 1 = pietra, 2 = cemento
-// (i = numero del palo, n = quanti pali, danno = da 0 a 1)
-const COLORE_MURA = [
-  (i, n, danno) => new THREE.Color().setHSL(0.08 + (i / n) * 0.09, 0.43, 0.46 + danno * 0.12),
-  (i, n, danno) => new THREE.Color().setHSL(0.6, 0.06, 0.5 + ((i * 37) % 9) / 100 + danno * 0.1),
-  (i, n, danno) => new THREE.Color().setHSL(0.58, 0.05, 0.74 + ((i * 37) % 5) / 100 - danno * 0.1),
-];
 
 export class Segheria {
   // alPartenzaCorsa: funzione chiamata quando il boscaiolo riempie il cerchio del cancello della corsa
@@ -87,17 +80,9 @@ export class Segheria {
     this.attesaSalvataggio = OGNI_QUANTO_SALVARE;
     this.attiva = false;
     this.haCamminato = false;
-    this.mura = {
-      hp: CONFIG.segheria.hpMura,
-      maxHp: CONFIG.segheria.hpMura,
-      materiale: 0,            // 0 = legno, 1 = pietra, 2 = cemento
-      materialePrecedente: 0,
-      onda: null,              // animazione del cambio di materiale (secondi da quando è partita)
-      flash: 0,
-      pali: ambiente.palizzata?.userData?.pali ?? [],
-    };
+    this.mura = new Mura(this.radice, ambiente.palizzata, MAPPA.miglioramenti.mura);
     this.tempoGioco = 0;
-    this.prossimoLupo = 60;
+    this.prossimoLupo = CONFIG.segheria.inizioLupi;
     this.lupiBase = this.creaLupiBase();
     this.attaccoCooldown = 0;
     this.carneCadute = [];
@@ -109,9 +94,8 @@ export class Segheria {
       this.cerchi[nome] = new CerchioMiglioramento(this.radice, MAPPA.miglioramenti[nome], CONFIG.miglioramenti[nome], salvato.comprati, salvato.pagato);
     }
     // ciò che era già stato comprato funziona subito (senza animazione)
-    this.applicaMura(this.cerchi.mura.comprati, false);
+    this.mura.applicaLivello(this.cerchi.mura.comprati, false);
     this.aiutante = this.cerchi.aiutante.comprati > 0 ? this.creaAiutante(false) : null;
-    this.aggiornaMuraVisiva();
 
     document.addEventListener('keydown', (event) => {
       if (event.code === 'Space' || event.key === 'e' || event.key === 'E') this.attaccaLupi(true);
@@ -141,7 +125,7 @@ export class Segheria {
     this.ambiente.segui(this.giocatore.posizione, 0);
     this.joystick.attivo = true;
     this.schermate.mostraSegheria(!this.haCamminato);
-    this.schermate.aggiornaMura(this.mura.hp / this.mura.maxHp);
+    this.schermate.aggiornaMura(this.mura.ratio);
     // Mostra cosa è arrivato dalla corsa
     if (this.ultimoBottino) {
       const { legna, carne } = this.ultimoBottino;
@@ -233,13 +217,14 @@ export class Segheria {
   }
 
   aggiornaLupi(dt) {
-    if (this.tempoGioco >= 60) {
-      const maxAttivi = Math.min(this.lupiBase.length, 1 + Math.floor((this.tempoGioco - 60) / 120));
+    const cfg = CONFIG.segheria;
+    if (this.tempoGioco >= cfg.inizioLupi) {
+      const maxAttivi = Math.min(this.lupiBase.length, 1 + Math.floor((this.tempoGioco - cfg.inizioLupi) / cfg.unLupoInPiuOgni));
       const attivi = this.lupiBase.filter((lupo) => lupo.vivo).length;
       this.prossimoLupo -= dt;
       if (this.prossimoLupo <= 0 && attivi < maxAttivi) {
         this.svegliaLupoCasuale();
-        this.prossimoLupo = 12 + Math.random() * 8;
+        this.prossimoLupo = cfg.intervalloLupiMinimo + Math.random() * (cfg.intervalloLupiMassimo - cfg.intervalloLupiMinimo);
       }
     }
 
@@ -266,8 +251,7 @@ export class Segheria {
       if (daMura < 1.1) lupo.obiettivo = this.bersaglioVicino(lupo); // passa a un palo lì vicino
 
       if (daMura < 1.7) {
-        this.mura.hp = Math.max(0, this.mura.hp - CONFIG.segheria.dannoMura * dt);
-        this.mura.flash = Math.min(0.52, this.mura.flash + 0.45);
+        this.mura.danneggia(CONFIG.segheria.dannoMura * dt);
       }
 
       if (distanza < 1.4) {
@@ -316,41 +300,6 @@ export class Segheria {
     }
   }
 
-  // ---------------- MURA ----------------
-
-  // Le mura passano al materiale "livello" (0 legno, 1 pietra, 2 cemento): più vita e tutte riparate
-  applicaMura(livello, conAnimazione) {
-    const livelli = CONFIG.miglioramenti.mura;
-    this.mura.maxHp = livello > 0 ? livelli[livello - 1].hpMura : CONFIG.segheria.hpMura;
-    this.mura.hp = this.mura.maxHp;
-    this.mura.materialePrecedente = conAnimazione ? this.mura.materiale : livello;
-    this.mura.materiale = livello;
-    this.mura.onda = conAnimazione ? 0 : null;
-  }
-
-  aggiornaMuraVisiva() {
-    const ratio = this.mura.hp / this.mura.maxHp;
-    const flash = Math.max(0, this.mura.flash);
-    const n = this.mura.pali.length;
-    for (let i = 0; i < n; i++) {
-      const palo = this.mura.pali[i];
-      // onda del cambio di materiale: ogni palo fa un saltello e cambia colore, uno dopo l'altro
-      let salto = 0;
-      let materiale = this.mura.materiale;
-      if (this.mura.onda !== null) {
-        const k = (this.mura.onda - (i / n) * 0.9) / 0.3;
-        if (k < 0.5) materiale = this.mura.materialePrecedente;
-        if (k > 0 && k < 1) salto = Math.sin(k * Math.PI) * 0.45;
-      }
-      const baseCol = COLORE_MURA[materiale](i, n, 1 - ratio);
-      if (flash > 0.02) palo.material.color.lerpColors(baseCol, new THREE.Color(0xd63f33), 0.85);
-      else palo.material.color.copy(baseCol);
-      const stress = 1 - ratio;
-      palo.scale.y = (stress > 0.15 && i % 2 === 0 ? 0.85 + ratio * 0.4 : 1) + salto;
-    }
-    this.schermate.aggiornaMura(ratio);
-  }
-
   // ---------------- MIGLIORAMENTI ----------------
 
   // Il boscaiolo sta sul cerchio: le monete volano dentro un po' alla volta
@@ -376,7 +325,7 @@ export class Segheria {
     const { x, z } = cerchio.posizione;
     this.effetti.testo(x, 2.2, z, `${livello.nome}!`, 'buono');
     this.effetti.sbuffo(x, 0.4, z, 0x9be37a, 24, 3.5);
-    if (nome === 'mura') this.applicaMura(cerchio.comprati, true);
+    if (nome === 'mura') this.mura.applicaLivello(cerchio.comprati, true);
     if (nome === 'aiutante' && !this.aiutante) this.aiutante = this.creaAiutante(true);
     this.salvaOra();
   }
@@ -401,14 +350,10 @@ export class Segheria {
     const pos = this.giocatore.posizione;
     this.attaccoCooldown = Math.max(0, this.attaccoCooldown - dt);
     this.tempoGioco += dt;
-    this.mura.flash = Math.max(0, this.mura.flash - dt * 3);
-    if (this.mura.onda !== null) {
-      this.mura.onda += dt;
-      if (this.mura.onda > 1.3) this.mura.onda = null;
-    }
 
     this.aggiornaLupi(dt);
-    this.aggiornaMuraVisiva();
+    this.mura.aggiorna(dt);
+    this.schermate.aggiornaMura(this.mura.ratio);
 
     // carne lasciata dai lupi (fuori dalle mura): si raccoglie passandoci sopra
     for (const drop of this.carneCadute) {
