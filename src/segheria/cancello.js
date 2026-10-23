@@ -20,23 +20,33 @@ export class Cancello {
     this.gruppo.position.copy(posizione);
     genitore.add(this.gruppo);
 
-    // Arco: due pali, una trave e il cartello
-    const scatola = new THREE.BoxGeometry(1, 1, 1);
+    // Varco chiuso con due grossi pali e due ante di legno rettilinee, allineate alla palizzata.
     const legno = tinta(0x7a461c);
-    for (const z of [-1.4, 1.4]) {
-      const palo = new THREE.Mesh(scatola, legno);
-      palo.scale.set(0.22, 3, 0.22);
-      palo.position.set(-1.2, 1.5, z);
-      palo.castShadow = true;
-      this.gruppo.add(palo);
-    }
-    const trave = new THREE.Mesh(scatola, legno);
-    trave.scale.set(0.3, 0.3, 3.4);
-    trave.position.set(-1.2, 3, 0);
+    const paloL = new THREE.Mesh(new THREE.BoxGeometry(0.45, 2.7, 0.45), legno);
+    const paloR = paloL.clone();
+    paloL.position.set(-1.9, 1.35, -1.2);
+    paloR.position.set(-1.9, 1.35, 1.2);
+    paloL.castShadow = true;
+    paloR.castShadow = true;
+    this.gruppo.add(paloL, paloR);
+
+    const anta1 = new THREE.Mesh(new THREE.BoxGeometry(0.24, 2.1, 2.1), legno);
+    const anta2 = anta1.clone();
+    anta1.position.set(-1.9, 1.05, 0.0);
+    anta1.rotation.y = Math.PI / 2;
+    anta2.position.set(-1.9, 1.05, 0.0);
+    anta2.rotation.y = -Math.PI / 2;
+    anta1.castShadow = true;
+    anta2.castShadow = true;
+    this.gruppo.add(anta1, anta2);
+
+    const trave = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.24, 2.2), legno);
+    trave.position.set(-1.9, 2.35, 0);
     trave.castShadow = true;
     this.gruppo.add(trave);
+
     const cartello = creaScritta('CORSA!', { larghezza: 2.4, altezza: 0.8, sfondo: '#2f6fd6', coloreTesto: '#ffffff' });
-    cartello.position.set(-1.0, 3.25, 0);
+    cartello.position.set(-1.9, 2.9, 0);
     cartello.rotation.set(-0.5, 0, 0);
     this.gruppo.add(cartello);
 
@@ -51,11 +61,10 @@ export class Cancello {
     this.riempimento.scale.setScalar(0.001);
     this.gruppo.add(this.riempimento);
 
-    // Freccia sul sentiero che indica la direzione
     const freccia = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.8, 3), tinta(0x7fc1ff));
-    freccia.rotation.z = Math.PI / 2; // la punta guarda verso la foresta (sinistra)
-    freccia.position.set(-2.4, 0.15, 0);
-    freccia.scale.set(1, 1, 0.25);    // schiacciata, come una freccia dipinta
+    freccia.rotation.z = Math.PI / 2;
+    freccia.position.set(-2.9, 0.15, 0);
+    freccia.scale.set(1, 1, 0.25);
     this.gruppo.add(freccia);
   }
 

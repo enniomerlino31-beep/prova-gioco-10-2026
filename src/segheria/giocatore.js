@@ -26,6 +26,7 @@ export class Giocatore {
     this.angolo = 0;        // verso dove guarda (0 = verso il fondo della radura)
     this.fase = 0;          // per l'animazione del passo
     this.velocitaAttuale = 0;
+    this.attaccoAnim = 0;
 
     // La pila sulla schiena: un gruppo attaccato al boscaiolo, dietro le spalle
     this.schiena = new THREE.Group();
@@ -51,16 +52,23 @@ export class Giocatore {
   // Mette un pezzo in cima alla pila
   aggiungi(tipo, quantita) {
     let mesh;
+    const xColonna = { legna: -0.35, carne: 0.1, soldi: 0.48 };
+    const yBase = this.pezzi.filter((p) => p.tipo === tipo).length * ALTEZZA_PEZZO + 0.06;
     if (tipo === 'carne') {
       mesh = creaCarne();
       mesh.scale.setScalar(0.75);
+    } else if (tipo === 'soldi') {
+      mesh = new THREE.Mesh(geometriaTronco, materialiTronco);
+      mesh.rotation.z = Math.PI / 2;
+      mesh.scale.set(0.52, 0.25, 0.52);
+      mesh.castShadow = true;
     } else {
       mesh = new THREE.Mesh(geometriaTronco, materialiTronco);
       mesh.rotation.z = Math.PI / 2; // tronco di traverso sulla schiena
       mesh.scale.set(0.7, 0.32, 0.7);
       mesh.castShadow = true;
     }
-    mesh.position.set(0, this.pezzi.length * ALTEZZA_PEZZO + 0.1, 0);
+    mesh.position.set(xColonna[tipo] ?? 0, yBase, 0);
     mesh.rotation.y = (Math.random() - 0.5) * 0.2;
     this.schiena.add(mesh);
     this.pezzi.push({ tipo, quantita, mesh });
@@ -76,8 +84,11 @@ export class Giocatore {
   }
 
   // Punto del mondo in cima alla pila (dove atterrano i pezzi raccolti)
-  cimaSchiena(risultato = new THREE.Vector3()) {
-    risultato.set(0, (this.pezzi.length + 0.5) * ALTEZZA_PEZZO + 0.1, 0);
+  cimaSchiena(risultato = new THREE.Vector3(), tipo = null) {
+    const colonna = tipo ?? this.pezzi[this.pezzi.length - 1]?.tipo ?? 'legna';
+    const conteggio = this.pezzi.filter((p) => p.tipo === colonna).length;
+    const xColonna = { legna: -0.35, carne: 0.1, soldi: 0.48 };
+    risultato.set(xColonna[colonna] ?? 0, (conteggio + 0.5) * ALTEZZA_PEZZO + 0.08, 0);
     this.modello.updateMatrixWorld();
     return this.schiena.localToWorld(risultato);
   }
@@ -135,12 +146,19 @@ export class Giocatore {
     p.gambaSx.rotation.x = passo * 0.7;
     p.gambaDx.rotation.x = -passo * 0.7;
     const carica = this.pezzi.length > 0 ? 0.5 : 0;
-    p.braccioSx.rotation.x = -passo * 0.5 + carica;
-    p.braccioDx.rotation.x = passo * 0.5 + carica;
+    this.attaccoAnim = Math.max(0, this.attaccoAnim - dt * 5);
+    const swing = this.attaccoAnim > 0 ? Math.sin((1 - this.attaccoAnim) * Math.PI * 2) * 1.3 : 0;
+    p.braccioSx.rotation.x = -passo * 0.5 + carica + swing * 0.3;
+    p.braccioDx.rotation.x = passo * 0.5 + carica - swing * 1.2;
+    p.braccioDx.rotation.z = -0.6 + swing * 0.4;
     this.modello.position.y = Math.abs(passo) * 0.05;
     // la pila ondeggia un po' mentre cammina
     this.schiena.rotation.x = -Math.abs(passo) * 0.06 * forza;
     this.schiena.rotation.z = Math.sin(this.fase * 0.5) * 0.04 * forza;
+  }
+
+  colpisciAscia() {
+    this.attaccoAnim = 1;
   }
 
   // Mette a posto il boscaiolo (es. quando torna da una corsa)

@@ -42,6 +42,8 @@ export class Schermate {
     $('schermata-inizio').classList.add('nascosto');
     $('schermata-fine').classList.add('nascosto');
     $('hud-segheria').classList.add('nascosto');
+    $('miglioramenti-terra').classList.add('nascosto');
+    $('barra-mura').classList.add('nascosto');
     $('suggerimento-segheria').classList.add('nascosto');
     $('hud').classList.remove('nascosto');
     $('contatore-squadra').classList.remove('nascosto');
@@ -54,10 +56,66 @@ export class Schermate {
     $('hud').classList.add('nascosto');
     $('contatore-squadra').classList.add('nascosto');
     $('hud-segheria').classList.remove('nascosto');
+    $('miglioramenti-terra').classList.remove('nascosto');
+    $('barra-mura').classList.remove('nascosto');
     const suggerimento = $('suggerimento-segheria');
     suggerimento.classList.toggle('nascosto', !conSuggerimento);
     suggerimento.style.opacity = '1';
     this.pulisciTesti();
+  }
+
+  aggiornaMura(ratio) {
+    const barra = $('barra-mura');
+    const valore = $('barra-mura__valore');
+    if (!barra || !valore) return;
+    const ok = Math.max(0, Math.min(1, ratio));
+    valore.style.width = `${Math.round(ok * 100)}%`;
+    barra.classList.toggle('barra-mura--critica', ok < 0.35);
+  }
+
+  setMiglioramenti(miglioramenti) {
+    const contenitore = $('miglioramenti-terra');
+    if (!contenitore) return;
+    contenitore.innerHTML = '';
+    for (const upgrade of miglioramenti) {
+      const node = document.createElement('div');
+      node.className = 'upgrade-ring';
+      node.dataset.id = upgrade.id;
+      const kit = upgrade.iconeClass || 'stone';
+      node.innerHTML = `<span class="upgrade-ring__content"><span class="upgrade-ring__icon upgrade-ring__icon--${kit}"></span><span class="upgrade-ring__prezzo">${upgrade.prezzo}</span></span>`;
+      if (upgrade.bloccato) node.classList.add('upgrade-ring--bloccato');
+      node.style.left = '0px';
+      node.style.top = '0px';
+      contenitore.appendChild(node);
+    }
+  }
+
+  aggiornaMiglioramenti(miglioramenti, giocatore) {
+    const contenitore = $('miglioramenti-terra');
+    if (!contenitore) return;
+    for (const upgrade of miglioramenti) {
+      const node = contenitore.querySelector(`[data-id="${upgrade.id}"]`);
+      if (!node) continue;
+      const punto = new THREE.Vector3(upgrade.posizione.x, 0.05, upgrade.posizione.z);
+      const schermo = this.proietta(punto);
+      node.style.left = `${schermo.x}px`;
+      node.style.top = `${schermo.y}px`;
+      const dist = Math.hypot(giocatore.x - upgrade.posizione.x, giocatore.z - upgrade.posizione.z);
+      node.style.opacity = dist < 3.5 ? '1' : '0.6';
+      node.style.display = upgrade.visible ? 'flex' : 'none';
+      const progresso = Number(upgrade.progress ?? 0);
+      node.style.setProperty('--progress', String(Math.max(0, Math.min(1, progresso))));
+    }
+  }
+
+  preparaAnteprimaBase() {
+    const anteprima = $('base-preview');
+    if (!anteprima || anteprima.dataset.caricata === 'true') return;
+    const livelli = ['1', '2', '3'];
+    const livello = livelli[Math.min(0, livelli.length - 1)];
+    const url = `/base/base-livello-${livello}.webp`;
+    anteprima.dataset.caricata = 'true';
+    anteprima.src = url;
   }
 
   // Il suggerimento in basso svanisce quando il giocatore inizia a camminare
@@ -84,17 +142,17 @@ export class Schermate {
       $('fine-messaggio').textContent =
         risultato.moltiplicatore >= 5 ? 'Che scalata! Il bottino si moltiplica.' : 'Buona corsa! Con più boscaioli si sale più in alto.';
       dati.innerHTML =
-        riga('🪓 Boscaioli arrivati', risultato.boscaioliArrivati) +
-        riga('<i class="tronco"></i> Legna sul carro', risultato.legna) +
-        riga('🍖 Carne sul carro', risultato.carne) +
-        riga('⛰️ Gradino raggiunto', `x${risultato.moltiplicatore}`) +
+        riga('<span class="hud-icon hud-icon--axe hud-icon--mini"></span> Boscaioli arrivati', risultato.boscaioliArrivati) +
+        riga('<span class="hud-icon hud-icon--log hud-icon--mini"></span> Legna sul carro', risultato.legna) +
+        riga('<span class="hud-icon hud-icon--meat hud-icon--mini"></span> Carne sul carro', risultato.carne) +
+        riga('<span class="hud-icon hud-icon--mountain hud-icon--mini"></span> Gradino raggiunto', `x${risultato.moltiplicatore}`) +
         riga('Bottino totale', `${risultato.legnaFinale} legna · ${risultato.carneFinale} carne`, 'totale');
     } else {
       $('fine-titolo').textContent = 'Squadra sconfitta!';
       $('fine-messaggio').textContent =
         'Tutti i boscaioli sono caduti: il carico è andato perso. Scegli porte migliori ed evita rocce e lupi! Torna alla segheria e riprova.';
       dati.innerHTML =
-        riga('<i class="tronco"></i> Legna persa', risultato.legnaPersa) + riga('🍖 Carne persa', risultato.carnePersa);
+        riga('<span class="hud-icon hud-icon--log hud-icon--mini"></span> Legna persa', risultato.legnaPersa) + riga('<span class="hud-icon hud-icon--meat hud-icon--mini"></span> Carne persa', risultato.carnePersa);
     }
     $('schermata-fine').classList.remove('nascosto');
   }

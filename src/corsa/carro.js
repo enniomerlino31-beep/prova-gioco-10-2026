@@ -126,7 +126,8 @@ export class Carro {
     this.rimbalzo = Math.max(0, this.rimbalzo - dt * 4);
     const schiacciamento = Math.sin((1 - this.rimbalzo) * Math.PI * 2) * this.rimbalzo * 0.14;
 
-    this.gruppo.position.set(this.x, this.y, -this.distanza);
+    // Il carro resta sempre leggibile davanti alla folla: si porta leggermente più in primo piano
+    this.gruppo.position.set(this.x, this.y + 0.2, -(this.distanza - 1.4));
     this.gruppo.scale.set(s * (1 + schiacciamento * 0.5), s * (1 - schiacciamento), s * (1 + schiacciamento * 0.5));
     // Il carro si gira un po' quando sterza
     this.gruppo.rotation.y = -ritardo * 0.08;

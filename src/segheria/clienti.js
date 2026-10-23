@@ -41,13 +41,17 @@ export class Clienti {
 
     // --- Ogni cliente va al suo posto nella fila ---
     inFila.forEach((cliente, posto) => {
-      cliente.obiettivo.copy(MAPPA.filaClienti(posto));
+      if (posto === 0) {
+        const stallo = cliente.vuole === 'carne' ? MAPPA.vendiCarne.clone().add(new THREE.Vector3(0, 0, 1.1)) : MAPPA.vendiLegna.clone().add(new THREE.Vector3(0, 0, 1.1));
+        cliente.obiettivo.copy(stallo);
+      } else {
+        cliente.obiettivo.copy(MAPPA.filaClienti(posto));
+      }
       const arrivato = this.cammina(cliente, dt);
       cliente.fumetto.visible = posto === 0 && arrivato;
-      // il fumetto guarda sempre verso la telecamera, comunque sia girato il cliente
       cliente.fumetto.rotation.set(-0.6, -cliente.modello.rotation.y, 0);
       if (posto === 0 && arrivato) {
-        cliente.modello.rotation.y = Math.PI; // si gira verso il tavolino
+        cliente.modello.rotation.y = Math.PI * 0.2;
         cliente.attesa += dt;
         if (cliente.attesa > cfg.tempoAcquisto) this.provaAComprare(cliente);
       } else {
@@ -81,7 +85,9 @@ export class Clienti {
       quantita: cfg.acquistoMinimo + Math.floor(Math.random() * (cfg.acquistoMassimo - cfg.acquistoMinimo + 1)),
       attesa: 0,
       fase: Math.random() * 6,
+      stallo: null,
     };
+    cliente.stallo = cliente.vuole === 'carne' ? MAPPA.vendiCarne.clone() : MAPPA.vendiLegna.clone();
     this.creaFumetto(cliente);
     this.lista.push(cliente);
   }
@@ -93,7 +99,8 @@ export class Clienti {
       cliente.fumetto.material.map.dispose();
       cliente.fumetto.material.dispose();
     }
-    cliente.fumetto = creaScritta(`${cliente.quantita} ${cliente.vuole}`, {
+    const icona = cliente.vuole === 'carne' ? '🍖' : '🪵';
+    cliente.fumetto = creaScritta(`${icona} ${cliente.quantita}`, {
       larghezza: 1.1,
       altezza: 0.38,
       sfondo: '#ffffff',

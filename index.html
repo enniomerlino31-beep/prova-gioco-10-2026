@@ -22,11 +22,11 @@
   <!-- Barra in alto durante la corsa -->
   <div id="hud" class="nascosto">
     <div class="hud-riga">
-      <div class="pillola"><span class="icona">🪓</span><span id="hud-boscaioli">8</span></div>
+      <div class="pillola"><span class="hud-icon hud-icon--axe"></span><span id="hud-boscaioli">8</span></div>
       <!-- In alto a destra: legna e carne raccolte -->
       <div class="hud-risorse">
-        <div class="pillola" id="pillola-legna"><i class="tronco"></i><span id="hud-legna">0</span></div>
-        <div class="pillola" id="pillola-carne"><span class="icona">🍖</span><span id="hud-carne">0</span></div>
+        <div class="pillola" id="pillola-legna"><span class="hud-icon hud-icon--log"></span><span id="hud-legna">0</span></div>
+        <div class="pillola" id="pillola-carne"><span class="hud-icon hud-icon--meat"></span><span id="hud-carne">0</span></div>
       </div>
     </div>
     <div class="barra-progresso"><div id="hud-progresso"></div></div>
@@ -35,13 +35,21 @@
   <!-- Barra in alto nella segheria: soldi, legna in catasta, carne in dispensa -->
   <div id="hud-segheria" class="nascosto">
     <div class="hud-riga">
-      <div class="pillola pillola-soldi" id="pillola-sg-soldi"><span class="icona">💵</span><span id="hud-sg-soldi">0</span></div>
+      <div class="pillola pillola-soldi" id="pillola-sg-soldi"><span class="hud-icon hud-icon--coin"></span><span id="hud-sg-soldi">0</span></div>
       <div class="hud-risorse">
-        <div class="pillola" id="pillola-sg-legna"><i class="tronco"></i><span id="hud-sg-legna">0</span></div>
-        <div class="pillola" id="pillola-sg-carne"><span class="icona">🍖</span><span id="hud-sg-carne">0</span></div>
+        <div class="pillola" id="pillola-sg-legna"><span class="hud-icon hud-icon--log"></span><span id="hud-sg-legna">0</span></div>
+        <div class="pillola" id="pillola-sg-carne"><span class="hud-icon hud-icon--meat"></span><span id="hud-sg-carne">0</span></div>
       </div>
     </div>
   </div>
+
+  <div id="barra-mura" class="barra-mura nascosto">
+    <span class="barra-mura__label">Mura</span>
+    <div class="barra-mura__sfondo"><div id="barra-mura__valore" class="barra-mura__valore"></div></div>
+  </div>
+
+  <div id="miglioramenti-terra" aria-live="polite"></div>
+
   <p id="suggerimento-segheria" class="suggerimento-basso nascosto">
     Tocca e trascina per camminare<br />Raccogli la legna, portala al tavolino e incassa i soldi!<br />Il sentiero a sinistra porta a una nuova corsa
   </p>

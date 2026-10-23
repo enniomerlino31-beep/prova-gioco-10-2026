@@ -105,8 +105,8 @@ export const CONFIG = {
 
   // ---------------- GENERAZIONE DEL LIVELLO ----------------
   livello: {
-    distanzaMinimaSezioni: 30, // distanza minima tra un gruppo di oggetti e il successivo (metri): tempo per reagire
-    distanzaMassimaSezioni: 40,// distanza massima tra un gruppo di oggetti e il successivo (metri)
+    distanzaMinimaSezioni: 22, // distanza minima tra un gruppo di oggetti e il successivo (metri): tempo per reagire
+    distanzaMassimaSezioni: 30,// distanza massima tra un gruppo di oggetti e il successivo (metri)
     pesoAlberi: 4,           // quanto spesso escono file di alberi (più alto = più spesso)
     pesoRocce: 3,            // quanto spesso escono rocce
     pesoLupi: 3,             // quanto spesso escono branchi di lupi
@@ -139,6 +139,13 @@ export const CONFIG = {
     tempoCancello: 1.0,          // secondi da passare sul sentiero per partire per una nuova corsa
     raggioJoystick: 55,          // quanto si può spostare il pomello del joystick (pixel)
     pezziMassimiTavolino: 12,    // pezzi di legna (e di carne) che si vedono al massimo sul tavolino
+    hpMura: 120,                 // punti vita iniziali delle palafitte di legno
+    dannoMura: 2.2,               // danno che un lupo fa a una muraglia ogni secondo (più rilassato)
+    hpLupo: 3,                   // colpi d'ascia necessari per abbattere un lupo
+    raggioAttaccoLupo: 2.4,      // distanza massima per colpire un lupo con l'ascia
+    attaccoCooldown: 0.45,        // secondi tra un colpo e il successivo
+    velocitaLupo: 1.2,           // velocità dei lupi intorno alla base
+    dannoGiocatore: 0.5,          // danno molto basso se il lupo sfiora il boscaiolo
   },
 
   // ---------------- CLIENTI ----------------

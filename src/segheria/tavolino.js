@@ -23,9 +23,12 @@ export class Tavolino {
     this.gruppo.position.copy(posizione);
     genitore.add(this.gruppo);
     this.modello = creaTavolino();
+    this.modello.visible = false;
     this.gruppo.add(this.modello);
     const zona = creaZonaATerra(CONFIG.segheria.raggioTavolino, 0xffe08a);
+    zona.visible = false;
     this.gruppo.add(zona);
+    this.gruppo.visible = false;
 
     const massimo = CONFIG.segheria.pezziMassimiTavolino;
     const m4 = new THREE.Matrix4();
