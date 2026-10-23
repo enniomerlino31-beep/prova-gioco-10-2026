@@ -13,7 +13,7 @@ import { creaCarne } from '../modelli/carne.js';
 import { MAPPA } from './ambiente.js';
 
 const ALTEZZA_PEZZO = 0.2;     // spazio occupato da ogni pezzo nella pila (misura del modello)
-const RAGGIO_BOSCAIOLO = 0.35; // ingombro per non attraversare il tavolino
+const RAGGIO_BOSCAIOLO = 0.35; // ingombro per non attraversare banconi e depositi degli sportelli
 
 export class Giocatore {
   constructor(genitore) {
@@ -34,6 +34,7 @@ export class Giocatore {
     this.modello.add(this.schiena);
     this.pezzi = [];        // [{ tipo, quantita, mesh }]
     this.inArrivo = 0;      // pezzi in volo verso la schiena (già "prenotati")
+    this.ostacoli = [];     // rettangoli { x, z, mezzaX, mezzaZ } che il boscaiolo non può attraversare
   }
 
   get capacita() {
@@ -74,11 +75,16 @@ export class Giocatore {
     this.pezzi.push({ tipo, quantita, mesh });
   }
 
-  // Toglie il pezzo in cima alla pila (se c'è) e lo restituisce
+  // Ha almeno un pezzo di questo tipo sulla schiena?
+  ha(tipo) {
+    return this.pezzi.some((p) => p.tipo === tipo);
+  }
+
+  // Toglie il pezzo in cima alla pila (o in cima alla colonna di quel tipo) e lo restituisce
   togliUltimo(tipoRichiesto = null) {
-    const ultimo = this.pezzi[this.pezzi.length - 1];
-    if (!ultimo || (tipoRichiesto && ultimo.tipo !== tipoRichiesto)) return null;
-    this.pezzi.pop();
+    const indice = tipoRichiesto ? this.pezzi.findLastIndex((p) => p.tipo === tipoRichiesto) : this.pezzi.length - 1;
+    if (indice < 0) return null;
+    const [ultimo] = this.pezzi.splice(indice, 1);
     this.schiena.remove(ultimo.mesh);
     return ultimo;
   }
@@ -112,22 +118,21 @@ export class Giocatore {
     }
     this.velocitaAttuale = forza * cfg.velocitaBoscaiolo;
 
-    // Resta dentro la radura e non attraversa il tavolino
+    // Resta dentro la radura e non attraversa banconi e depositi
     const L = MAPPA.limiti;
     this.posizione.x = THREE.MathUtils.clamp(this.posizione.x, L.xMin, L.xMax);
     this.posizione.z = THREE.MathUtils.clamp(this.posizione.z, L.zMin, L.zMax);
-    this.spingiFuoriDalTavolino();
+    for (const ostacolo of this.ostacoli) this.spingiFuoriDa(ostacolo);
 
     this.modello.position.copy(this.posizione);
     this.modello.rotation.y = this.angolo;
     this.anima(dt, forza);
   }
 
-  // Il tavolino è un rettangolo: se il boscaiolo ci entra, viene spinto fuori dal lato più vicino
-  spingiFuoriDalTavolino() {
-    const t = MAPPA.tavolino;
-    const mezzaX = 1.0 + RAGGIO_BOSCAIOLO;
-    const mezzaZ = 0.5 + RAGGIO_BOSCAIOLO;
+  // Ogni ostacolo è un rettangolo: se il boscaiolo ci entra, viene spinto fuori dal lato più vicino
+  spingiFuoriDa(t) {
+    const mezzaX = t.mezzaX + RAGGIO_BOSCAIOLO;
+    const mezzaZ = t.mezzaZ + RAGGIO_BOSCAIOLO;
     const dx = this.posizione.x - t.x;
     const dz = this.posizione.z - t.z;
     if (Math.abs(dx) < mezzaX && Math.abs(dz) < mezzaZ) {

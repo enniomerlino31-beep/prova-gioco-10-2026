@@ -2,7 +2,7 @@
 //  AMBIENTE DELLA SEGHERIA
 //  La radura innevata in alta montagna: terreno, abeti tutt'intorno,
 //  montagne sullo sfondo, la casa-segheria, luci, neve e telecamera.
-//  Qui c'è anche la "mappa": dove stanno tavolino, catasta, soldi, cancello...
+//  Qui c'è anche la "mappa": dove stanno mura, sportelli, catasta, cancello...
 //  Vista dall'alto e un po' da dietro, come nei giochi "idle arcade".
 // =====================================================================
 
@@ -10,26 +10,32 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { creaAbetiIstanziati } from '../modelli/albero.js';
 import { creaSegheria } from '../modelli/segheria.js';
-import { tinta, matrice, creaScritta } from '../modelli/materiali.js';
+import { tinta, matrice } from '../modelli/materiali.js';
+import { MEZZO_INGOMBRO } from '../modelli/sportello.js';
 import { creaNeve } from '../motore/scena.js';
+import { MEZZO_INGOMBRO_CANCELLO } from './cancello.js';
 
 const COLORE_CIELO = 0xbfe3f7;
+const R_PALO = 0.24;     // raggio alla base di ogni palo della palizzata
+const PASSO_PALI = 0.55; // distanza tra un palo e l'altro
 
 // Dove si trova ogni cosa nella segheria (x = destra/sinistra, z = avanti/indietro; z negativo = lontano)
 export const MAPPA = {
   limiti: { xMin: -14, xMax: 14, zMin: -10, zMax: 12 }, // dove può camminare il boscaiolo
+  mura: { sinistra: -9.2, destra: 9.2, fondo: -6.1, fronte: 6.0 }, // le quattro file della palizzata
   partenza: new THREE.Vector3(0, 0, 3),                  // dove compare il boscaiolo
-  tavolino: new THREE.Vector3(0, 0, 5.4),                // tavolo di vendita nascosto: l'azione avviene sugli sportelli delle mura
-  soldi: new THREE.Vector3(2.5, 0, -0.35),               // la pila di soldi, davanti al tavolino
   catasta: new THREE.Vector3(-2.8, 0, -2.4),
   dispensa: new THREE.Vector3(-2.8, 0, 0.9),             // la cassa della carne
-  cancello: new THREE.Vector3(-8.8, 0, 4),               // il sentiero per partire per una nuova corsa
-  vendiLegna: new THREE.Vector3(-6.7, 0, 4.0),
-  vendiCarne: new THREE.Vector3(6.7, 0, 4.0),
-  // I clienti arrivano dal basso a destra, passano davanti agli sportelli e se ne vanno a sinistra in basso
-  ingressoClienti: new THREE.Vector3(11, 0, 10),
-  filaClienti: (posto) => new THREE.Vector3(8.5 - posto * 2.1, 0, 9.4),
-  uscitaClienti: new THREE.Vector3(-11, 0, 12),
+  cancello: new THREE.Vector3(-9.2, 0, 1),               // il varco nella palizzata di sinistra per partire per una nuova corsa
+  // Gli sportelli di vendita sono varchi nella palizzata davanti (in basso nello schermo)
+  sportelli: {
+    legna: new THREE.Vector3(-5.5, 0, 6.0),
+    carne: new THREE.Vector3(5.5, 0, 6.0),
+  },
+  // I clienti arrivano da destra, fuori dalle mura, aspettano in fila e se ne vanno a sinistra
+  ingressoClienti: new THREE.Vector3(13, 0, 9.6),
+  filaClienti: (posto) => new THREE.Vector3(9.5 - posto * 2, 0, 9.6),
+  uscitaClienti: new THREE.Vector3(-13, 0, 9.6),
   casa: new THREE.Vector3(-1, 0, -10),
 };
 
@@ -63,16 +69,17 @@ export function creaAmbiente() {
   radura.receiveShadow = true;
   scena.add(radura);
 
-  // Palizzata continua attorno a tutta la base: nessun buco, tranne i due cancelli del sentiero.
+  // --- Palizzata continua attorno a tutta la base ---
+  // Si interrompe solo dove ci sono gli sportelli di vendita e il cancello della corsa:
+  // ogni fila di pali arriva fino ai pali grossi del varco e riprende subito dopo.
   const palizzata = new THREE.Group();
   const pali = [];
-  const aggiungiPalo = (x, z, rot = 0) => {
+  const aggiungiPalo = (x, z) => {
     const paloMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.17, 0.24, 1.45, 10),
+      new THREE.CylinderGeometry(0.17, R_PALO, 1.45, 10),
       new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL((0.07 + Math.abs(x) * 0.012 + Math.abs(z) * 0.01) % 1, 0.38, 0.41) })
     );
     paloMesh.position.set(x, 0.72, z);
-    paloMesh.rotation.z = rot;
     paloMesh.castShadow = true;
     const punta = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.5, 8), new THREE.MeshStandardMaterial({ color: 0xf3f8ff }));
     punta.position.set(0, 0.95, 0);
@@ -80,57 +87,38 @@ export function creaAmbiente() {
     paloMesh.add(punta);
     palizzata.add(paloMesh);
     pali.push(paloMesh);
-    return paloMesh;
   };
-
-  const half = 9.1;
-  for (let i = 0; i < 34; i++) {
-    const x = -half + i * ((half * 2) / 33);
-    aggiungiPalo(x, -6.1, 0.04);
-    aggiungiPalo(x, 6.0, -0.04);
-  }
-  for (let i = 0; i < 33; i++) {
-    const z = -5.8 + i * (11.6 / 32);
-    aggiungiPalo(-9.2, z, 0.06);
-    aggiungiPalo(9.2, z, -0.06);
-  }
-  // Rimane un piccolo varco laterale cittato con il cancello di entrata/uscita.
-  for (let i = 0; i < 12; i++) {
-    const z = -5.8 + i * (11.6 / 11);
-    if (z >= 2.9 && z <= 5.1) continue;
-    aggiungiPalo(-9.2, z, 0.06);
-  }
-
-  const cancelloLegno = new THREE.Mesh(new THREE.BoxGeometry(2.2, 1, 0.25), new THREE.MeshStandardMaterial({ color: 0x8a5a31 }));
-  cancelloLegno.position.set(-8.8, 0.75, 4.0);
-  cancelloLegno.castShadow = true;
-  const cancelloLegno2 = cancelloLegno.clone();
-  cancelloLegno2.position.set(-8.8, 0.75, 3.0);
-  palizzata.add(cancelloLegno, cancelloLegno2);
+  // Pali in fila dritta da (x1, z1) a (x2, z2), con un palo a ogni estremità
+  const filaDiPali = (x1, z1, x2, z2) => {
+    const n = Math.max(1, Math.round(Math.hypot(x2 - x1, z2 - z1) / PASSO_PALI));
+    for (let i = 0; i <= n; i++) aggiungiPalo(x1 + ((x2 - x1) * i) / n, z1 + ((z2 - z1) * i) / n);
+  };
+  // Divide un lato (da "da" ad "a") nei tratti che restano fuori dai varchi { centro, mezzo }
+  const tratti = (da, a, varchi) => {
+    const risultato = [];
+    let inizio = da;
+    for (const varco of [...varchi].sort((p, q) => p.centro - q.centro)) {
+      risultato.push([inizio, varco.centro - varco.mezzo]);
+      inizio = varco.centro + varco.mezzo;
+    }
+    risultato.push([inizio, a]);
+    return risultato;
+  };
+  const M = MAPPA.mura;
+  const varchiFronte = Object.values(MAPPA.sportelli).map((p) => ({ centro: p.x, mezzo: MEZZO_INGOMBRO + R_PALO }));
+  const varcoCancello = { centro: MAPPA.cancello.z, mezzo: MEZZO_INGOMBRO_CANCELLO + R_PALO };
+  for (const [a, b] of tratti(M.sinistra, M.destra, [])) filaDiPali(a, M.fondo, b, M.fondo);
+  for (const [a, b] of tratti(M.sinistra, M.destra, varchiFronte)) filaDiPali(a, M.fronte, b, M.fronte);
+  // i due lati partono un passo dopo gli angoli (i pali d'angolo ci sono già)
+  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, [varcoCancello])) filaDiPali(M.sinistra, a, M.sinistra, b);
+  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, [])) filaDiPali(M.destra, a, M.destra, b);
   palizzata.userData.pali = pali;
   scena.add(palizzata);
 
-  const sportelloLegna = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.52, 1.2), tinta(0x9f6a39));
-  sportelloLegna.position.set(MAPPA.vendiLegna.x, 0.26, MAPPA.vendiLegna.z);
-  sportelloLegna.castShadow = true;
-  const sportelloCarne = sportelloLegna.clone();
-  sportelloCarne.position.set(MAPPA.vendiCarne.x, 0.26, MAPPA.vendiCarne.z);
-  const segnoLegna = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.3, 0.12), tinta(0x5b8e39));
-  segnoLegna.position.set(MAPPA.vendiLegna.x, 0.95, MAPPA.vendiLegna.z + 0.12);
-  const segnoCarne = segnoLegna.clone();
-  segnoCarne.position.set(MAPPA.vendiCarne.x, 0.95, MAPPA.vendiCarne.z + 0.12);
-  const cartelloLegna = creaScritta('LEGNA', { larghezza: 1.5, altezza: 0.38, sfondo: '#6e8f39', coloreTesto: '#fff6dc' });
-  cartelloLegna.position.set(MAPPA.vendiLegna.x, 1.15, MAPPA.vendiLegna.z + 0.1);
-  cartelloLegna.rotation.x = -0.7;
-  const cartelloCarne = creaScritta('CARNE', { larghezza: 1.5, altezza: 0.38, sfondo: '#b33b2d', coloreTesto: '#fff6dc' });
-  cartelloCarne.position.set(MAPPA.vendiCarne.x, 1.15, MAPPA.vendiCarne.z + 0.1);
-  cartelloCarne.rotation.x = -0.7;
-  scena.add(sportelloLegna, sportelloCarne, segnoLegna, segnoCarne, cartelloLegna, cartelloCarne);
-
-  // Sentiero che esce dalla radura verso la foresta (da lì parte la corsa)
+  // Sentiero che esce dal cancello verso la foresta (da lì parte la corsa)
   const sentiero = new THREE.Mesh(new THREE.PlaneGeometry(14, 2.6), tinta(0xbfcfe2));
   sentiero.rotation.x = -Math.PI / 2;
-  sentiero.position.set(MAPPA.cancello.x - 6, -0.005, MAPPA.cancello.z);
+  sentiero.position.set(MAPPA.cancello.x - 7, -0.005, MAPPA.cancello.z);
   sentiero.receiveShadow = true;
   scena.add(sentiero);
 

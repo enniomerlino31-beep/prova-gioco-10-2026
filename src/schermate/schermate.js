@@ -82,7 +82,7 @@ export class Schermate {
       node.className = 'upgrade-ring';
       node.dataset.id = upgrade.id;
       const kit = upgrade.iconeClass || 'stone';
-      node.innerHTML = `<span class="upgrade-ring__content"><span class="upgrade-ring__icon upgrade-ring__icon--${kit}"></span><span class="upgrade-ring__prezzo">${upgrade.prezzo}</span></span>`;
+      node.innerHTML = `<span class="upgrade-ring__content"><span class="hud-icon hud-icon--${kit} upgrade-ring__icon"></span><span class="upgrade-ring__prezzo"><span class="hud-icon hud-icon--coin upgrade-ring__moneta"></span>${upgrade.prezzo}</span></span>`;
       if (upgrade.bloccato) node.classList.add('upgrade-ring--bloccato');
       node.style.left = '0px';
       node.style.top = '0px';

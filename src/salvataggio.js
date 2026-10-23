@@ -15,8 +15,8 @@ function statoIniziale() {
     catasta: CONFIG.segheria.legnaIniziale,    // legna nella catasta (unità)
     dispensa: 0,                               // carne nella dispensa (unità)
     schiena: [],                               // pezzi sulla schiena del boscaiolo: [{ tipo, quantita }]
-    tavolino: { legna: 0, carne: 0 },          // merce esposta sul tavolino
-    soldiATerra: 0,                            // soldi lasciati dai clienti, da raccogliere
+    sportelli: { legna: 0, carne: 0 },         // merce esposta negli sportelli di vendita (unità)
+    soldiSportelli: { legna: 0, carne: 0 },    // soldi lasciati dai clienti accanto a ogni sportello, da raccogliere
     vendute: { legna: 0, carne: 0 },           // unità vendute in tutto (serviranno per sbloccare le basi)
     guadagnoTotale: 0,                         // tutti i soldi guadagnati da sempre
     corseFatte: 0,
@@ -29,7 +29,16 @@ export function carica() {
     const testo = localStorage.getItem(CHIAVE);
     if (!testo) return statoIniziale();
     // Le voci mancanti (aggiunte in versioni nuove del gioco) prendono il valore iniziale
-    return { ...statoIniziale(), ...JSON.parse(testo) };
+    const stato = { ...statoIniziale(), ...JSON.parse(testo) };
+    // Salvataggi vecchi: la merce del tavolino e i soldi a terra passano agli sportelli
+    if (stato.tavolino) {
+      stato.sportelli.legna += stato.tavolino.legna ?? 0;
+      stato.sportelli.carne += stato.tavolino.carne ?? 0;
+      delete stato.tavolino;
+    }
+    if (stato.soldiATerra) stato.soldiSportelli.legna += stato.soldiATerra;
+    delete stato.soldiATerra;
+    return stato;
   } catch {
     return statoIniziale();
   }

@@ -49,6 +49,7 @@ export function creaScritta(testo, opzioni = {}) {
     coloreTesto = '#ffffff',
     coloreBordo = 'rgba(0,0,0,0.55)',
     sfondo = null,          // colore di sfondo, oppure null per trasparente
+    icona = null,           // 'legna' o 'carne': disegna l'iconcina prima del testo
   } = opzioni;
 
   const tela = document.createElement('canvas');
@@ -65,12 +66,22 @@ export function creaScritta(testo, opzioni = {}) {
   ctx.font = `${dimensioneCarattere}px "Lilita One", "Arial Black", sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
+  let xTesto = tela.width / 2;
+  if (icona) {
+    // icona + testo, centrati insieme
+    const latoIcona = dimensioneCarattere * 1.05;
+    const spazio = latoIcona * 0.15;
+    const inizio = (tela.width - (latoIcona + spazio + ctx.measureText(testo).width)) / 2;
+    disegnaIcona(ctx, icona, inizio, tela.height / 2 - latoIcona / 2, latoIcona);
+    ctx.textAlign = 'left';
+    xTesto = inizio + latoIcona + spazio;
+  }
   ctx.lineJoin = 'round';
   ctx.lineWidth = dimensioneCarattere * 0.14;
   ctx.strokeStyle = coloreBordo;
-  ctx.strokeText(testo, tela.width / 2, tela.height / 2 + 4);
+  ctx.strokeText(testo, xTesto, tela.height / 2 + 4);
   ctx.fillStyle = coloreTesto;
-  ctx.fillText(testo, tela.width / 2, tela.height / 2 + 4);
+  ctx.fillText(testo, xTesto, tela.height / 2 + 4);
 
   const texture = new THREE.CanvasTexture(tela);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -79,6 +90,50 @@ export function creaScritta(testo, opzioni = {}) {
   const cartello = new THREE.Mesh(new THREE.PlaneGeometry(larghezza, altezza), materiale);
   cartello.geometry.userData.daLiberare = true;
   return cartello;
+}
+
+// Disegna l'iconcina del tronco o della carne in un quadrato di lato "lato" (stessi disegni delle icone in stile.css).
+// Niente emoji: non tutti i dispositivi le hanno.
+function disegnaIcona(ctx, tipo, x, y, lato) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(lato / 32, lato / 32); // i disegni sono fatti su una griglia 32 x 32
+  ctx.lineCap = 'round';
+  const tratto = (percorso, colore, spessore) => {
+    ctx.strokeStyle = colore;
+    ctx.lineWidth = spessore;
+    ctx.stroke(new Path2D(percorso));
+  };
+  const ellisse = (cx, cy, rx, ry, rotazione, riempimento, bordo = null, spessore = 0) => {
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, rx, ry, rotazione, 0, Math.PI * 2);
+    if (riempimento) {
+      ctx.fillStyle = riempimento;
+      ctx.fill();
+    }
+    if (bordo) {
+      ctx.strokeStyle = bordo;
+      ctx.lineWidth = spessore;
+      ctx.stroke();
+    }
+  };
+  if (tipo === 'carne') {
+    tratto('M17 17l8 8', '#faf3e3', 4);
+    ellisse(27.3, 24.3, 2.7, 2.7, 0, '#faf3e3');
+    ellisse(24.3, 27.3, 2.7, 2.7, 0, '#faf3e3');
+    ellisse(13, 13, 11, 9, -Math.PI / 4, '#f3a7a0');
+    ellisse(12.4, 12.4, 9, 7.2, -Math.PI / 4, '#c8392f');
+    tratto('M7.5 12a5.5 5.5 0 0 1 4.5-4.5', '#e8685d', 2);
+  } else {
+    ctx.fillStyle = '#8a5328';
+    ctx.beginPath();
+    ctx.roundRect(2, 9, 24, 14, 7);
+    ctx.fill();
+    tratto('M6 13h10M9 19h10', '#683c1c', 1.6);
+    ellisse(25, 16, 5, 7, 0, '#f1cf96', '#c98a4b', 1.6);
+    ellisse(25, 16, 2.2, 3.2, 0, null, '#c98a4b', 1.3);
+  }
+  ctx.restore();
 }
 
 // Costruisce una matrice di posizione/rotazione/scala (serve per mettere i pezzi al loro posto)

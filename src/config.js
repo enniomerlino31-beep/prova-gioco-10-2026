@@ -135,10 +135,10 @@ export const CONFIG = {
     unitaPerPezzo: 5,            // quante unità di legna (o carne) vale ogni pezzo trasportato
     intervalloRaccolta: 0.1,     // secondi tra un pezzo e l'altro quando raccoglie o scarica
     raggioRaccolta: 1.5,         // quanto vicino alla catasta (o alla pila di soldi) bisogna stare (metri)
-    raggioTavolino: 2.0,         // quanto vicino al tavolino bisogna stare per scaricare (metri)
+    raggioSportello: 1.2,        // quanto vicino al punto di deposito di uno sportello bisogna stare per scaricare (metri)
     tempoCancello: 1.0,          // secondi da passare sul sentiero per partire per una nuova corsa
     raggioJoystick: 55,          // quanto si può spostare il pomello del joystick (pixel)
-    pezziMassimiTavolino: 12,    // pezzi di legna (e di carne) che si vedono al massimo sul tavolino
+    pezziMassimiSportello: 24,   // pezzi che si vedono al massimo sulla rastrelliera (legna) o sul tavolo (carne) di uno sportello
     hpMura: 120,                 // punti vita iniziali delle palafitte di legno
     dannoMura: 2.2,               // danno che un lupo fa a una muraglia ogni secondo (più rilassato)
     hpLupo: 3,                   // colpi d'ascia necessari per abbattere un lupo
@@ -156,7 +156,8 @@ export const CONFIG = {
     velocita: 2.8,               // velocità dei clienti che camminano (metri al secondo)
     acquistoMinimo: 5,           // unità minime che compra un cliente
     acquistoMassimo: 15,         // unità massime che compra un cliente
-    tempoAcquisto: 0.7,          // secondi che il cliente passa al tavolino prima di comprare
+    tempoAcquisto: 0.7,          // secondi che il cliente aspetta allo sportello prima di iniziare a comprare
+    intervalloPezzi: 0.3,        // secondi tra un pezzo e l'altro che il cliente prende dal bancone
     probabilitaCarne: 0.35,      // probabilità che un cliente voglia carne invece di legna
   },
 

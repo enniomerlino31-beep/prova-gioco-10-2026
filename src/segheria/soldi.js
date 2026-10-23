@@ -1,5 +1,5 @@
 // =====================================================================
-//  PILA DI SOLDI accanto al tavolino
+//  PILA DI SOLDI accanto a uno sportello di vendita (dentro la base)
 //  I clienti ci lasciano i soldi; il boscaiolo li raccoglie camminandoci
 //  sopra e le mazzette volano verso di lui.
 // =====================================================================

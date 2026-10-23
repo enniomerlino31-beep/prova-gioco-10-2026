@@ -1,7 +1,7 @@
 // =====================================================================
 //  SEGHERIA: il "regista" della base
-//  Mette insieme ambiente, boscaiolo, catasta, dispensa, tavolino,
-//  pila di soldi, clienti e cancello. A ogni fotogramma:
+//  Mette insieme ambiente, boscaiolo, catasta, dispensa, sportelli di
+//  vendita (con le loro pile di soldi), clienti e cancello. A ogni fotogramma:
 //   - muove il boscaiolo con il joystick
 //   - raccoglie/scarica pezzi quando il boscaiolo è nella zona giusta
 //   - fa comprare i clienti
@@ -16,8 +16,7 @@ import { Effetti } from '../motore/effetti.js';
 import { creaAmbiente, MAPPA } from './ambiente.js';
 import { Giocatore } from './giocatore.js';
 import { Deposito } from './catasta.js';
-import { Tavolino } from './tavolino.js';
-import { PilaSoldi } from './soldi.js';
+import { Sportello } from './sportello.js';
 import { Clienti } from './clienti.js';
 import { Cancello } from './cancello.js';
 import { creaLupo } from '../modelli/lupo.js';
@@ -53,14 +52,17 @@ export class Segheria {
     for (const pezzo of s.schiena) this.giocatore.aggiungi(pezzo.tipo, pezzo.quantita);
     this.catasta = new Deposito(this.radice, 'legna', MAPPA.catasta, s.catasta);
     this.dispensa = new Deposito(this.radice, 'carne', MAPPA.dispensa, s.dispensa);
-    this.tavolino = new Tavolino(this.radice, MAPPA.tavolino, s.tavolino);
-    this.pilaSoldi = new PilaSoldi(this.radice, MAPPA.soldi, s.soldiATerra);
+    this.sportelli = {
+      legna: new Sportello(this.radice, 'legna', MAPPA.sportelli.legna, s.sportelli.legna, s.soldiSportelli.legna),
+      carne: new Sportello(this.radice, 'carne', MAPPA.sportelli.carne, s.sportelli.carne, s.soldiSportelli.carne),
+    };
+    this.giocatore.ostacoli = Object.values(this.sportelli).flatMap((sportello) => sportello.ostacoli);
     this.cancello = new Cancello(this.radice, MAPPA.cancello);
 
     // Merce e soldi "in volo": se la pagina si chiude a metà volo, nel salvataggio non si perdono
     this.inVolo = { legna: 0, carne: 0, soldi: 0 };
 
-    this.clienti = new Clienti(this.radice, this.tavolino, this.pilaSoldi, this.effetti, this.inVolo, (tipo, quantita, incasso) =>
+    this.clienti = new Clienti(this.radice, this.sportelli, this.effetti, this.inVolo, (tipo, quantita, incasso) =>
       registraVendita(this.stato, tipo, quantita, incasso)
     );
 
@@ -327,17 +329,21 @@ export class Segheria {
         fatto = this.raccogli(this.catasta, 'legna');
       } else if (!this.giocatore.pieno && this.dispensa.contiene(pos) && this.dispensa.quantita > 0) {
         fatto = this.raccogli(this.dispensa, 'carne');
-      } else if (this.tavolino.vicino(pos) && this.giocatore.pezzi.length > 0) {
-        fatto = this.scarica();
+      } else {
+        // sul punto di deposito di uno sportello scarica solo la merce di quello sportello
+        const sportello = Object.values(this.sportelli).find((sp) => sp.vicino(pos) && this.giocatore.ha(sp.tipo));
+        if (sportello) fatto = this.scarica(sportello);
       }
       if (fatto) this.attesaRaccolta = CONFIG.segheria.intervalloRaccolta;
     }
 
-    // --- Soldi a terra ---
-    if (this.pilaSoldi.valore > 0 && this.pilaSoldi.contiene(pos)) this.raccogliSoldi();
+    // --- Soldi a terra accanto agli sportelli ---
+    for (const sportello of Object.values(this.sportelli)) {
+      if (sportello.soldi.valore > 0 && sportello.soldi.contiene(pos)) this.raccogliSoldi(sportello.soldi);
+    }
 
     // --- Tutto il resto ---
-    this.tavolino.aggiorna(dt);
+    for (const sportello of Object.values(this.sportelli)) sportello.aggiorna(dt);
     this.clienti.aggiorna(dt);
     this.effetti.aggiorna(dt);
     this.ambiente.segui(pos, dt);
@@ -411,29 +417,29 @@ export class Segheria {
     return true;
   }
 
-  // Il pezzo in cima alla schiena vola sul tavolino
-  scarica() {
-    const pezzo = this.giocatore.togliUltimo();
+  // Un pezzo di quel tipo vola dalla schiena alla pila dello sportello
+  scarica(sportello) {
+    const pezzo = this.giocatore.togliUltimo(sportello.tipo);
     if (!pezzo) return false;
-    const partenza = this.giocatore.cimaSchiena();
+    const partenza = this.giocatore.cimaSchiena(new THREE.Vector3(), pezzo.tipo);
     this.inVolo[pezzo.tipo] += pezzo.quantita;
-    this.effetti.lancia(pezzo.tipo, partenza, this.tavolino, 0, () => {
+    this.effetti.lancia(pezzo.tipo, partenza, sportello, 0, () => {
       this.inVolo[pezzo.tipo] -= pezzo.quantita;
-      this.tavolino.aggiungi(pezzo.tipo, pezzo.quantita);
+      sportello.aggiungi(pezzo.quantita);
     }, VOLO_CORTO);
     return true;
   }
 
-  // Tutti i soldi a terra volano verso il boscaiolo (divisi in qualche mazzetta)
-  raccogliSoldi() {
-    const totale = this.pilaSoldi.prendiTutto();
+  // Tutti i soldi di una pila volano verso il boscaiolo (divisi in qualche mazzetta)
+  raccogliSoldi(pila) {
+    const totale = pila.prendiTutto();
     const mazzette = Math.min(8, Math.max(1, Math.ceil(totale / CONFIG.economia.soldiPerMazzetta)));
     let rimasti = totale;
     for (let i = 0; i < mazzette; i++) {
       const parte = i === mazzette - 1 ? rimasti : Math.floor(totale / mazzette);
       rimasti -= parte;
       this.inVolo.soldi += parte;
-      const partenza = MAPPA.soldi.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.2 + i * 0.05, (Math.random() - 0.5) * 0.4));
+      const partenza = pila.posizione.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.2 + i * 0.05, (Math.random() - 0.5) * 0.4));
       const verso = (v) => v.copy(this.giocatore.posizione).setY(1.4);
       this.effetti.lancia('soldi', partenza, verso, i * 0.05, () => {
         this.inVolo.soldi -= parte;
@@ -452,8 +458,8 @@ export class Segheria {
     s.soldi = Math.round(s.soldi);
     const soldiInVolo = this.inVolo.soldi;
     s.schiena = this.giocatore.pezzi.map((p) => ({ tipo: p.tipo, quantita: p.quantita }));
-    s.tavolino = { legna: this.tavolino.legna, carne: this.tavolino.carne };
-    s.soldiATerra = this.pilaSoldi.valore + soldiInVolo;
+    s.sportelli = { legna: this.sportelli.legna.quantita, carne: this.sportelli.carne.quantita };
+    s.soldiSportelli = { legna: this.sportelli.legna.soldi.valore + soldiInVolo, carne: this.sportelli.carne.soldi.valore };
     salva(s);
   }
 
