@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <!-- Impedisce lo zoom con le dita, così il trascinamento muove solo la squadra -->
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#bfe3f7" />
+  <title>Segheria Assediata</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Lilita+One&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/stile.css" />
+</head>
+<body>
+  <!-- Qui dentro Three.js disegna il mondo 3D -->
+  <div id="gioco"></div>
+
+  <!-- Testi che fluttuano sopra il mondo 3D (numero di boscaioli, "+12 legna"...) -->
+  <div id="testi-mondo">
+    <div id="contatore-squadra" class="contatore nascosto">8</div>
+  </div>
+
+  <!-- Barra in alto durante la corsa -->
+  <div id="hud" class="nascosto">
+    <div class="hud-riga">
+      <div class="pillola"><span class="icona">🪓</span><span id="hud-boscaioli">8</span></div>
+      <!-- In alto a destra: legna e carne raccolte -->
+      <div class="hud-risorse">
+        <div class="pillola" id="pillola-legna"><i class="tronco"></i><span id="hud-legna">0</span></div>
+        <div class="pillola" id="pillola-carne"><span class="icona">🍖</span><span id="hud-carne">0</span></div>
+      </div>
+    </div>
+    <div class="barra-progresso"><div id="hud-progresso"></div></div>
+  </div>
+
+  <!-- Barra in alto nella segheria: soldi, legna in catasta, carne in dispensa -->
+  <div id="hud-segheria" class="nascosto">
+    <div class="hud-riga">
+      <div class="pillola pillola-soldi" id="pillola-sg-soldi"><span class="icona">💵</span><span id="hud-sg-soldi">0</span></div>
+      <div class="hud-risorse">
+        <div class="pillola" id="pillola-sg-legna"><i class="tronco"></i><span id="hud-sg-legna">0</span></div>
+        <div class="pillola" id="pillola-sg-carne"><span class="icona">🍖</span><span id="hud-sg-carne">0</span></div>
+      </div>
+    </div>
+  </div>
+  <p id="suggerimento-segheria" class="suggerimento-basso nascosto">
+    Tocca e trascina per camminare<br />Raccogli la legna, portala al tavolino e incassa i soldi!<br />Il sentiero a sinistra porta a una nuova corsa
+  </p>
+
+  <!-- Joystick virtuale: compare sotto il dito nella segheria -->
+  <div id="joystick" class="nascosto"><div id="joystick-pomello"></div></div>
+
+  <!-- Schermata iniziale -->
+  <div id="schermata-inizio" class="schermata">
+    <div class="riquadro">
+      <h1>Segheria<br />Assediata</h1>
+      <p class="sottotitolo">Manda i boscaioli nella foresta,<br />poi vendi legna e carne alla segheria!</p>
+      <button id="pulsante-inizia" class="pulsante">Gioca</button>
+      <p class="suggerimento">Telefono: tocca e trascina il dito<br />Computer: mouse oppure frecce / WASD</p>
+    </div>
+  </div>
+
+  <!-- Schermata di fine corsa -->
+  <div id="schermata-fine" class="schermata nascosto">
+    <div class="riquadro">
+      <h2 id="fine-titolo">Ce l'hai fatta!</h2>
+      <p id="fine-messaggio" class="sottotitolo"></p>
+      <div id="fine-dati" class="dati"></div>
+      <button id="pulsante-ricomincia" class="pulsante">Alla segheria</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
