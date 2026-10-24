@@ -4,8 +4,11 @@
 //  Aspetta dentro la base, accanto al cancello della foresta. Appena c'è
 //  un lupo (o della carne a terra) esce dal cancello, gira attorno alle
 //  mura senza attraversarle, combatte il lupo con l'ascia e raccoglie la
-//  carne che lascia. Quando fuori non c'è più niente, rientra dal cancello
-//  e porta la carne alla dispensa, poi torna al suo posto.
+//  carne che lascia. Quando fuori non c'è più niente (o ha già sulla
+//  schiena il massimo, "caricoMassimo" unità), rientra dal cancello e porta
+//  la carne direttamente al deposito dello sportello CARNE (passando per la
+//  corsia centrale, così non cammina sopra la catasta), poi torna al suo
+//  posto (o esce di nuovo).
 // =====================================================================
 
 import * as THREE from 'three';
@@ -19,17 +22,17 @@ const MARGINE_GIRO = 1.3;   // a che distanza dalle mura gira attorno agli angol
 const MARGINE_MURA = 0.6;   // più vicino di così alle mura non va (come i lupi)
 const PEZZI_SCHIENA = 3;    // pezzi di carne disegnati al massimo sulla schiena
 
-// I punti fissi del suo giro: il suo posto, i due lati del cancello della foresta e la dispensa
+// I punti fissi del suo giro: il suo posto, i due lati del cancello della foresta e la corsia centrale
 const cancello = MAPPA.cancelli.foresta;
 const PUNTI = {
   casa: MAPPA.casaCacciatore,
   dentro: new THREE.Vector3(cancello.x + 1.6, 0, cancello.z),
   fuori: new THREE.Vector3(cancello.x - 1.6, 0, cancello.z),
-  dispensa: new THREE.Vector3(MAPPA.dispensa.x, 0, cancello.z), // dietro la dispensa, sulla stessa linea del cancello
+  corsia: new THREE.Vector3(-2.6, 0, cancello.z), // dove la linea del cancello incontra la corsia centrale
 };
 
 export class Cacciatore {
-  // base: la segheria (lupi, carne a terra, dispensa, cancello, effetti); livello: da CONFIG.miglioramenti.cacciatore
+  // base: la segheria (lupi, carne a terra, sportello CARNE, cancello, effetti); livello: da CONFIG.miglioramenti.cacciatore
   constructor(base, livello) {
     this.base = base;
     this.livello = livello;
@@ -41,6 +44,10 @@ export class Cacciatore {
     this.fase = 0;
     this.comparsa = 0;
     this.posizione = PUNTI.casa.clone();
+    // dal cancello allo sportello CARNE: corsia centrale, poi in basso fino accanto al cerchio del deposito
+    const zona = base.sportelli.carne.zona;
+    this.giuPerLaCorsia = new THREE.Vector3(2.6, 0, zona.z);
+    this.postoSportello = new THREE.Vector3(zona.x - 0.9, 0, zona.z);
 
     this.modello = creaLavoratore({ berretto: 0x3d7a34, berrettoScuro: 0x2b5a25, giacca: 0x8a6239 });
     this.perni = this.modello.userData.perni;
@@ -75,13 +82,16 @@ export class Cacciatore {
     const lupi = this.base.lupiBase.filter((lupo) => lupo.vivo);
     const carne = this.base.carneCadute.filter((pezzo) => !pezzo.preso);
     const fuoriCeQualcosa = lupi.length > 0 || carne.length > 0;
+    const pieno = this.carico + CONFIG.segheria.unitaPerPezzo > CONFIG.lavoratori.caricoMassimo; // non ci sta un altro pezzo
 
     if (this.stato === 'casa' || this.stato === 'torna') {
       if (fuoriCeQualcosa) {
+        // esce subito: se stava tornando dallo sportello, rifà la corsia e poi va al cancello
+        const restoDellaCorsia = this.stato === 'torna' ? this.percorso.filter((punto) => punto !== PUNTI.casa) : [];
         this.stato = 'esce';
-        this.percorso = [PUNTI.dentro, PUNTI.fuori];
+        this.percorso = [...restoDellaCorsia, PUNTI.dentro, PUNTI.fuori];
       } else if (this.stato === 'torna') {
-        if (this.cammina(PUNTI.casa, dt)) this.stato = 'casa';
+        if (this.seguiPercorso(dt)) this.stato = 'casa';
       } else {
         this.fermo(dt);
         this.modello.rotation.y = Math.PI / 2;
@@ -90,18 +100,19 @@ export class Cacciatore {
       if (this.seguiPercorso(dt)) {
         if (this.stato === 'esce') this.stato = 'fuori';
         else if (this.carico > 0) this.scarica();
-        else this.stato = 'torna';
+        else this.torna([PUNTI.casa]);
       }
     } else if (this.stato === 'fuori') {
-      this.caccia(lupi, carne, dt);
+      if (pieno) this.stato = 'rientra'; // schiena piena: prima porta la carne allo sportello
+      else this.caccia(lupi, carne, dt);
     } else if (this.stato === 'rientra') {
-      if (fuoriCeQualcosa) this.stato = 'fuori';
+      if (fuoriCeQualcosa && !pieno) this.stato = 'fuori';
       else if (this.vaiFuori(PUNTI.fuori, dt)) {
         this.stato = 'entra';
-        this.percorso = this.carico > 0 ? [PUNTI.dentro, PUNTI.dispensa] : [PUNTI.dentro];
+        this.percorso = this.carico > 0 ? [PUNTI.dentro, PUNTI.corsia, this.giuPerLaCorsia, this.postoSportello] : [PUNTI.dentro];
       }
     } else {
-      this.fermo(dt); // 'attesa': la carne sta volando verso la dispensa
+      this.fermo(dt); // 'attesa': la carne sta volando verso lo sportello
     }
     this.animaColpo();
   }
@@ -111,7 +122,7 @@ export class Cacciatore {
     const piuVicino = (lista) => lista.reduce((a, b) => (this.distanza(b) < this.distanza(a) ? b : a));
     if (lupi.length > 0) {
       const lupo = piuVicino(lupi);
-      if (this.distanza(lupo) > CONFIG.lavoratori.raggioColpoCacciatore) {
+      if (this.distanza(lupo) > CONFIG.lavoratori.raggioColpoCacciatore + lupo.ingombro) {
         this.vaiFuori(new THREE.Vector3(lupo.x, 0, lupo.z), dt);
         return;
       }
@@ -120,7 +131,7 @@ export class Cacciatore {
       if (this.ricarica <= 0) {
         this.colpo = 1;
         this.ricarica = this.livello.ricarica;
-        this.base.colpisciLupo(lupo);
+        this.base.colpisciLupo(lupo, lupo.dannoAscia);
       }
     } else if (carne.length > 0) {
       const pezzo = piuVicino(carne);
@@ -140,22 +151,29 @@ export class Cacciatore {
     this.base.effetti.testo(pezzo.x, 1.8, pezzo.z, `+${quantita} carne`, 'buono');
   }
 
-  // Arrivato dietro la dispensa: la carne vola dalla schiena alla dispensa
+  // Arrivato accanto al deposito dello sportello CARNE: la carne vola dalla schiena al tavolo
   scarica() {
     const quantita = this.carico;
-    const { effetti, inVolo, dispensa } = this.base;
+    const { effetti, inVolo } = this.base;
+    const sportello = this.base.sportelli.carne;
     this.carico = 0;
     this.stato = 'attesa';
     this.modello.updateMatrixWorld();
     const partenza = this.schiena.localToWorld(new THREE.Vector3(0, 0.4, 0));
     this.aggiornaSchiena();
     inVolo.carne += quantita;
-    effetti.lancia('carne', partenza, (v) => dispensa.cima(v), 0, () => {
+    effetti.lancia('carne', partenza, sportello, 0, () => {
       inVolo.carne -= quantita;
-      dispensa.aggiungi(quantita);
-      this.stato = 'torna';
+      sportello.aggiungi(quantita);
+      this.torna([this.giuPerLaCorsia, PUNTI.corsia, PUNTI.casa]);
     }, VOLO);
-    effetti.testo(dispensa.posizione.x, 2.2, dispensa.posizione.z, `+${quantita} carne`, 'buono');
+    effetti.testo(sportello.zona.x, 2.2, sportello.zona.z, `+${quantita} carne`, 'buono');
+  }
+
+  // Torna al suo posto seguendo questi punti
+  torna(percorso) {
+    this.stato = 'torna';
+    this.percorso = [...percorso];
   }
 
   aggiornaSchiena() {

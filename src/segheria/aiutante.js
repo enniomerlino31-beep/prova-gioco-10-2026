@@ -1,8 +1,12 @@
 // =====================================================================
 //  AIUTANTE (si compra con il miglioramento "Aiutante")
-//  Un boscaiolo con il berretto blu che lavora da solo: va alla catasta,
-//  prende un carico di legna, lo porta alla rastrelliera dello sportello
-//  LEGNA, e ricomincia. Se la catasta è vuota aspetta lì.
+//  Un boscaiolo con il berretto blu che lavora da solo, sempre con lo
+//  stesso giro, in linea dritta:
+//   1. davanti alla catasta prende la legna (al massimo "caricoMassimo")
+//   2. la porta sul cerchio del deposito dello sportello LEGNA
+//   3. la scarica sulla rastrelliera
+//   4. torna alla catasta
+//  Se la catasta è vuota aspetta lì, fermo, finché non arriva altra legna.
 // =====================================================================
 
 import * as THREE from 'three';
@@ -21,13 +25,13 @@ export class Aiutante {
     this.effetti = effetti;
     this.inVolo = inVolo;
     this.carico = 0;
-    this.stato = 'andata'; // 'andata' (verso la catasta), 'ritorno' (verso lo sportello), 'attesa' (pezzo in volo)
+    this.stato = 'catasta'; // 'catasta' (va a prendere), 'sportello' (va a scaricare), 'attesa' (la legna sta volando)
     this.fase = 0;
-    this.comparsa = 0;     // animazione quando compare (da 0 a 1)
+    this.comparsa = 0;      // animazione quando compare (da 0 a 1)
 
-    // Dove si ferma: davanti alla catasta e sul cerchio del deposito dello sportello
+    // I due soli punti del giro: davanti alla catasta e sul cerchio del deposito, sulla stessa linea
     this.puntoCatasta = catasta.posizione.clone().add(new THREE.Vector3(0, 0, 1.0));
-    this.puntoSportello = sportello.zona.clone();
+    this.puntoSportello = new THREE.Vector3(this.puntoCatasta.x, 0, sportello.zona.z);
     this.posizione = this.puntoCatasta.clone();
 
     this.modello = creaBoscaiolo();
@@ -63,34 +67,50 @@ export class Aiutante {
     const scala = CONFIG.segheria.dimensioneBoscaiolo * 0.9 * (c < 1 ? c + Math.sin(c * Math.PI) * 0.35 : 1);
     this.modello.scale.setScalar(Math.max(0.001, scala));
 
-    if (this.stato === 'andata') {
+    if (this.stato === 'catasta') {
       if (!this.cammina(this.puntoCatasta, dt)) return;
-      if (this.catasta.quantita <= 0) return; // catasta vuota: aspetta
-      const partenza = this.catasta.cima();
-      const quantita = this.catasta.prendiPezzo(CONFIG.segheria.caricoAiutante);
-      this.stato = 'attesa';
-      this.inVolo.legna += quantita;
-      this.effetti.lancia('legna', partenza, (v) => this.puntoSchiena(v), 0, () => {
-        this.inVolo.legna -= quantita;
-        this.carico = quantita;
-        this.schiena.visible = true;
-        this.stato = 'ritorno';
-      }, VOLO);
-    } else if (this.stato === 'ritorno') {
+      this.guarda(-1); // arrivato: guarda la catasta
+      if (this.catasta.quantita > 0) this.prendi();
+    } else if (this.stato === 'sportello') {
       if (!this.cammina(this.puntoSportello, dt)) return;
-      const quantita = this.carico;
-      this.carico = 0;
-      this.schiena.visible = false;
-      this.stato = 'attesa';
-      this.inVolo.legna += quantita;
-      this.effetti.lancia('legna', this.puntoSchiena(new THREE.Vector3()), this.sportello, 0, () => {
-        this.inVolo.legna -= quantita;
-        this.sportello.aggiungi(quantita);
-        this.stato = 'andata';
-      }, VOLO);
+      this.guarda(1); // arrivato: guarda la rastrelliera
+      this.scarica();
     } else {
-      this.cammina(this.posizione, dt); // fermo mentre il pezzo vola
+      this.cammina(this.posizione, dt); // fermo mentre la legna vola
     }
+  }
+
+  // 1. La legna vola dalla catasta alla sua schiena
+  prendi() {
+    const partenza = this.catasta.cima();
+    const quantita = this.catasta.prendiPezzo(CONFIG.lavoratori.caricoMassimo);
+    this.stato = 'attesa';
+    this.inVolo.legna += quantita;
+    this.effetti.lancia('legna', partenza, (v) => this.puntoSchiena(v), 0, () => {
+      this.inVolo.legna -= quantita;
+      this.carico = quantita;
+      this.schiena.visible = true;
+      this.stato = 'sportello';
+    }, VOLO);
+  }
+
+  // 3. La legna vola dalla schiena alla rastrelliera, poi si torna alla catasta
+  scarica() {
+    const quantita = this.carico;
+    this.carico = 0;
+    this.schiena.visible = false;
+    this.stato = 'attesa';
+    this.inVolo.legna += quantita;
+    this.effetti.lancia('legna', this.puntoSchiena(new THREE.Vector3()), this.sportello, 0, () => {
+      this.inVolo.legna -= quantita;
+      this.sportello.aggiungi(quantita);
+      this.stato = 'catasta';
+    }, VOLO);
+  }
+
+  // Da fermo guarda verso il fondo della base (-1, la catasta) o verso il davanti (1, lo sportello)
+  guarda(verso) {
+    this.modello.rotation.y = verso < 0 ? 0 : Math.PI;
   }
 
   puntoSchiena(risultato) {
@@ -99,7 +119,7 @@ export class Aiutante {
     return this.schiena.localToWorld(risultato);
   }
 
-  // Cammina verso un punto: restituisce true quando è arrivato
+  // Cammina dritto verso un punto: restituisce true quando è arrivato
   cammina(obiettivo, dt) {
     const verso = obiettivo.clone().sub(this.posizione).setY(0);
     const distanza = verso.length();

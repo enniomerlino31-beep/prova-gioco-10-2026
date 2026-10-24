@@ -136,7 +136,6 @@ export const CONFIG = {
     intervalloRaccolta: 0.1,     // secondi tra un pezzo e l'altro quando raccoglie o scarica
     voliPerTrasferimento: 12,    // una pila grande si sposta in circa questi voli (pezzi più "grossi"), così non serve aspettare minuti
     velocitaAiutante: 3,         // velocità dell'aiutante che porta la legna dalla catasta allo sportello (metri al secondo)
-    caricoAiutante: 15,          // unità di legna che l'aiutante porta a ogni viaggio
     raggioRaccolta: 1.5,         // quanto vicino alla catasta (o alla pila di soldi) bisogna stare (metri)
     raggioSportello: 1.2,        // quanto vicino al punto di deposito di uno sportello bisogna stare per scaricare (metri)
     tempoCancello: 1.0,          // secondi da passare sul sentiero per partire per una nuova corsa
@@ -144,18 +143,41 @@ export const CONFIG = {
     pezziMassimiSportello: 24,   // pezzi che si vedono al massimo sulla rastrelliera (legna) o sul tavolo (carne) di uno sportello
     hpMura: 120,                 // punti vita delle mura di legno (con i miglioramenti diventano di più)
     dannoMura: 2.2,               // danno che un lupo fa a una muraglia ogni secondo (più rilassato)
-    hpLupo: 3,                   // colpi d'ascia necessari per abbattere un lupo
+    // Vita dei lupi in "punti": un lupo normale ne ha 15. L'ascia ne toglie 5 (servono 3 colpi),
+    // una freccia quanti ne dice il livello della torretta (3 = 5 frecce, 5 = 3 frecce, 8 = 2 frecce).
+    hpLupo: 15,                  // punti di vita di un lupo normale
+    dannoAscia: 5,               // punti tolti da un colpo d'ascia (del boscaiolo o del cacciatore) a un lupo normale
     raggioAttaccoLupo: 2.4,      // distanza massima per colpire un lupo con l'ascia
     attaccoCooldown: 0.45,        // secondi tra un colpo e il successivo
     velocitaLupo: 1.2,           // velocità dei lupi intorno alla base
     primoLupo: 6,                // dopo quanti secondi di gioco arriva il primo lupo (fin dall'inizio della partita)
-    intervalloLupiMinimo: 9.5,   // secondi minimi tra un lupo e il successivo
-    intervalloLupiMassimo: 15.5, // secondi massimi tra un lupo e il successivo
-    unLupoInPiuOgni: 90,         // ogni quanti secondi può esserci un lupo in più contemporaneamente
+    intervalloLupiMinimo: 7,     // secondi minimi tra un gruppo di lupi e il successivo
+    intervalloLupiMassimo: 11,   // secondi massimi tra un gruppo di lupi e il successivo
+    lupiInsiemeInizio: 3,        // quanti lupi ci possono essere al massimo contemporaneamente all'inizio della partita
+    unLupoInPiuOgni: 70,         // ogni quanti secondi può esserci un lupo in più contemporaneamente (fino a 12)
+    lupiPerGruppoInizio: 1.6,    // i lupi arrivano a gruppi: all'inizio in media 1,6 per gruppo (1 o 2)...
+    lupiPerGruppoFine: 3.2,      // ...e poi in media 3,2 (gruppi di 3 o 4)
+    gruppiCresconoIn: 300,       // in quanti secondi di gioco i gruppi passano da piccoli a grandi
     calmaIniziale: 180,          // nei primi secondi di gioco (questi) i lupi sono più lenti e più radi, poi vanno come sempre
     velocitaLupiInizio: 0.55,    // all'inizio i lupi camminano a questa parte della loro velocità (0.55 = poco più della metà)
     intervalloLupiInizio: 1.6,   // all'inizio il tempo tra un lupo e l'altro è 1,6 volte più lungo
     dannoGiocatore: 0.5,          // danno molto basso se il lupo sfiora il boscaiolo
+  },
+
+  // ---------------- LUPO GIGANTE ----------------
+  // Ogni 2-3 minuti arriva un lupo grande il doppio, con il pelo più scuro e una barra della vita grande.
+  // Ha 60 punti di vita: un colpo d'ascia ne toglie 6 (servono 10 colpi), una freccia quanti ne toglie a un
+  // lupo normale (3 = 20 frecce; con "Potenzia arcieri" 5 = 12 frecce, con "Potenzia arcieri 2" 8 = 8 frecce).
+  lupoGigante: {
+    ogniMinimo: 120,         // secondi minimi tra un lupo gigante e il successivo
+    ogniMassimo: 180,        // secondi massimi tra un lupo gigante e il successivo
+    vita: 60,                // punti di vita
+    dannoAscia: 6,           // punti tolti da un colpo d'ascia (del boscaiolo o del cacciatore)
+    grandezza: 2,            // quanto è più grande di un lupo normale
+    velocita: 0.5,           // cammina a questa parte della velocità di un lupo normale (è lento)
+    dannoMura: 3,            // fa questo numero di volte il danno alle mura di un lupo normale
+    carne: 30,               // unità di carne che lascia quando muore (in pezzi da "unitaPerPezzo")
+    tempoAvviso: 2,          // secondi in cui resta la scritta "Arriva il lupo gigante!"
   },
 
   // ---------------- CLIENTI ----------------
@@ -187,23 +209,23 @@ export const CONFIG = {
     ],
     // Torri di legno sulle mura con un arciere che tira frecce ai lupi vicini. Comprate tutte le torri,
     // nello stesso cerchio (spostato accanto alla seconda torre) compare "Potenzia arcieri".
-    // danno = tacche di vita tolte da ogni freccia (un lupo ne ha 3); ricarica = secondi tra una freccia e l'altra;
+    // danno = punti di vita tolti da ogni freccia (un lupo normale ne ha 15); ricarica = secondi tra una freccia e l'altra;
     // aspetto = come sono fatte torri, archi e frecce (0 legno, 1 base di pietra, 2 rinforzi di metallo e punte che brillano)
     torretta: [
-      { nome: 'Torretta', prezzo: 150, icona: 'torre', torri: 1, ricarica: 1.6, gittata: 8, danno: 1, aspetto: 0 },        // torre sulle mura di sinistra
-      { nome: 'Seconda torretta', prezzo: 300, icona: 'torre', torri: 2, ricarica: 1.6, gittata: 8, danno: 1, aspetto: 0 }, // torre anche sulle mura di destra
-      { nome: 'Potenzia arcieri', prezzo: 600, icona: 'arco', torri: 2, ricarica: 1.2, gittata: 9, danno: 2, aspetto: 1 },     // 2 frecce per lupo
-      { nome: 'Potenzia arcieri 2', prezzo: 1200, icona: 'arcoOro', torri: 2, ricarica: 0.8, gittata: 10, danno: 3, aspetto: 2 }, // 1 freccia per lupo
+      { nome: 'Torretta', prezzo: 150, icona: 'torre', torri: 1, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 },        // torre sulle mura di sinistra (5 frecce per lupo)
+      { nome: 'Seconda torretta', prezzo: 300, icona: 'torre', torri: 2, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 }, // torre anche sulle mura di destra
+      { nome: 'Potenzia arcieri', prezzo: 600, icona: 'arco', torri: 2, ricarica: 1.2, gittata: 9, danno: 5, aspetto: 1 },     // 3 frecce per lupo
+      { nome: 'Potenzia arcieri 2', prezzo: 1200, icona: 'arcoOro', torri: 2, ricarica: 0.8, gittata: 10, danno: 8, aspetto: 2 }, // 2 frecce per lupo
     ],
     // --- Lavoratori ---
     aiutante: [
       { nome: 'Aiutante', prezzo: 120, icona: 'ascia' }, // porta da solo la legna dalla catasta allo sportello
     ],
-    cacciatore: [ // esce dal cancello della foresta, combatte i lupi e porta la loro carne alla dispensa
+    cacciatore: [ // esce dal cancello della foresta, combatte i lupi e porta la loro carne allo sportello CARNE
       { nome: 'Cacciatore', prezzo: 200, icona: 'cacciatore', ricarica: 0.9, velocita: 3.2 },          // ricarica = secondi tra un colpo e l'altro
       { nome: 'Cacciatore esperto', prezzo: 400, icona: 'cacciatore', ricarica: 0.5, velocita: 4.2 },
     ],
-    venditore: [ // un venditore per sportello: porta la merce dal magazzino al deposito e i clienti vengono serviti (e arrivano) più in fretta
+    venditore: [ // un venditore dietro ogni sportello passa la merce ai clienti: vengono serviti (e arrivano) più in fretta
       { nome: 'Venditore', prezzo: 100, icona: 'venditore', rapidita: 1.6 },        // 1.6 = una volta e mezza più veloce
       { nome: 'Venditore svelto', prezzo: 200, icona: 'venditore', rapidita: 2.2 },
       { nome: 'Venditore esperto', prezzo: 400, icona: 'venditore', rapidita: 3 },
@@ -215,9 +237,7 @@ export const CONFIG = {
   lavoratori: {
     velocitaFreccia: 16,     // velocità delle frecce degli arcieri (metri al secondo)
     raggioColpoCacciatore: 1.2, // da quanto vicino il cacciatore colpisce un lupo (metri)
-    velocitaVenditore: 3,    // velocità dei venditori quando portano la merce (metri al secondo)
-    caricoVenditore: 20,     // unità che un venditore porta a ogni viaggio dalla catasta (o dalla dispensa) allo sportello
-    scortaSportello: 60,     // se sul deposito dello sportello c'è meno merce di così, il venditore va a prenderne altra
+    caricoMassimo: 20,       // unità che l'aiutante e il cacciatore portano al massimo a ogni viaggio
   },
 
   // ---------------- TELECAMERA SUI MIGLIORAMENTI ----------------

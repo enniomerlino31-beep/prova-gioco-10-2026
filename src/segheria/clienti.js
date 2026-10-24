@@ -138,12 +138,13 @@ export class Clienti {
 
     if (sportello.quantita <= 0) return; // merce finita: aspetta al bancone che il boscaiolo ne porti altra
 
-    // Un pezzo vola dalla pila dello sportello al cliente
-    const partenza = sportello.cima();
+    // Un pezzo vola dalla pila dello sportello al cliente; se c'è il venditore, glielo passa lui (parte dalle sue mani)
+    const dalBancone = { da: sportello.cima(), ritardo: 0 };
     const presa = sportello.prendiPezzo(cliente.quantita - cliente.preso);
     cliente.preso += presa;
+    const { da, ritardo } = sportello.venditore ? sportello.venditore.passa() : dalBancone;
     const testa = cliente.posizione.clone().setY(1.6);
-    this.effetti.lancia(cliente.vuole, partenza, () => testa, 0, null, { durata: 0.4, altezza: 1.4, scala: 0.5, sbuffo: false });
+    this.effetti.lancia(cliente.vuole, da, () => testa, ritardo, null, { durata: 0.4, altezza: 1.4, scala: 0.5, sbuffo: false });
     cliente.prossimoPezzo = CONFIG.clienti.intervalloPezzi / this.rapidita;
 
     if (cliente.preso >= cliente.quantita) this.paga(cliente);

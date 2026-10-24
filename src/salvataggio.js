@@ -28,6 +28,7 @@ function statoIniziale() {
     vendute: { legna: 0, carne: 0 },           // unità vendute in tutto (serviranno per sbloccare le basi)
     guadagnoTotale: 0,                         // tutti i soldi guadagnati da sempre
     corseFatte: 0,
+    tutorial: 0,                               // a che passaggio del tutorial si è arrivati (3 = finito, non compare più)
   };
 }
 
@@ -37,7 +38,10 @@ export function carica() {
     const testo = localStorage.getItem(CHIAVE);
     if (!testo) return statoIniziale();
     // Le voci mancanti (aggiunte in versioni nuove del gioco) prendono il valore iniziale
-    const stato = { ...statoIniziale(), ...JSON.parse(testo) };
+    const salvato = JSON.parse(testo);
+    const stato = { ...statoIniziale(), ...salvato };
+    // Salvataggi di prima del tutorial: chi ha già fatto almeno una corsa non lo rivede
+    if (salvato.tutorial === undefined && (salvato.corseFatte ?? 0) > 0) stato.tutorial = 3;
     // Salvataggi vecchi: la merce del tavolino e i soldi a terra passano agli sportelli
     if (stato.tavolino) {
       stato.sportelli.legna += stato.tavolino.legna ?? 0;

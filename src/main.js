@@ -15,6 +15,16 @@ import { Joystick } from './motore/joystick.js';
 import { Schermate } from './schermate/schermate.js';
 import { Corsa } from './corsa/corsa.js';
 import { Segheria } from './segheria/segheria.js';
+import { cancella } from './salvataggio.js';
+
+// Con ?reset nell'indirizzo si ricomincia da zero: il salvataggio viene cancellato prima di caricare la base.
+// Poi ?reset viene tolto dall'indirizzo, così ricaricando la pagina non si cancella di nuovo tutto.
+const indirizzo = new URL(window.location.href);
+if (indirizzo.searchParams.has('reset')) {
+  cancella();
+  indirizzo.searchParams.delete('reset');
+  window.history.replaceState(null, '', indirizzo);
+}
 
 const contenitore = document.getElementById('gioco');
 const mondo = creaMondo(contenitore); // il mondo della corsa (e il "pittore" condiviso)

@@ -16,6 +16,9 @@ import { Effetti } from '../motore/effetti.js';
 import { SfidaFinale } from './sfidaFinale.js';
 import { generaLivello } from './generatoreLivello.js';
 
+// Distanza dal centro della folla al retro del carro con pochi boscaioli: oltre questa la telecamera si allarga
+const CODA_NORMALE = 5.5;
+
 export class Corsa {
   // mondo: scena e telecamera; controlli: dito/tastiera; schermate: interfaccia;
   // alTermine: funzione chiamata con i risultati quando la corsa finisce
@@ -137,8 +140,12 @@ export class Corsa {
     // --- Grafica: omini, effetti, telecamera, interfaccia ---
     squadra.aggiorna(dt, this.tempo);
     this.effetti.aggiorna(dt);
-    const zoom = 1 + (carro.scala - 1) * CONFIG.telecamera.allontanamentoCarro;
-    this.mondo.segui(squadra.x, squadra.y, -squadra.distanza, dt, zoom);
+    // Con tanti boscaioli la folla si allunga all'indietro e spinge il carro in fondo allo schermo, fino a tagliarlo:
+    // la telecamera allora guarda un po' più indietro e si alza, così folla, carro e carico si vedono sempre tutti
+    const coda = squadra.distanza - carro.distanza + carro.lunghezza / 2; // dal centro della folla al retro del carro
+    const allungamento = Math.max(0, coda - CODA_NORMALE);
+    const zoom = (1 + (carro.scala - 1) * CONFIG.telecamera.allontanamentoCarro) * (1 + allungamento * 0.04);
+    this.mondo.segui(squadra.x, squadra.y, -squadra.distanza + allungamento * 0.6, dt, zoom);
     this.schermate.aggiornaCorsa({
       boscaioli: squadra.numero,
       legna: carro.legna,

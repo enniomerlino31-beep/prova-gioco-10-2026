@@ -28,10 +28,11 @@ const FERRO = 0x5a6370;
 export const geometriaTronco = new THREE.CylinderGeometry(RAGGIO_TRONCO, RAGGIO_TRONCO, 1.7, 10);
 export const materialiTronco = [tinta(0x7a4520), tinta(0xf0c98e), tinta(0xf0c98e)];
 
-// Posizione di ogni tronco nella pila (a piramide: tanti sotto, sempre meno sopra)
+// Posizione di ogni tronco nella pila (a piramide bassa e larga: tanti sotto, sempre meno sopra).
+// La pila resta bassa apposta: se fosse alta, vista da dietro coprirebbe i boscaioli davanti al carro.
 function postiTronchi(quanti) {
   const posti = [];
-  const perStrato = [5, 5, 4, 4, 3, 3, 2, 2, 1, 1];
+  const perStrato = [6, 6, 5, 5, 4, 4, 3, 3, 2, 2];
   for (let strato = 0; posti.length < quanti; strato++) {
     const n = perStrato[Math.min(strato, perStrato.length - 1)];
     for (let i = 0; i < n && posti.length < quanti; i++) {

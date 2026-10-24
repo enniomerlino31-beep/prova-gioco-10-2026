@@ -44,6 +44,7 @@ export class Schermate {
     $('hud-segheria').classList.add('nascosto');
     $('barra-mura').classList.add('nascosto');
     $('suggerimento-segheria').classList.add('nascosto');
+    $('avviso-segheria').classList.add('nascosto');
     $('hud').classList.remove('nascosto');
     $('contatore-squadra').classList.remove('nascosto');
     this.pulisciTesti();
@@ -79,6 +80,54 @@ export class Schermate {
     const url = `/base/base-livello-${livello}.webp`;
     anteprima.dataset.caricata = 'true';
     anteprima.src = url;
+  }
+
+  // Messaggio del tutorial in alto (testo null = nasconde tutto). Se il punto del mondo da raggiungere
+  // è fuori dallo schermo, una freccia sul bordo indica da che parte andare.
+  mostraTutorial(testo, passo, totale, punto) {
+    const riquadro = $('tutorial');
+    const freccia = $('tutorial-freccia');
+    if (!testo) {
+      riquadro.classList.add('nascosto');
+      freccia.classList.add('nascosto');
+      return;
+    }
+    const scritta = `${passo}/${totale} ${testo}`;
+    if (riquadro.dataset.scritta !== scritta) {
+      riquadro.dataset.scritta = scritta;
+      riquadro.innerHTML = `<span class="tutorial__passo">${passo}/${totale}</span>${testo}`;
+    }
+    riquadro.classList.remove('nascosto');
+
+    const schermo = this.proietta(punto);
+    const larghezza = window.innerWidth;
+    const altezza = window.innerHeight;
+    const margine = 36;
+    const fuori = schermo.x < margine || schermo.x > larghezza - margine || schermo.y < margine || schermo.y > altezza - margine;
+    freccia.classList.toggle('nascosto', !fuori);
+    if (!fuori) return;
+    // la freccia sta sul bordo, sulla linea che va dal centro dello schermo al punto, e punta verso di lui
+    const angolo = Math.atan2(schermo.y - altezza / 2, schermo.x - larghezza / 2);
+    const finoAlBordo = Math.min(
+      (larghezza / 2 - margine) / Math.max(1e-6, Math.abs(Math.cos(angolo))),
+      (altezza / 2 - margine) / Math.max(1e-6, Math.abs(Math.sin(angolo)))
+    );
+    const x = larghezza / 2 + Math.cos(angolo) * finoAlBordo;
+    const y = altezza / 2 + Math.sin(angolo) * finoAlBordo;
+    freccia.style.transform = `translate(${x}px, ${y}px) translate(-50%, -50%) rotate(${angolo}rad)`;
+  }
+
+  // Avviso grande al centro dello schermo per qualche secondo (es. "Arriva il lupo gigante!")
+  mostraAvviso(testo, secondi) {
+    const avviso = $('avviso-segheria');
+    avviso.textContent = testo;
+    avviso.classList.remove('nascosto');
+    avviso.style.animation = 'none';
+    void avviso.offsetWidth; // trucco per far ripartire l'animazione da capo
+    avviso.style.animation = '';
+    avviso.style.animationDuration = `${secondi}s`;
+    clearTimeout(this.timerAvviso);
+    this.timerAvviso = setTimeout(() => avviso.classList.add('nascosto'), secondi * 1000);
   }
 
   // Il suggerimento in basso svanisce quando il giocatore inizia a camminare
