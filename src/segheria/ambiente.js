@@ -14,6 +14,7 @@ import { tinta, matrice } from '../modelli/materiali.js';
 import { MEZZO_INGOMBRO } from '../modelli/sportello.js';
 import { creaNeve } from '../motore/scena.js';
 import { MEZZO_INGOMBRO_CANCELLO } from './cancello.js';
+import { creaNeveATerra } from './neveATerra.js';
 
 const COLORE_CIELO = 0xbfe3f7;
 const R_PALO = 0.24;     // raggio alla base di ogni palo della palizzata
@@ -29,20 +30,26 @@ const CERCHIO_TORRE = (torre) => new THREE.Vector3(torre.x - Math.sign(torre.x) 
 export const MAPPA = {
   limiti: { xMin: -19, xMax: 19, zMin: -14.5, zMax: 16 }, // fin dove può andare il boscaiolo (anche fuori dalle mura)
   mura: { sinistra: -11.2, destra: 11.2, fondo: -7.4, fronte: 7.3 }, // le quattro file della palizzata
-  partenza: new THREE.Vector3(0, 0, 1.2),                // dove compare il boscaiolo: in mezzo alla corsia centrale
+  partenza: new THREE.Vector3(0, 0, 0),                  // dove compare il boscaiolo: in mezzo alla corsia centrale
   catasta: new THREE.Vector3(-COLONNA, 0, -1.6),         // qui arriva la legna dalla corsa
   dispensa: new THREE.Vector3(COLONNA, 0, -1.6),         // qui arriva la carne dalla corsa
-  casaCacciatore: new THREE.Vector3(-7.8, 0, -3.7),      // dove aspetta il cacciatore (abbastanza lontano da non tenere aperto il cancello)
+  // Il banco da lavoro del cacciatore, al centro della base un po' a destra (la corsia centrale resta libera);
+  // quando non caccia, il cacciatore sta davanti al banco, girato verso il tavolo
+  bancoCacciatore: new THREE.Vector3(2.6, 0, -3.3),
+  casaCacciatore: new THREE.Vector3(2.6, 0, -2.45),
   // Cerchi dei miglioramenti, ognuno accanto a dove compare quello che compra (nessuno tocca un altro cerchio o un edificio).
+  // I cerchi dei lavoratori stanno al centro della zona dove quel lavoratore lavora.
   // Una lista invece di un punto = un posto diverso per ogni livello (il cerchio si sposta dopo l'acquisto).
   miglioramenti: {
-    aiutante: new THREE.Vector3(-COLONNA, 0, -5.3),      // sopra la catasta, dove compare l'aiutante
-    cacciatore: new THREE.Vector3(-8.6, 0, -5.8),        // accanto alla casa del cacciatore, vicino al cancello della foresta
+    aiutante: new THREE.Vector3(-2.6, 0, -1.6),          // accanto alla catasta, verso la corsia (non sulla strada catasta-sportello)
+    cacciatore: new THREE.Vector3(5.6, 0, -4.6),         // accanto al banco del cacciatore, in alto a destra: non è sulla strada di nessuno
     // prima torre: accanto alla torre di sinistra; seconda torre e "Potenzia arcieri": accanto alla torre di destra
     torretta: [CERCHIO_TORRE(TORRI[0]), CERCHIO_TORRE(TORRI[1]), CERCHIO_TORRE(TORRI[1]), CERCHIO_TORRE(TORRI[1])],
-    mura: new THREE.Vector3(COLONNA, 0, -5.3),           // vicino alle mura di fondo
-    riparazione: new THREE.Vector3(8.6, 0, -5.8),        // nell'angolo delle mura, accanto al cerchio delle mura
-    venditore: new THREE.Vector3(8.8, 0, 3.6),           // accanto allo sportello CARNE, dove compare uno dei due venditori
+    // i due miglioramenti delle mura stanno al centro, appena dentro il muro in alto, ai due lati del posto
+    // dove (nel gruppo 2) andrà il cerchio CORSA del cancello in alto: mura a destra, riparazione a sinistra
+    mura: new THREE.Vector3(3.2, 0, -5.9),
+    riparazione: new THREE.Vector3(-3.2, 0, -5.9),
+    venditore: new THREE.Vector3(0, 0, 2.7),             // al centro, tra i due sportelli dove lavorano i venditori
   },
   torri: TORRI,
   // Due cancelli nella palizzata di sinistra (il punto è il centro del varco, sulla linea delle mura)
@@ -76,12 +83,8 @@ export function creaAmbiente() {
   sole.shadow.bias = -0.0008;
   scena.add(sole, sole.target);
 
-  // --- Terreno innevato e radura di neve battuta ---
-  const terreno = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), tinta(0xf3f8ff));
-  terreno.rotation.x = -Math.PI / 2;
-  terreno.position.y = -0.02;
-  terreno.receiveShadow = true;
-  scena.add(terreno);
+  // --- Terreno innevato (onde leggere, mucchietti, scintillio: vedi neveATerra.js) e radura di neve battuta ---
+  const neveATerra = creaNeveATerra(scena);
 
   const radura = new THREE.Mesh(new THREE.CircleGeometry(9.6, 48), tinta(0xd3e0ee));
   radura.rotation.x = -Math.PI / 2;
@@ -240,6 +243,7 @@ export function creaAmbiente() {
       telecamera.position.set(puntoSeguito.x, cfg.altezza * zoomAttuale, puntoSeguito.z + cfg.distanzaDietro * zoomAttuale);
       telecamera.lookAt(puntoSeguito.x, 0, puntoSeguito.z - 1);
       neve.aggiorna(dt, telecamera.position);
+      neveATerra.aggiorna(dt);
       // la lama della sega gira
       casa.userData.lama.rotation.y += dt * 5;
     },

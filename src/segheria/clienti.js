@@ -30,6 +30,17 @@ export class Clienti {
     this.lista = [];
     this.prossimoArrivo = 1; // il primo cliente arriva quasi subito
     this.rapidita = 1;       // con il venditore è più di 1: i clienti arrivano e vengono serviti più in fretta
+    this.spinta = 0;         // inizio più veloce: 1 = clienti come in CONFIG.clienti.avvio, 0 = ritmo normale (vedi segheria.js)
+  }
+
+  // Un numero a metà tra quello normale e quello dell'inizio più veloce, secondo la spinta
+  conSpinta(normale, avvio) {
+    return THREE.MathUtils.lerp(normale, avvio, this.spinta);
+  }
+
+  // Quanto in fretta vengono serviti i clienti (venditore e inizio più veloce)
+  get svelti() {
+    return this.rapidita * this.conSpinta(1, CONFIG.clienti.avvio.rapidita);
   }
 
   aggiorna(dt) {
@@ -39,8 +50,9 @@ export class Clienti {
     this.prossimoArrivo -= dt;
     if (this.prossimoArrivo <= 0) {
       const arrivato = this.aggiungiCliente();
-      const intervallo = cfg.intervalloMinimo + Math.random() * (cfg.intervalloMassimo - cfg.intervalloMinimo);
-      this.prossimoArrivo = arrivato ? intervallo / this.rapidita : 0.5;
+      const minimo = this.conSpinta(cfg.intervalloMinimo, cfg.avvio.intervalloMinimo);
+      const massimo = this.conSpinta(cfg.intervalloMassimo, cfg.avvio.intervalloMassimo);
+      this.prossimoArrivo = arrivato ? (minimo + Math.random() * (massimo - minimo)) / this.rapidita : 0.5;
     }
 
     // --- Ogni fila: il primo al bancone, gli altri dietro, lungo le mura ---
@@ -55,7 +67,7 @@ export class Clienti {
         }
         if (posto === 0 && arrivato) {
           cliente.attesa += dt;
-          if (cliente.attesa > cfg.tempoAcquisto / this.rapidita) this.compra(cliente, dt);
+          if (cliente.attesa > cfg.tempoAcquisto / this.svelti) this.compra(cliente, dt);
         } else {
           cliente.attesa = 0;
         }
@@ -78,12 +90,18 @@ export class Clienti {
     return this.lista.filter((c) => c.vuole === tipo && c.stato !== 'esce');
   }
 
-  // Arriva un cliente nuovo: se la sua fila è piena va nell'altra; se sono piene tutte e due non arriva nessuno
+  // Quanti clienti possono aspettare in fila davanti a uno sportello (la fila della carne è più corta)
+  postiInFila(tipo) {
+    return tipo === 'carne' ? CONFIG.clienti.filaCarne : CONFIG.clienti.filaPerSportello;
+  }
+
+  // Arriva un cliente nuovo. Chi vuole carne e trova la fila piena va a comprare legna;
+  // chi vuole legna e trova la fila piena non arriva (così la carne ha sempre meno clienti).
   aggiungiCliente() {
     const cfg = CONFIG.clienti;
     let vuole = Math.random() < cfg.probabilitaCarne ? 'carne' : 'legna';
-    if (this.fila(vuole).length >= cfg.filaPerSportello) vuole = vuole === 'carne' ? 'legna' : 'carne';
-    if (this.fila(vuole).length >= cfg.filaPerSportello) return false;
+    if (vuole === 'carne' && this.fila('carne').length >= this.postiInFila('carne')) vuole = 'legna';
+    if (this.fila(vuole).length >= this.postiInFila(vuole)) return false;
 
     const modello = creaCliente();
     modello.scale.setScalar(DIMENSIONE);
@@ -95,7 +113,8 @@ export class Clienti {
       obiettivo: new THREE.Vector3(),
       stato: 'inFila',
       vuole,
-      quantita: cfg.acquistoMinimo + Math.floor(Math.random() * (cfg.acquistoMassimo - cfg.acquistoMinimo + 1)),
+      quantita: Math.round(this.conSpinta(cfg.acquistoMinimo, cfg.avvio.acquistoMinimo) +
+        Math.random() * (this.conSpinta(cfg.acquistoMassimo, cfg.avvio.acquistoMassimo) - this.conSpinta(cfg.acquistoMinimo, cfg.avvio.acquistoMinimo))),
       preso: 0,           // unità già prese dal bancone
       prossimoPezzo: 0,   // secondi prima di prendere il prossimo pezzo
       attesa: 0,
@@ -144,7 +163,7 @@ export class Clienti {
     const { da, ritardo } = sportello.venditore ? sportello.venditore.passa() : dalBancone;
     const testa = cliente.posizione.clone().setY(1.6);
     this.effetti.lancia(cliente.vuole, da, () => testa, ritardo, null, { durata: 0.4, altezza: 1.4, scala: 0.5, sbuffo: false });
-    cliente.prossimoPezzo = CONFIG.clienti.intervalloPezzi / this.rapidita;
+    cliente.prossimoPezzo = CONFIG.clienti.intervalloPezzi / this.svelti;
 
     if (cliente.preso >= cliente.quantita) this.paga(cliente);
     else this.creaFumetto(cliente);
@@ -163,8 +182,22 @@ export class Clienti {
     this.effetti.testo(testa.x, testa.y + 0.6, testa.z, `+${incasso} $`, 'buono');
 
     this.alVendita(cliente.vuole, cliente.preso, incasso);
+    if (this.sportelli[cliente.vuole].venditore && Math.random() < CONFIG.economia.probabilitaMancia) this.mancia(cliente, testa, pila);
     cliente.stato = 'esce';
     cliente.fumetto.visible = false;
+  }
+
+  // Con il venditore, a volte il cliente lascia una mancia: una monetina in più salta fuori e vola nella pila
+  mancia(cliente, testa, pila) {
+    const { manciaMinima, manciaMassima } = CONFIG.economia;
+    const mancia = manciaMinima + Math.floor(Math.random() * (manciaMassima - manciaMinima + 1));
+    this.inVolo.soldi += mancia;
+    this.effetti.lancia('moneta', testa, pila, 0.5, () => {
+      this.inVolo.soldi -= mancia;
+      pila.aggiungi(mancia);
+      this.effetti.scintille(pila.posizione.x, 0.4, pila.posizione.z, 0xffe066, 5);
+    }, { durata: 0.75, altezza: 2.8, sbuffo: false });
+    this.effetti.testo(testa.x, testa.y + 1.2, testa.z, `+${mancia} mancia`, 'buono');
   }
 
   // Fa camminare il cliente verso il suo obiettivo. Restituisce true se è arrivato.
@@ -181,7 +214,7 @@ export class Clienti {
       cliente.modello.rotation.y = Math.atan2(-verso.x, -verso.z);
     }
     // passo con rimbalzo (vedi animazioni.js), da fermo respira; a ogni passo un po' di neve
-    if (animaPersona(cliente.modello, dt, arrivato ? 0 : 1)) this.effetti.polvere(cliente.posizione.x, cliente.posizione.z, 2, 1);
+    if (animaPersona(cliente.modello, dt, arrivato ? 0 : 1)) this.effetti.passo(cliente.modello);
     cliente.modello.position.set(cliente.posizione.x, 0, cliente.posizione.z);
     return arrivato;
   }

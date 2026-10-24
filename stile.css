@@ -335,6 +335,55 @@ h2 { font-size: 36px; }
   z-index: 35;
 }
 
+/* Festa di fine tutorial: il riquadro entra con un rimbalzo, le stelle spuntano una dopo l'altra,
+   i coriandoli cadono girando dall'alto */
+.schermata-festa {
+  z-index: 50;
+  overflow: hidden;
+}
+.riquadro-festa {
+  position: relative;
+  background: linear-gradient(180deg, #4fb35a, #2f8a3e);
+  animation: festa-entra 0.6s cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+.stelle-festa {
+  margin-bottom: 8px;
+  font-size: 54px;
+  line-height: 1;
+  color: #ffd23f;
+  text-shadow: 0 4px 0 #c98f1c, 0 0 18px rgba(255, 230, 120, 0.8);
+}
+.stelle-festa span {
+  display: inline-block;
+  animation: festa-stella 0.5s cubic-bezier(0.2, 1.8, 0.4, 1) both;
+}
+.stelle-festa span:nth-child(1) { animation-delay: 0.35s; transform: rotate(-14deg); }
+.stelle-festa span:nth-child(2) { animation-delay: 0.55s; font-size: 68px; }
+.stelle-festa span:nth-child(3) { animation-delay: 0.75s; }
+.coriandoli {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.coriandolo {
+  position: absolute;
+  top: -20px;
+  width: 10px;
+  height: 16px;
+  border-radius: 2px;
+  animation: coriandolo linear forwards;
+}
+@keyframes festa-entra {
+  from { transform: scale(0.3); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes festa-stella {
+  from { transform: scale(0) rotate(-90deg); }
+}
+@keyframes coriandolo {
+  to { transform: translate(var(--deriva), 110vh) rotate(var(--giri)); }
+}
+
 /* Avviso grande al centro (es. "Arriva il lupo gigante!"): spunta ingrandendosi e poi svanisce */
 .avviso {
   position: fixed;

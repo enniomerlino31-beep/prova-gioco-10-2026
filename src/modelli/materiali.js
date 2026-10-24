@@ -62,8 +62,15 @@ export function creaScritta(testo, opzioni = {}) {
     ctx.roundRect(4, 4, tela.width - 8, tela.height - 8, 24);
     ctx.fill();
   }
-  const dimensioneCarattere = Math.round(tela.height * 0.72);
+  let dimensioneCarattere = Math.round(tela.height * 0.72);
   ctx.font = `${dimensioneCarattere}px "Lilita One", "Arial Black", sans-serif`;
+  // se il testo (con l'icona) non ci sta nel cartello, i caratteri si rimpiccioliscono: così non viene mai tagliato
+  const larghezzaTesto = ctx.measureText(testo).width + (icona ? dimensioneCarattere * 1.05 * 1.15 : 0) + dimensioneCarattere * 0.14;
+  const spazioUtile = tela.width - 12;
+  if (larghezzaTesto > spazioUtile) {
+    dimensioneCarattere = Math.floor((dimensioneCarattere * spazioUtile) / larghezzaTesto);
+    ctx.font = `${dimensioneCarattere}px "Lilita One", "Arial Black", sans-serif`;
+  }
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   let xTesto = tela.width / 2;
@@ -94,13 +101,15 @@ export function creaScritta(testo, opzioni = {}) {
 
 // Come creaScritta, ma la scritta è sempre girata verso la telecamera (uno "sprite").
 // Si usa per i numeri che galleggiano sopra le cose (es. "x150" sulla schiena).
+// Si disegna sempre sopra a tutto (anche alla testa del boscaiolo), così si legge sempre intera.
 export function creaEtichetta(testo, opzioni = {}) {
   const { larghezza = 1, altezza = 0.4 } = opzioni;
   const cartello = creaScritta(testo, opzioni);
-  const materiale = new THREE.SpriteMaterial({ map: cartello.material.map, transparent: true, depthWrite: false });
+  const materiale = new THREE.SpriteMaterial({ map: cartello.material.map, transparent: true, depthWrite: false, depthTest: false });
   cartello.material.dispose();
   cartello.geometry.dispose();
   const etichetta = new THREE.Sprite(materiale);
+  etichetta.renderOrder = 10;
   etichetta.scale.set(larghezza, altezza, 1);
   return etichetta;
 }

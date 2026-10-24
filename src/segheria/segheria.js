@@ -32,11 +32,13 @@ import { Venditore, postoVenditore } from './venditore.js';
 import { Torrette } from './torrette.js';
 import { Tutorial } from './tutorial.js';
 import { Mura } from './mura.js';
+import { BancoCacciatore } from './banco.js';
 import { creaLupo } from '../modelli/lupo.js';
 import { animaGaloppo, animaMorso, COLPO } from '../modelli/animazioni.js';
 import { creaCarne } from '../modelli/carne.js';
 
 const OGNI_QUANTO_SALVARE = 2; // secondi
+const LAVORATORI_BASE = ['aiutante', 'cacciatore', 'venditore']; // i loro potenziamenti compaiono solo quando ci sono tutti
 
 // Opzioni dei voli dentro la segheria (più brevi e piccoli di quelli della corsa)
 const VOLO_CORTO = { durata: 0.35, altezza: 1.4, scala: 0.55, sbuffo: false };
@@ -125,9 +127,16 @@ export class Segheria {
     this.attesaSalvataggio = OGNI_QUANTO_SALVARE;
     this.attiva = false;
     this.haCamminato = false;
-    this.mura = new Mura(this.radice, ambiente.palizzata, MAPPA.miglioramenti.mura);
+    this.mura = new Mura(this.radice, ambiente.palizzata, MAPPA.miglioramenti.mura, this.effetti);
     this.tempoGioco = 0;
-    this.prossimoLupo = CONFIG.segheria.primoLupo;
+    // Da dove arrivano i lupi (vedi aggiornaLupi): ogni "fronte" ha il suo orologio, che parte quando il fronte si apre.
+    // lato: -1 = dal lato sinistro della foresta, 1 = dal destro, 0 = da tutte le parti
+    const primo = CONFIG.segheria.primoLupo;
+    this.fronti = {
+      deboli: { tempo: 0, prossimo: primo, lato: 0 },   // dopo le mura di pietra: pochi lupi deboli
+      sinistra: { tempo: 0, prossimo: primo, lato: -1 }, // dopo la torretta di sinistra
+      destra: { tempo: 0, prossimo: primo, lato: 1 },    // dopo la torretta di destra
+    };
     this.lupiBase = this.creaLupiBase();
     this.lupoGigante = this.lupiBase.find((lupo) => lupo.gigante);
     this.prossimoGigante = CONFIG.lupoGigante.ogniMinimo + Math.random() * (CONFIG.lupoGigante.ogniMassimo - CONFIG.lupoGigante.ogniMinimo);
@@ -146,10 +155,26 @@ export class Segheria {
     this.venditori = [];
     this.attesaScintille = 0;
     this.regia = null; // la telecamera che va a vedere un miglioramento appena comprato (null = segue il boscaiolo)
+    // Il banco del cacciatore (e il cerchio per assumerlo) compare quando arrivano i primi lupi, cioè dopo le
+    // mura di pietra; nei salvataggi con le mura di pietra o il cacciatore già comprati c'è subito
+    this.banco = new BancoCacciatore(this.radice, MAPPA.bancoCacciatore, this.effetti);
+    this.bancoAperto = this.cerchi.mura.comprati >= 1 || this.cerchi.cacciatore.comprati >= 1;
+    if (this.bancoAperto) this.banco.mostra(false);
     this.ripristinaMiglioramenti();
-    // Tutorial: solo alla prima partita (aggiungendo ?tutorial all'indirizzo si può rivedere)
-    if (new URLSearchParams(window.location.search).has('tutorial')) s.tutorial = 0;
+    this.sbloccaPotenziamenti(true);
+    // Tutorial: solo alla prima partita (aggiungendo ?tutorial all'indirizzo si può rivedere,
+    // con ?senzatutorial si salta: 3 = tutti e tre i passaggi fatti)
+    const indirizzo = new URLSearchParams(window.location.search);
+    if (indirizzo.has('tutorial')) s.tutorial = 0;
+    if (indirizzo.has('senzatutorial')) s.tutorial = 3;
     this.tutorial = new Tutorial(this.radice, schermate, s.tutorial);
+    // Durante il tutorial si può comprare solo il primo miglioramento delle mura: gli altri cerchi sono spenti (grigi)
+    // (il cerchio delle mura si accende solo al terzo passaggio, vedi aggiorna)
+    for (const [nome, cerchio] of Object.entries(this.cerchi)) cerchio.spegni(!this.tutorial.finito && (nome !== 'mura' || this.tutorial.passo < 2));
+    this.festaDopoLaRegia = false; // finito il tutorial, quando la telecamera torna sul boscaiolo arriva la schermata di festa
+    this.inFesta = false;          // la schermata di festa è aperta: il gioco aspetta il pulsante "Gioca"
+    // Inizio più veloce: finché non ci sono le mura di pietra i clienti sono di più e comprano più in fretta
+    this.clienti.spinta = this.cerchi.mura.comprati === 0 ? 1 : 0;
 
     document.addEventListener('keydown', (event) => {
       if (event.code === 'Space' || event.key === 'e' || event.key === 'E') this.attaccaLupi(true);
@@ -162,12 +187,17 @@ export class Segheria {
     });
   }
 
-  // Il bottino della corsa finisce in catasta e dispensa (e viene salvato subito)
+  // Il bottino della corsa vinta finisce in catasta e dispensa (e viene salvato subito).
+  // La prima corsa del tutorial si completa solo vincendo, e porta a casa almeno "legnaPrimaCorsa" legna
+  // (se ne serve, si aggiunge un bonus). Restituisce il bonus, da mostrare nella schermata di fine corsa.
   aggiungiBottino(legna, carne) {
-    this.catasta.aggiungi(legna);
+    const bonus = this.tutorial.passo === 0 ? Math.max(0, CONFIG.tutorial.legnaPrimaCorsa - legna) : 0;
+    this.catasta.aggiungi(legna + bonus);
     this.dispensa.aggiungi(carne);
-    this.ultimoBottino = { legna, carne };
+    this.ultimoBottino = { legna: legna + bonus, carne };
+    this.completaTutorial('corsa');
     this.salvaOra();
+    return bonus;
   }
 
   // Si entra nella segheria (all'avvio o dopo una corsa)
@@ -193,7 +223,6 @@ export class Segheria {
 
   // Si esce dalla segheria (parte una corsa)
   esci() {
-    this.completaTutorial('corsa');
     this.tutorial.nascondi();
     this.attiva = false;
     this.joystick.spegni();
@@ -240,8 +269,13 @@ export class Segheria {
     };
   }
 
-  // Un lupo esce dalla foresta nel punto (x, z) e va verso le mura
-  sveglia(lupo, x, z) {
+  // Un lupo esce dalla foresta nel punto (x, z) e va verso le mura.
+  // fronte: da quale fronte arriva (per contarli); debole: lupo debole (meno vita); velocita: parte della velocità piena
+  sveglia(lupo, x, z, { fronte = null, debole = false, velocita = 1 } = {}) {
+    lupo.fronte = fronte;
+    lupo.debole = debole;
+    lupo.velocita = velocita;
+    lupo.vita = lupo.gigante ? CONFIG.lupoGigante.vita : debole ? CONFIG.segheria.lupiDeboli.vita : CONFIG.segheria.hpLupo;
     lupo.vivo = true;
     lupo.generazione += 1;
     lupo.hp = lupo.vita;
@@ -257,29 +291,71 @@ export class Segheria {
     lupo.barra.aggiorna(lupo);
   }
 
-  // Arriva un gruppo di "quanti" lupi dallo stesso punto della foresta, un po' sparsi
-  arrivaGruppo(quanti) {
-    const partenza = PARTENZE_LUPI[Math.floor(Math.random() * PARTENZE_LUPI.length)];
+  // Un punto a caso della foresta da cui escono i lupi: lato -1 = a sinistra della base, 1 = a destra, 0 = ovunque
+  partenzaLupi(lato) {
+    const partenze = PARTENZE_LUPI.filter((p) => lato === 0 || Math.sign(p.x) === lato);
+    return partenze[Math.floor(Math.random() * partenze.length)];
+  }
+
+  // Arriva un gruppo di "quanti" lupi dallo stesso punto della foresta, un po' sparsi.
+  // fronte: il nome del fronte (deboli, sinistra o destra); opzioni: come in sveglia
+  arrivaGruppo(quanti, fronte, opzioni = {}) {
+    const partenza = this.partenzaLupi(this.fronti[fronte].lato);
     const lupi = this.lupiBase.filter((lupo) => !lupo.vivo && !lupo.gigante).slice(0, quanti);
     lupi.forEach((lupo, i) => {
       const angolo = (i / lupi.length) * Math.PI * 2 + Math.random();
       const distanza = lupi.length > 1 ? 1.1 : 0;
-      this.sveglia(lupo, partenza.x + Math.cos(angolo) * distanza, partenza.z + Math.sin(angolo) * distanza);
+      this.sveglia(lupo, partenza.x + Math.cos(angolo) * distanza, partenza.z + Math.sin(angolo) * distanza, { fronte, ...opzioni });
     });
+    if (lupi.length > 0 && !this.bancoAperto) this.apriBanco();
   }
 
-  // Quanti lupi nel prossimo gruppo: all'inizio 1 o 2, poi pian piano 3 o 4
-  grandezzaGruppo() {
+  // Quanti lupi vivi sono arrivati da questo fronte
+  lupiDelFronte(nome) {
+    return this.lupiBase.filter((lupo) => lupo.vivo && lupo.fronte === nome).length;
+  }
+
+  // Quali fronti sono aperti: i lupi deboli dopo le mura di pietra, ogni lato dopo la sua torretta
+  frontiAperti() {
+    const torri = this.cerchi.torretta.comprati;
+    return { deboli: this.cerchi.mura.comprati >= 1, sinistra: torri >= 1, destra: torri >= 2 };
+  }
+
+  // Un lupo debole e lento, da un punto qualsiasi della foresta (se non ce ne sono già abbastanza).
+  // Restituisce fra quanti secondi arriva il prossimo.
+  arrivaDebole() {
+    const D = CONFIG.segheria.lupiDeboli;
+    if (this.lupiDelFronte('deboli') < D.insieme) this.arrivaGruppo(1, 'deboli', { debole: true, velocita: D.velocita });
+    return D.intervalloMinimo + Math.random() * (D.intervalloMassimo - D.intervalloMinimo);
+  }
+
+  // Un gruppo di lupi normali da un lato. Più il lato è aperto da tanto, più i lupi sono numerosi e veloci
+  // (nei primi "calmaIniziale" secondi sono più lenti e più radi). Restituisce fra quanti secondi arriva il prossimo gruppo.
+  arrivaDalLato(nome, fronte) {
     const cfg = CONFIG.segheria;
-    const crescita = THREE.MathUtils.clamp(this.tempoGioco / cfg.gruppiCresconoIn, 0, 1);
+    const calma = THREE.MathUtils.clamp(fronte.tempo / cfg.calmaIniziale, 0, 1);
+    const massimi = Math.min(cfg.lupiInsiemeMassimo, cfg.lupiInsiemeInizio + Math.floor(fronte.tempo / cfg.unLupoInPiuOgni));
+    const posto = massimi - this.lupiDelFronte(nome);
+    if (posto > 0) {
+      this.arrivaGruppo(Math.min(this.grandezzaGruppo(fronte.tempo), posto), nome, { velocita: THREE.MathUtils.lerp(cfg.velocitaLupiInizio, 1, calma) });
+    }
+    const intervallo = cfg.intervalloLupiMinimo + Math.random() * (cfg.intervalloLupiMassimo - cfg.intervalloLupiMinimo);
+    return intervallo * THREE.MathUtils.lerp(cfg.intervalloLupiInizio, 1, calma);
+  }
+
+  // Quanti lupi nel prossimo gruppo: all'inizio 1 o 2, poi pian piano 3 o 4 (tempo: da quanto è aperto il lato)
+  grandezzaGruppo(tempo) {
+    const cfg = CONFIG.segheria;
+    const crescita = THREE.MathUtils.clamp(tempo / cfg.gruppiCresconoIn, 0, 1);
     const media = THREE.MathUtils.lerp(cfg.lupiPerGruppoInizio, cfg.lupiPerGruppoFine, crescita);
     return THREE.MathUtils.clamp(Math.round(media + Math.random() - 0.5), 1, 4);
   }
 
   // Arriva il lupo gigante, con la scritta sullo schermo
+  // (arriva da un lato già aperto: solo da sinistra finché non c'è la torretta di destra)
   arrivaGigante() {
-    const partenza = PARTENZE_LUPI[Math.floor(Math.random() * PARTENZE_LUPI.length)];
-    this.sveglia(this.lupoGigante, partenza.x, partenza.z);
+    const partenza = this.partenzaLupi(this.frontiAperti().destra ? 0 : -1);
+    this.sveglia(this.lupoGigante, partenza.x, partenza.z, { fronte: 'gigante' });
     this.effetti.sbuffo(partenza.x, 0.5, partenza.z, 0xf4f8ff, 20, 4);
     this.schermate.mostraAvviso('Arriva il lupo gigante!', CONFIG.lupoGigante.tempoAvviso);
   }
@@ -313,21 +389,18 @@ export class Segheria {
   aggiornaLupi(dt) {
     const cfg = CONFIG.segheria;
     const G = CONFIG.lupoGigante;
-    // i lupi arrivano fin dall'inizio: nei primi "calmaIniziale" secondi sono più lenti e più radi, poi vanno come sempre
-    const calma = THREE.MathUtils.clamp(this.tempoGioco / cfg.calmaIniziale, 0, 1);
-    // arrivano a gruppi (vedi grandezzaGruppo), senza superare il numero massimo di lupi insieme
-    const normali = this.lupiBase.filter((lupo) => !lupo.gigante);
-    const maxAttivi = Math.min(normali.length, cfg.lupiInsiemeInizio + Math.floor(this.tempoGioco / cfg.unLupoInPiuOgni));
-    const attivi = normali.filter((lupo) => lupo.vivo).length;
-    // durante il tutorial non arriva nessun lupo: il giocatore impara con calma
-    if (this.tutorial.finito) this.prossimoLupo -= dt;
-    if (this.prossimoLupo <= 0 && attivi < maxAttivi) {
-      this.arrivaGruppo(Math.min(this.grandezzaGruppo(), maxAttivi - attivi));
-      const intervallo = cfg.intervalloLupiMinimo + Math.random() * (cfg.intervalloLupiMassimo - cfg.intervalloLupiMinimo);
-      this.prossimoLupo = intervallo * THREE.MathUtils.lerp(cfg.intervalloLupiInizio, 1, calma);
+    // Nessun lupo finché non ci sono le mura di pietra (e mentre è aperta la schermata di fine tutorial).
+    // Poi pochi lupi deboli; ogni torretta apre un lato da cui arrivano lupi normali, sempre di più:
+    // così la difficoltà cresce insieme alle difese.
+    const aperti = this.inFesta ? {} : this.frontiAperti();
+    for (const [nome, fronte] of Object.entries(this.fronti)) {
+      if (!aperti[nome]) continue;
+      fronte.tempo += dt;
+      fronte.prossimo -= dt;
+      if (fronte.prossimo <= 0) fronte.prossimo = nome === 'deboli' ? this.arrivaDebole() : this.arrivaDalLato(nome, fronte);
     }
-    // il lupo gigante, ogni 2-3 minuti (uno solo alla volta: se c'è ancora, il prossimo aspetta)
-    if (this.tutorial.finito) this.prossimoGigante -= dt;
+    // il lupo gigante, ogni 2-3 minuti dopo la prima torretta (uno solo alla volta: se c'è ancora, il prossimo aspetta)
+    if (aperti.sinistra) this.prossimoGigante -= dt;
     if (this.prossimoGigante <= 0) {
       if (!this.lupoGigante.vivo) this.arrivaGigante();
       this.prossimoGigante = G.ogniMinimo + Math.random() * (G.ogniMassimo - G.ogniMinimo);
@@ -345,7 +418,7 @@ export class Segheria {
       const target = lupo.obiettivo;
       const versoX = (target.x - lupo.x) * 0.28;
       const versoZ = (target.z - lupo.z) * 0.28;
-      const velocita = cfg.velocitaLupo * THREE.MathUtils.lerp(cfg.velocitaLupiInizio, 1, calma) * (lupo.gigante ? G.velocita : 1);
+      const velocita = cfg.velocitaLupo * lupo.velocita * (lupo.gigante ? G.velocita : 1);
       lupo.x += versoX * dt * velocita;
       lupo.z += versoZ * dt * velocita;
       // i lupi non passano le mura (nemmeno dai cancelli)
@@ -359,6 +432,12 @@ export class Segheria {
 
       if (attacca) {
         this.mura.danneggia(cfg.dannoMura * (lupo.gigante ? G.dannoMura : 1) * dt);
+        // ogni tanto un morso si vede: il palo trema, schegge e neve (il gigante morde più forte)
+        lupo.prossimoMorso = (lupo.prossimoMorso ?? Math.random()) - dt;
+        if (lupo.prossimoMorso <= 0) {
+          lupo.prossimoMorso = 1.1 + Math.random() * 0.6;
+          this.mura.colpisci(lupo.x, lupo.z, lupo.gigante ? 1.6 : 1);
+        }
       }
 
       if (distanza < 1.4 + lupo.ingombro) {
@@ -384,7 +463,14 @@ export class Segheria {
     } else {
       const lento = lupo.gigante ? 1.4 : 1; // il gigante fa balzi più lunghi e lenti
       const atterra = animaGaloppo(lupo.modello, dt, (8 + velocita * 1.5) / lento, Math.min(1, velocita / 1.2));
-      if (atterra) this.effetti.polvere(lupo.x, lupo.z, 3, lupo.gigante ? 2 : 1.2);
+      if (atterra) {
+        // quando atterra: un po' di neve e un'impronta di zampa, una a destra e una a sinistra
+        this.effetti.polvere(lupo.x, lupo.z, 3, lupo.gigante ? 2 : 1.2);
+        const scala = lupo.gruppo.scale.x;
+        lupo.passi = (lupo.passi ?? 0) + 1;
+        const fianco = (lupo.passi % 2 ? 0.12 : -0.12) * scala;
+        this.effetti.orma(lupo.x + Math.cos(lupo.angolo) * fianco, lupo.z - Math.sin(lupo.angolo) * fianco, lupo.angolo, scala);
+      }
       if (velocita > 0.05) angoloVoluto = Math.atan2(-(lupo.obiettivo.x - lupo.x), -(lupo.obiettivo.z - lupo.z));
     }
     if (angoloVoluto !== null) {
@@ -443,16 +529,19 @@ export class Segheria {
       lupo.vivo = false;
       lupo.gruppo.visible = false;
       lupo.barra.gruppo.visible = false;
-      const carne = lupo.gigante ? CONFIG.lupoGigante.carne : CONFIG.segheria.unitaPerPezzo;
-      this.lasciaCarne(lupo.x, lupo.z, carne);
-      this.effetti.testo(lupo.x, altezza + 0.2, lupo.z, lupo.gigante ? `+${carne} carne` : '+carne', 'buono');
+      const cfg = CONFIG.segheria;
+      const carne = lupo.gigante
+        ? CONFIG.lupoGigante.carne
+        : cfg.carneLupoMinima + Math.floor(Math.random() * (cfg.carneLupoMassima - cfg.carneLupoMinima + 1));
+      this.lasciaCarne(lupo.x, lupo.z, carne, lupo.gigante ? CONFIG.lupoGigante.pezziCarne : 1);
+      this.effetti.testo(lupo.x, altezza + 0.2, lupo.z, `+${carne} carne`, 'buono');
     }
   }
 
-  // La carne di un lupo morto resta a terra, in pezzi da "unitaPerPezzo" sparsi intorno (sempre fuori dalle mura)
-  lasciaCarne(x, z, unita) {
-    const pezzi = Math.max(1, Math.round(unita / CONFIG.segheria.unitaPerPezzo));
+  // La carne di un lupo morto resta a terra: "unita" unità divise in "pezzi" pezzi sparsi intorno (sempre fuori dalle mura)
+  lasciaCarne(x, z, unita, pezzi = 1) {
     for (let i = 0; i < pezzi; i++) {
+      const quantita = Math.floor(unita / pezzi) + (i < unita % pezzi ? 1 : 0);
       const angolo = (i / pezzi) * Math.PI * 2;
       const distanza = pezzi > 1 ? 0.6 + (i % 2) * 0.5 : 0;
       const punto = this.fuoriDalleMura(x + Math.cos(angolo) * distanza, z + Math.sin(angolo) * distanza, 0.6);
@@ -461,11 +550,37 @@ export class Segheria {
       mesh.rotation.y = angolo;
       mesh.scale.setScalar(0.8);
       this.radice.add(mesh);
-      this.carneCadute.push({ mesh, x: punto.x, z: punto.z, preso: false });
+      this.carneCadute.push({ mesh, x: punto.x, z: punto.z, preso: false, quantita });
     }
   }
 
   // ---------------- MIGLIORAMENTI ----------------
+
+  // I cerchi per potenziare i lavoratori (cacciatore esperto, venditore svelto...) restano nascosti
+  // finché non sono stati assunti tutti i lavoratori base; prima si vedono solo i cerchi per assumerli.
+  // subito: all'avvio, senza l'animazione del cerchio che compare
+  sbloccaPotenziamenti(subito) {
+    const tuttiAssunti = LAVORATORI_BASE.every((nome) => this.cerchi[nome].comprati > 0);
+    for (const nome of LAVORATORI_BASE) {
+      const cerchio = this.cerchi[nome];
+      // il cacciatore si può assumere solo quando c'è il suo banco (cioè dopo l'arrivo dei primi lupi)
+      cerchio.nascondi((cerchio.comprati > 0 && !tuttiAssunti) || (nome === 'cacciatore' && !this.bancoAperto), subito);
+    }
+  }
+
+  // Arrivano i primi lupi: compare il banco del cacciatore con la sua costruzione (se è fuori dallo schermo
+  // la telecamera va a vederlo, come per i miglioramenti) e insieme il cerchio per assumere il cacciatore
+  apriBanco() {
+    this.bancoAperto = true;
+    const punto = MAPPA.bancoCacciatore;
+    const azione = () => this.banco.mostra(true);
+    if (this.regia || this.inFesta || this.visibile(punto)) {
+      azione();
+      return;
+    }
+    const tappa = { punto: punto.clone(), azione, zoom: 0.8, sempre: false, sosta: CONFIG.regia.sosta, punti: [punto] };
+    this.regia = { tappe: [tappa], indice: 0, tempo: 0, nome: 'Banco del cacciatore' };
+  }
 
   // Il boscaiolo sta sul cerchio: le monete volano dentro un po' alla volta
   gestisceMiglioramenti(pos, dt) {
@@ -502,14 +617,28 @@ export class Segheria {
   // ---------------- TUTORIAL ----------------
 
   // Il giocatore ha fatto qualcosa: se era il passaggio del tutorial, si va avanti.
-  // Finito il tutorial, i lupi cominciano ad arrivare (con la calma iniziale, come a inizio partita).
+  // Finito il tutorial (comprate le mura di pietra), quando la telecamera torna sul boscaiolo arriva la festa.
   completaTutorial(evento) {
     if (!this.tutorial.completa(evento)) return;
-    const G = CONFIG.lupoGigante;
-    this.tempoGioco = 0;
-    this.prossimoLupo = CONFIG.segheria.primoLupo;
-    this.prossimoGigante = G.ogniMinimo + Math.random() * (G.ogniMassimo - G.ogniMinimo);
+    this.festaDopoLaRegia = true;
     this.salvaOra();
+  }
+
+  // Fine del tutorial: grande schermata di festa. Il gioco aspetta il pulsante "Gioca";
+  // poi tutti i cerchi si riaccendono con un saltello e le scintille.
+  apriFesta() {
+    this.festaDopoLaRegia = false;
+    this.inFesta = true;
+    this.joystick.spegni();
+    this.schermate.mostraFesta(() => {
+      this.inFesta = false;
+      this.joystick.attivo = true;
+      for (const cerchio of Object.values(this.cerchi)) {
+        if (!cerchio.spento) continue;
+        cerchio.spegni(false);
+        if (cerchio.gruppo.visible) this.effetti.scintille(cerchio.posizione.x, 0.3, cerchio.posizione.z, 0xffe066, 10, 2);
+      }
+    });
   }
 
   // Dove punta la freccia del tutorial nel passaggio di adesso
@@ -702,7 +831,11 @@ export class Segheria {
       this.schermate.nascondiSuggerimento();
     }
     // le mura bloccano sempre; le ante dei cancelli solo quando sono chiuse
-    this.giocatore.ostacoli = [...this.ostacoliFissi, ...Object.values(this.cancelli).flatMap((cancello) => cancello.ostacoli)];
+    this.giocatore.ostacoli = [
+      ...this.ostacoliFissi,
+      ...(this.banco.visibile ? [this.banco.ostacolo] : []),
+      ...Object.values(this.cancelli).flatMap((cancello) => cancello.ostacoli),
+    ];
     this.giocatore.aggiorna(dt, direzione);
     const pos = this.giocatore.posizione;
     this.attaccoCooldown = Math.max(0, this.attaccoCooldown - dt);
@@ -721,13 +854,14 @@ export class Segheria {
       if (d < 1.0 && !drop.preso) {
         drop.preso = true;
         this.radice.remove(drop.mesh);
-        this.giocatore.aggiungi('carne', CONFIG.segheria.unitaPerPezzo);
+        this.giocatore.aggiungi('carne', drop.quantita);
         this.giocatore.rimbalza(0xff9a8a, this.giocatore.cimaSchiena(new THREE.Vector3(), 'carne'));
-        this.effetti.testo(drop.x, 1.8, drop.z, `+${CONFIG.segheria.unitaPerPezzo} carne`, 'buono');
+        this.effetti.testo(drop.x, 1.8, drop.z, `+${drop.quantita} carne`, 'buono');
       }
     }
     this.carneCadute = this.carneCadute.filter((drop) => !drop.preso);
 
+    this.sbloccaPotenziamenti(false);
     this.gestisceMiglioramenti(pos, dt);
 
     // --- Raccolta e scarico, un pezzo alla volta (nessun limite di carico) ---
@@ -755,13 +889,22 @@ export class Segheria {
     // --- Tutto il resto ---
     for (const sportello of Object.values(this.sportelli)) sportello.aggiorna(dt);
     this.aiutante?.aggiorna(dt);
+    this.banco.aggiorna(dt);
     this.cacciatore?.aggiorna(dt);
     for (const venditore of this.venditori) venditore.aggiorna(dt);
     this.clienti.aggiorna(dt);
     this.effetti.aggiorna(dt);
-    if (!this.tutorial.finito) this.tutorial.aggiorna(dt, this.bersaglioTutorial());
+    if (!this.tutorial.finito) {
+      // il cerchio delle mura si accende (con un saltello) quando arriva il passaggio "Compra le mura di pietra!"
+      this.cerchi.mura.spegni(this.tutorial.passo < 2);
+      this.tutorial.aggiorna(dt, this.bersaglioTutorial());
+    }
     if (this.regia) this.aggiornaRegia(dt);
     else this.ambiente.segui(pos, dt);
+    if (this.festaDopoLaRegia && !this.regia) this.apriFesta();
+
+    // Inizio più veloce: prima delle mura di pietra i clienti sono di più; dopo tornano piano piano al ritmo normale
+    this.clienti.spinta = this.cerchi.mura.comprati === 0 ? 1 : Math.max(0, this.clienti.spinta - dt / CONFIG.clienti.avvio.ritornoIn);
 
     // --- Cancelli: si aprono quando il boscaiolo si avvicina; da quello della corsa si parte ---
     this.cancelli.foresta.aggiorna(dt, pos, this.cacciatore ? [this.cacciatore.posizione] : []);

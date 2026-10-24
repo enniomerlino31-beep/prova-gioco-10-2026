@@ -175,7 +175,7 @@ export class Giocatore {
   anima(dt, forza) {
     const carica = this.carico.legna + this.carico.carne > 0 ? 0.5 : 0;
     if (animaPersona(this.modello, dt, forza, { velocita: 12, carica })) {
-      this.effetti?.polvere(this.posizione.x, this.posizione.z, 3, 1.3);
+      this.effetti?.passo(this.modello, { polvere: 3, grandezza: 1.3 });
     }
     if (this.colpo !== null) {
       this.colpo += dt / COLPO.durata;

@@ -6,10 +6,11 @@
 //  parte andare):
 //   1. "Fai la prima corsa!"              → cerchio CORSA
 //   2. "Porta la legna allo sportello!"   → sportello LEGNA (prima la catasta, se non si ha legna)
-//   3. "Compra il primo miglioramento!"   → il cerchio verde più economico
-//  Un passaggio sparisce quando il giocatore lo completa. Il passaggio a cui
-//  si è arrivati è salvato: finito il terzo, il tutorial non compare più.
-//  Finché il tutorial non è finito i lupi non arrivano (vedi segheria.js).
+//   3. "Compra le mura di pietra!"        → il cerchio delle mura (l'unico acceso durante il tutorial)
+//  Un passaggio sparisce quando il giocatore lo completa (la prima corsa conta
+//  solo se è vinta). Il passaggio a cui si è arrivati è salvato: finito il terzo
+//  arriva la schermata di festa e il tutorial non compare più.
+//  I lupi non arrivano finché non ci sono le mura di pietra (vedi segheria.js).
 // =====================================================================
 
 import * as THREE from 'three';
@@ -17,7 +18,7 @@ import * as THREE from 'three';
 const PASSI = [
   { evento: 'corsa', testo: 'Fai la prima corsa!' },
   { evento: 'legna', testo: 'Porta la legna allo sportello!' },
-  { evento: 'miglioramento', testo: 'Compra il primo miglioramento!' },
+  { evento: 'miglioramento', testo: 'Compra le mura di pietra!' },
 ];
 
 // Freccia gialla che punta verso il basso (cono + asta), luminosa così si vede sempre

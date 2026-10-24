@@ -11,6 +11,14 @@
 //  un'onda che parte dal cerchio del miglioramento e passa palo dopo palo.
 //  Tutte le rocce (e tutte le assi) sono disegnate in un colpo solo,
 //  così il gioco resta leggero anche sul telefono.
+//
+//  DANNI (niente rosso): quando un lupo morde le mura il palo colpito trema,
+//  saltano fuori schegge di legno e dalla cima cade un po' di neve.
+//  Più la vita scende, più le mura si rovinano: sotto il 70% piccole crepe,
+//  sotto il 40% pali scheggiati e qualche punta rotta, sotto il 15% pali
+//  storti e pali spezzati. Ogni palo si rovina a un punto un po' diverso,
+//  così i danni arrivano (e con le riparazioni spariscono) poco alla volta.
+//  Crepe e schegge sono disegnate tutte insieme, come le rocce.
 // =====================================================================
 
 import * as THREE from 'three';
@@ -20,17 +28,39 @@ const DURATA_ONDA = 1.8;   // secondi perché l'onda faccia il giro delle mura
 const DURATA_COMPARSA = 0.4; // secondi perché ogni pezzo "spunti" fuori
 const ALTEZZE_ASSI = [0.42, 1.02];
 const SU = new THREE.Vector3(0, 1, 0);
+const DANNI = { crepe: 0.7, scheggiati: 0.4, rotti: 0.15 }; // sotto queste parti di vita compaiono i danni
+const MEZZO_PALO = 0.725;  // metà dell'altezza di un palo (il palo è centrato a 0,72 m da terra)
+const RISALITA = 0.25;     // dopo una riparazione i danni spariscono piano: la vita "che si vede" risale di 1/4 al secondo
 
 export class Mura {
   // palizzata: il gruppo di ambiente.js (con userData.pali e userData.collegamenti)
-  // origineOnda: da dove parte l'animazione (il cerchio del miglioramento)
-  constructor(genitore, palizzata, origineOnda) {
+  // origineOnda: da dove parte l'animazione (il cerchio del miglioramento); effetti: per schegge e neve
+  constructor(genitore, palizzata, origineOnda, effetti) {
     this.pali = palizzata.userData.pali;
+    this.effetti = effetti;
     this.livello = 0;
     this.maxHp = CONFIG.segheria.hpMura;
     this.hp = this.maxHp;
-    this.flash = 0;
+    this.ratioVisivo = 1; // la vita "che si vede": scende subito, risale piano (i danni spariscono poco alla volta)
+    this.tempo = 0;
     this.onda = null; // secondi da quando è partita l'animazione (null = ferma)
+
+    // Per ogni palo: dove sta, numeri "a caso" sempre uguali (a che punto si rovina, da che parte si storce...)
+    // e quanto è rovinato adesso (crepa, scheggia, rotto: da 0 a 1, cambiano piano piano)
+    const n = this.pali.length;
+    this.stati = this.pali.map((palo, i) => {
+      palo.material.color.setHSL(0.08 + (i / n) * 0.09, 0.43, 0.46);
+      const caso = (k) => {
+        const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
+        return v - Math.floor(v);
+      };
+      return {
+        x: palo.position.x, z: palo.position.z, punta: palo.children[0],
+        caso: [caso(1), caso(2), caso(3), caso(4), caso(5)],
+        tremore: 0, crepa: 0, scheggia: 0, rotto: 0,
+      };
+    });
+    this.creaDanni(genitore);
 
     // Ritardo dell'onda per ogni palo: 0 vicino al cerchio, 1 dalla parte opposta della base
     const angoloOrigine = Math.atan2(origineOnda.z, origineOnda.x);
@@ -148,7 +178,98 @@ export class Mura {
 
   danneggia(quantita) {
     this.hp = Math.max(0, this.hp - quantita);
-    this.flash = Math.min(0.52, this.flash + 0.45);
+  }
+
+  // Un lupo morde le mura vicino a (x, z): il palo più vicino trema (e un po' anche quelli accanto),
+  // saltano fuori schegge di legno che cadono nella neve e dalla cima si stacca un po' di neve.
+  // forza: quanto è forte il morso (il lupo gigante morde più forte)
+  colpisci(x, z, forza = 1) {
+    let colpito = 0;
+    let distanza = Infinity;
+    this.stati.forEach((stato, i) => {
+      const d = Math.hypot(stato.x - x, stato.z - z);
+      if (d < distanza) {
+        distanza = d;
+        colpito = i;
+      }
+    });
+    for (let k = -1; k <= 1; k++) {
+      const stato = this.stati[colpito + k];
+      if (stato) stato.tremore = Math.max(stato.tremore, k === 0 ? forza : forza * 0.5);
+    }
+    const { x: px, z: pz } = this.stati[colpito];
+    const { x: nx, z: nz } = this.pali[colpito].userData.normale;
+    this.effetti.sbuffo(px + nx * 0.3, 0.7, pz + nz * 0.3, 0xb07a45, Math.round(5 * forza), 2.2); // schegge di legno
+    this.effetti.sbuffo(px, 1.5, pz, 0xf4f8ff, Math.round(4 * forza), 1.2);                      // neve dalla cima
+  }
+
+  // Crepe (righe scure) e schegge (pezzetti di legno chiaro che spuntano) sui pali:
+  // una per lato del palo (dentro e fuori), tutte disegnate in un colpo solo e nascoste finché non servono
+  creaDanni(genitore) {
+    const n = this.pali.length;
+    const crea = (colore) => {
+      const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshLambertMaterial({ color: colore }), n * 2);
+      mesh.frustumCulled = false;
+      genitore.add(mesh);
+      return mesh;
+    };
+    this.crepe = crea(0x3a2412);
+    this.schegge = crea(0xe2b77e);
+    this._m = new THREE.Matrix4();
+    this._locale = new THREE.Matrix4();
+    this._q = new THREE.Quaternion();
+    this._v = new THREE.Vector3();
+    this._s = new THREE.Vector3();
+    this._asse = new THREE.Vector3();
+    // dove stanno crepa e scheggia su ogni lato del palo (calcolato una volta sola: non cambia mai)
+    const inclinaFuori = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), 0.6);
+    this.stati.forEach((stato, i) => {
+      const { x: nx, z: nz } = this.pali[i].userData.normale;
+      stato.lati = [1, -1].map((verso) => {
+        const angolo = Math.atan2(nx * verso, nz * verso); // il lato del palo che guarda da quella parte
+        return {
+          // crepa: una riga scura inclinata a metà palo
+          posCrepa: new THREE.Vector3(nx * verso * 0.2, 0.05 + stato.caso[4] * 0.2, nz * verso * 0.2),
+          qCrepa: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, angolo, (stato.caso[0] - 0.5) * 0.9)),
+          // scheggia: un pezzetto di legno chiaro che spunta in alto, inclinato verso fuori
+          posScheggia: new THREE.Vector3(nx * verso * 0.17, 0.5, nz * verso * 0.17),
+          qScheggia: new THREE.Quaternion().setFromEuler(new THREE.Euler(0, angolo, 0)).multiply(inclinaFuori),
+        };
+      });
+    });
+  }
+
+  // Sistema un palo: rovinato quanto dice il suo stato, che trema se è appena stato morso
+  // e con la base sempre a terra (anche quando è storto o spezzato)
+  sistemaPalo(i, salto) {
+    const palo = this.pali[i];
+    const stato = this.stati[i];
+    const [, c2, , c4, c5] = stato.caso;
+    const { x: nx, z: nz } = palo.userData.normale;
+    const spezzato = c4 < 0.35; // tra i pali rotti, alcuni si spezzano a metà, gli altri si storcono
+    // altezza: un po' più basso se ha la punta rotta, solo un moncone se è spezzato; saltello quando passa l'onda
+    let altezza = 1 + salto;
+    if (c2 < 0.6) altezza -= stato.scheggia * 0.1;
+    if (spezzato) altezza -= stato.rotto * 0.65;
+    stato.punta.visible = !(c2 < 0.6 && stato.scheggia > 0.5) && !(spezzato && stato.rotto > 0.3);
+    palo.scale.y = altezza;
+    // storto: ruota attorno alla direzione della fila, verso fuori o verso dentro
+    this._asse.set(-nz, 0, nx);
+    palo.quaternion.setFromAxisAngle(this._asse, spezzato ? 0 : stato.rotto * 0.24 * (c5 < 0.5 ? -1 : 1));
+    // la base resta a terra: il centro del palo sta "mezzo palo" sopra la base, nella direzione in cui è inclinato
+    this._v.set(0, MEZZO_PALO * altezza, 0).applyQuaternion(palo.quaternion);
+    const scossa = Math.sin(this.tempo * 55 + i) * 0.06 * stato.tremore; // trema lungo la fila
+    palo.position.set(stato.x + this._v.x - nz * scossa, -0.005 + this._v.y, stato.z + this._v.z + nx * scossa);
+    palo.updateMatrix();
+
+    // crepa e scheggia su ogni lato del palo (fuori e dentro), seguendo il palo
+    stato.lati.forEach((lato, j) => {
+      const k = i * 2 + j;
+      this._locale.compose(lato.posCrepa, lato.qCrepa, this._s.set(0.025, 0.34, 0.03).multiplyScalar(Math.max(0.0001, stato.crepa)));
+      this.crepe.setMatrixAt(k, this._m.multiplyMatrices(palo.matrix, this._locale));
+      this._locale.compose(lato.posScheggia, lato.qScheggia, this._s.set(0.06, 0.18, 0.05).multiplyScalar(Math.max(0.0001, stato.scheggia)));
+      this.schegge.setMatrixAt(k, this._m.multiplyMatrices(palo.matrix, this._locale));
+    });
   }
 
   // Quanto è "spuntato" un pezzo: 0 = non c'è, 1 = al suo posto (con un piccolo rimbalzo mentre spunta)
@@ -179,27 +300,37 @@ export class Mura {
   }
 
   aggiorna(dt) {
-    this.flash = Math.max(0, this.flash - dt * 3);
+    this.tempo += dt;
     if (this.onda !== null) {
       this.onda += dt;
       if (this.onda > DURATA_ONDA + DURATA_COMPARSA) this.onda = null;
       this.aggiornaPezzi();
     }
 
-    // Pali: sempre di legno; più chiari se danneggiati, rossi quando vengono colpiti, saltello quando passa l'onda
+    // La vita "che si vede" scende subito con i morsi, ma risale piano: riparate o migliorate le mura,
+    // i danni spariscono poco alla volta
     const ratio = this.ratio;
-    const n = this.pali.length;
-    for (let i = 0; i < n; i++) {
-      const palo = this.pali[i];
-      const colore = new THREE.Color().setHSL(0.08 + (i / n) * 0.09, 0.43, 0.46 + (1 - ratio) * 0.12);
-      if (this.flash > 0.02) palo.material.color.lerpColors(colore, new THREE.Color(0xd63f33), 0.85);
-      else palo.material.color.copy(colore);
+    this.ratioVisivo = ratio < this.ratioVisivo ? ratio : Math.min(ratio, this.ratioVisivo + dt * RISALITA);
+    const v = this.ratioVisivo;
+
+    const verso = (attuale, voluto) => attuale + THREE.MathUtils.clamp(voluto - attuale, -dt * 2, dt * 2);
+    for (let i = 0; i < this.pali.length; i++) {
+      const stato = this.stati[i];
+      // ogni palo si rovina a un punto un po' diverso (secondo i suoi numeri a caso)
+      const [c1, c2, c3] = stato.caso;
+      stato.crepa = verso(stato.crepa, v < DANNI.crepe - c1 * 0.5 ? 1 : 0);
+      stato.scheggia = verso(stato.scheggia, v < DANNI.scheggiati - c2 * 0.3 ? 1 : 0);
+      stato.rotto = verso(stato.rotto, v < DANNI.rotti - c3 * 0.15 ? 1 : 0);
+      stato.tremore = Math.max(0, stato.tremore - dt * 3.5);
+      // saltello quando passa l'onda del miglioramento
       let salto = 0;
       if (this.onda !== null) {
         const k = (this.onda - this.ritardi[i] * DURATA_ONDA) / DURATA_COMPARSA;
         if (k > 0 && k < 1) salto = Math.sin(k * Math.PI) * 0.25;
       }
-      palo.scale.y = (1 - ratio > 0.15 && i % 2 === 0 ? 0.85 + ratio * 0.4 : 1) + salto;
+      this.sistemaPalo(i, salto);
     }
+    this.crepe.instanceMatrix.needsUpdate = true;
+    this.schegge.instanceMatrix.needsUpdate = true;
   }
 }

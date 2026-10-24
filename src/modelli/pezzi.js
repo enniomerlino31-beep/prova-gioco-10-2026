@@ -21,6 +21,7 @@ export const FORME = {
   scatola: new THREE.BoxGeometry(1, 1, 1),
   capsula: new THREE.CapsuleGeometry(1, 1, 4, 12),
   cono: new THREE.ConeGeometry(1, 1, 10),
+  ciambella: new THREE.TorusGeometry(1, 0.35, 8, 16), // in piedi: per sdraiarla si gira di 90 gradi sull'asse x
 };
 
 // Un pezzo: su quale perno sta, che forma ha, di che colore è (un numero come 0xff0000,

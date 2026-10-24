@@ -130,6 +130,33 @@ export class Schermate {
     this.timerAvviso = setTimeout(() => avviso.classList.add('nascosto'), secondi * 1000);
   }
 
+  // Festa di fine tutorial: "Ottimo lavoro!" con stelline e coriandoli che cadono.
+  // Quando si preme "Gioca" la schermata si chiude e viene chiamata alGioca.
+  mostraFesta(alGioca) {
+    const schermata = $('schermata-festa');
+    const coriandoli = $('coriandoli');
+    coriandoli.innerHTML = '';
+    const colori = ['#ffd23f', '#ff6b6b', '#4fc3f7', '#7ee07e', '#ff9a1f', '#c38bff', '#ffffff'];
+    for (let i = 0; i < 60; i++) {
+      const pezzo = document.createElement('div');
+      pezzo.className = 'coriandolo';
+      pezzo.style.left = `${Math.random() * 100}%`;
+      pezzo.style.background = colori[i % colori.length];
+      pezzo.style.animationDuration = `${2.2 + Math.random() * 2}s`;
+      pezzo.style.animationDelay = `${Math.random() * 1.2}s`;
+      pezzo.style.setProperty('--deriva', `${(Math.random() - 0.5) * 160}px`);
+      pezzo.style.setProperty('--giri', `${(Math.random() - 0.5) * 1440}deg`);
+      coriandoli.appendChild(pezzo);
+    }
+    $('avviso-segheria').classList.add('nascosto');
+    schermata.classList.remove('nascosto');
+    $('pulsante-festa').onclick = () => {
+      schermata.classList.add('nascosto');
+      coriandoli.innerHTML = '';
+      alGioca();
+    };
+  }
+
   // Il suggerimento in basso svanisce quando il giocatore inizia a camminare
   nascondiSuggerimento() {
     const suggerimento = $('suggerimento-segheria');
@@ -158,7 +185,8 @@ export class Schermate {
         riga('<span class="hud-icon hud-icon--log hud-icon--mini"></span> Legna sul carro', risultato.legna) +
         riga('<span class="hud-icon hud-icon--meat hud-icon--mini"></span> Carne sul carro', risultato.carne) +
         riga('<span class="hud-icon hud-icon--mountain hud-icon--mini"></span> Gradino raggiunto', `x${risultato.moltiplicatore}`) +
-        riga('Bottino totale', `${risultato.legnaFinale} legna · ${risultato.carneFinale} carne`, 'totale');
+        (risultato.bonusLegna > 0 ? riga('<span class="hud-icon hud-icon--log hud-icon--mini"></span> Bonus prima corsa', `+${risultato.bonusLegna} legna`) : '') +
+        riga('Bottino totale', `${risultato.legnaFinale + (risultato.bonusLegna ?? 0)} legna · ${risultato.carneFinale} carne`, 'totale');
     } else {
       $('fine-titolo').textContent = 'Squadra sconfitta!';
       $('fine-messaggio').textContent =

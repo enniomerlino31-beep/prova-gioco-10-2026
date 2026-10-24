@@ -4,6 +4,7 @@
 //    con un arco e una rotazione
 //  - sbuffi di particelle: schegge di legno, neve, polvere
 //  - polvere di neve sotto i piedi e scintille che brillano (raccolta, colpi)
+//  - impronte nella neve (vedi impronte.js): stivali per le persone, zampe per i lupi
 //  - testi volanti ("+12 legna", "-3"), disegnati dalle schermate
 // =====================================================================
 
@@ -11,7 +12,8 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { geometriaTronco, materialiTronco } from '../modelli/carro.js';
 import { creaCarne } from '../modelli/carne.js';
-import { creaMazzetta } from '../modelli/soldi.js';
+import { creaMazzetta, creaMoneta } from '../modelli/soldi.js';
+import { Impronte } from './impronte.js';
 
 const MASSIMO_PARTICELLE = 300;
 const MASSIMO_SCINTILLE = 120;
@@ -113,13 +115,36 @@ export class Effetti {
     }
   }
 
+  // Le impronte si preparano solo la prima volta che servono (nella corsa non ci sono)
+  get impronte() {
+    this._impronte ??= new Impronte(this.genitore);
+    return this._impronte;
+  }
+
+  // Un passo di una persona (boscaiolo, lavoratore, cliente): un'impronta di stivale sotto il piede
+  // che tocca terra (uno a destra e uno a sinistra) e un po' di polvere di neve
+  passo(modello, { polvere = 2, grandezza = 1 } = {}) {
+    const { x, z } = modello.position;
+    const angolo = modello.rotation.y;
+    const scala = modello.scale.x;
+    const lato = Math.sin(modello.userData.anim.fase) > 0 ? 1 : -1;
+    const fianco = 0.09 * scala * lato; // il piede sta un po' di lato rispetto al centro
+    this.impronte.aggiungi('stivale', x + Math.cos(angolo) * fianco, z - Math.sin(angolo) * fianco, angolo, 0.2 * scala, 0.32 * scala);
+    this.polvere(x, z, polvere, grandezza);
+  }
+
+  // Un'impronta di zampa di lupo in (x, z), girata come "angolo"; scala = grandezza del lupo
+  orma(x, z, angolo, scala) {
+    this.impronte.aggiungi('zampa', x, z, angolo, 0.3 * scala, 0.3 * scala);
+  }
+
   // Aggiunge una particella a un elenco; se è pieno toglie la più vecchia
   aggiungi(lista, massimo, particella) {
     if (lista.length >= massimo) lista.shift();
     lista.push(particella);
   }
 
-  // Lancia un oggetto ('legna', 'carne' o 'soldi') dal punto "da" fino alla destinazione.
+  // Lancia un oggetto ('legna', 'carne', 'soldi' o 'moneta') dal punto "da" fino alla destinazione.
   // destinazione: una funzione che restituisce il punto di arrivo (può muoversi!)
   //               oppure un oggetto con il metodo puntoDiArrivo(tipo) come il carro.
   // Quando atterra viene chiamata la funzione alArrivo (che aggiunge il carico).
@@ -132,6 +157,9 @@ export class Effetti {
     } else if (tipo === 'soldi') {
       oggetto = creaMazzetta();
       oggetto.scale.setScalar(1.4 * (opzioni.scala ?? 1));
+    } else if (tipo === 'moneta') {
+      oggetto = creaMoneta();
+      oggetto.scale.multiplyScalar(1.8 * (opzioni.scala ?? 1));
     } else {
       oggetto = new THREE.Mesh(geometriaTronco, materialiTronco);
       oggetto.castShadow = true;
@@ -191,6 +219,8 @@ export class Effetti {
       }
     }
     this.voli = this.voli.filter((v) => !v.finito);
+
+    this._impronte?.aggiorna(dt);
 
     // --- Particelle e scintille ---
     this.particelle = this.disegna(this.particelle, this.cubetti, dt);

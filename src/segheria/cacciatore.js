@@ -1,14 +1,15 @@
 // =====================================================================
 //  CACCIATORE (si compra con il cerchio "Cacciatore")
 //  Un boscaiolo con il berretto verde e la giacca di pelle marrone.
-//  Aspetta dentro la base, accanto al cancello della foresta. Appena c'è
+//  Aspetta al suo banco da lavoro, al centro della base, sistemando gli
+//  attrezzi (vedi banco.js). Appena c'è
 //  un lupo (o della carne a terra) esce dal cancello, gira attorno alle
 //  mura senza attraversarle, combatte il lupo con l'ascia e raccoglie la
 //  carne che lascia. Quando fuori non c'è più niente (o ha già sulla
 //  schiena il massimo, "caricoMassimo" unità), rientra dal cancello e porta
 //  la carne direttamente al deposito dello sportello CARNE (passando per la
-//  corsia centrale, così non cammina sopra la catasta), poi torna al suo
-//  posto (o esce di nuovo).
+//  corsia centrale, così non cammina sopra la catasta), poi torna al banco
+//  (o esce di nuovo).
 // =====================================================================
 
 import * as THREE from 'three';
@@ -79,9 +80,11 @@ export class Cacciatore {
     this.ricarica = Math.max(0, this.ricarica - dt);
 
     const lupi = this.base.lupiBase.filter((lupo) => lupo.vivo);
-    const carne = this.base.carneCadute.filter((pezzo) => !pezzo.preso);
+    const massimo = CONFIG.lavoratori.caricoMassimo;
+    // la carne a terra che ci sta ancora sulla schiena
+    const carne = this.base.carneCadute.filter((pezzo) => !pezzo.preso && this.carico + pezzo.quantita <= massimo);
     const fuoriCeQualcosa = lupi.length > 0 || carne.length > 0;
-    const pieno = this.carico + CONFIG.segheria.unitaPerPezzo > CONFIG.lavoratori.caricoMassimo; // non ci sta un altro pezzo
+    const pieno = this.carico >= massimo;
 
     if (this.stato === 'casa' || this.stato === 'torna') {
       if (fuoriCeQualcosa) {
@@ -92,8 +95,7 @@ export class Cacciatore {
       } else if (this.stato === 'torna') {
         if (this.seguiPercorso(dt)) this.stato = 'casa';
       } else {
-        this.fermo(dt);
-        this.modello.rotation.y = Math.PI / 2;
+        this.lavoraAlBanco(dt);
       }
     } else if (this.stato === 'esce' || this.stato === 'entra') {
       if (this.seguiPercorso(dt)) {
@@ -144,7 +146,7 @@ export class Cacciatore {
   prendi(pezzo) {
     pezzo.preso = true;
     this.base.radice.remove(pezzo.mesh);
-    const quantita = CONFIG.segheria.unitaPerPezzo;
+    const quantita = pezzo.quantita;
     this.carico += quantita;
     this.aggiornaSchiena();
     this.base.effetti.testo(pezzo.x, 1.8, pezzo.z, `+${quantita} carne`, 'buono');
@@ -164,7 +166,7 @@ export class Cacciatore {
     effetti.lancia('carne', partenza, sportello, 0, () => {
       inVolo.carne -= quantita;
       sportello.aggiungi(quantita);
-      this.torna([this.giuPerLaCorsia, PUNTI.corsia, PUNTI.casa]);
+      this.torna([this.giuPerLaCorsia, PUNTI.casa]); // dallo sportello sale dritto fino al banco
     }, VOLO);
     effetti.testo(sportello.zona.x, 2.2, sportello.zona.z, `+${quantita} carne`, 'buono');
   }
@@ -216,6 +218,19 @@ export class Cacciatore {
     this.cammina(this.posizione, dt);
   }
 
+  // Al banco: chino sul tavolo, sistema gli attrezzi con piccoli gesti delle mani
+  // e ogni tanto si gira un po' a guardare un altro attrezzo
+  lavoraAlBanco(dt) {
+    this.fermo(dt);
+    this.tempoBanco = (this.tempoBanco ?? 0) + dt;
+    const t = this.tempoBanco;
+    const { perni, molla } = this.modello.userData;
+    perni.braccioDx.rotation.x = 1.0 + Math.sin(t * 3.1) * 0.25;
+    perni.braccioSx.rotation.x = 0.85 + Math.sin(t * 2.3 + 1) * 0.2;
+    molla.rotation.x = -0.14;
+    this.modello.rotation.y = Math.sin(t * 0.6) * 0.3; // 0 = guarda il banco (verso il fondo della base)
+  }
+
   // Cammina verso un punto: restituisce true quando è arrivato
   cammina(obiettivo, dt) {
     const verso = obiettivo.clone().sub(this.posizione).setY(0);
@@ -229,7 +244,7 @@ export class Cacciatore {
     }
     // passo con rimbalzo (vedi animazioni.js); a ogni passo un po' di neve
     if (animaPersona(this.modello, dt, arrivato ? 0 : 1, { carica: this.carico > 0 ? 0.5 : 0 })) {
-      this.base.effetti.polvere(this.posizione.x, this.posizione.z, 2, 1.2);
+      this.base.effetti.passo(this.modello, { grandezza: 1.2 });
     }
     this.modello.position.set(this.posizione.x, 0, this.posizione.z);
     return arrivato;

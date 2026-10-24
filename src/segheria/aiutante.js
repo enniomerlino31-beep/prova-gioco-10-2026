@@ -126,7 +126,7 @@ export class Aiutante {
     }
     // passo con rimbalzo (vedi animazioni.js); a ogni passo un po' di neve
     if (animaPersona(this.modello, dt, arrivato ? 0 : 1, { carica: this.carico > 0 ? 0.5 : 0 })) {
-      this.effetti.polvere(this.posizione.x, this.posizione.z, 2, 1.2);
+      this.effetti.passo(this.modello, { grandezza: 1.2 });
     }
     this.modello.position.set(this.posizione.x, 0, this.posizione.z);
     return arrivato;

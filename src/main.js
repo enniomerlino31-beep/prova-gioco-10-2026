@@ -46,8 +46,9 @@ function avviaCorsa() {
 }
 
 // A fine corsa il bottino va SUBITO in magazzino (e viene salvato), poi si vede il riepilogo
+// (la prima corsa del tutorial può avere un bonus di legna, che si vede nel riepilogo)
 function fineCorsa(risultato) {
-  if (risultato.vinto) segheria.aggiungiBottino(risultato.legnaFinale, risultato.carneFinale);
+  if (risultato.vinto) risultato.bonusLegna = segheria.aggiungiBottino(risultato.legnaFinale, risultato.carneFinale);
   schermate.mostraFine(risultato);
 }
 

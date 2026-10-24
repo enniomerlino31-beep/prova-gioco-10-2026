@@ -27,12 +27,16 @@ export class CerchioMiglioramento {
     this.posizione = (this.posizioni[comprati] ?? this.posizioni[this.posizioni.length - 1]).clone();
     this.livelli = livelli;
     this.comprati = comprati;
-    this.pagato = pagato;
+    // se nel frattempo il prezzo è sceso sotto quanto già pagato, manca una sola moneta per finire
+    this.pagato = this.livello ? Math.min(pagato, this.livello.prezzo - 1) : pagato;
     this.inArrivo = 0;    // soldi in volo verso il cerchio
     this.attesa = 0;      // secondi prima del prossimo volo di monete
     this.salto = 0;       // animazione quando si completa un livello (da 1 a 0)
     this.sparisce = false;
     this.trasloco = 0;    // animazione dello spostamento verso il posto del livello successivo (da 1 a 0)
+    this.nascosto = false; // aspetta di essere sbloccato (es. i potenziamenti dei lavoratori)
+    this.presenza = 1;    // 1 = si vede tutto, 0 = rimpicciolito e nascosto (per comparire e scomparire dolcemente)
+    this.spento = false;  // grigio e trasparente, non si può comprare (es. durante il tutorial)
 
     this.gruppo = new THREE.Group();
     this.gruppo.position.copy(this.posizione).setY(0.02);
@@ -44,6 +48,8 @@ export class CerchioMiglioramento {
       );
       mesh.rotation.x = -Math.PI / 2;
       mesh.position.y = y;
+      mesh.userData.colore = colore;   // i colori veri, per tornare normale dopo essere stato spento
+      mesh.userData.opacita = opacita;
       this.gruppo.add(mesh);
       return mesh;
     };
@@ -73,7 +79,35 @@ export class CerchioMiglioramento {
   }
 
   get attivo() {
-    return Boolean(this.livello) && !this.sparisce && this.trasloco <= 0;
+    return Boolean(this.livello) && !this.sparisce && this.trasloco <= 0 && !this.nascosto && !this.spento;
+  }
+
+  // Spegne il cerchio (grigio e trasparente, non si compra) o lo riaccende con un saltello
+  spegni(si) {
+    if (si === this.spento) return;
+    this.spento = si;
+    for (const mesh of this.gruppo.children) {
+      const colore = new THREE.Color(mesh.userData.colore);
+      if (si) colore.setScalar(colore.r * 0.3 + colore.g * 0.59 + colore.b * 0.11); // grigio della stessa luminosità
+      mesh.material.color.copy(colore);
+      mesh.material.opacity = mesh.userData.opacita * (si ? 0.45 : 1);
+    }
+    this.ridisegna();
+    if (!si) this.salto = 1;
+  }
+
+  // Nasconde il cerchio (si rimpicciolisce e sparisce) o lo fa ricomparire con un saltello.
+  // subito: senza animazione (all'avvio)
+  nascondi(si, subito = false) {
+    if (si === this.nascosto) return;
+    this.nascosto = si;
+    if (subito) {
+      this.presenza = si ? 0 : 1;
+      this.gruppo.visible = !si && Boolean(this.livello);
+    } else if (!si && this.livello) {
+      this.gruppo.visible = true;
+      this.salto = 1;
+    }
   }
 
   contiene(posizione) {
@@ -129,6 +163,12 @@ export class CerchioMiglioramento {
   }
 
   aggiorna(dt) {
+    this.presenza = THREE.MathUtils.clamp(this.presenza + (this.nascosto ? -dt : dt) * 3, 0, 1);
+    if (this.nascosto) {
+      this.gruppo.scale.setScalar(Math.max(0.001, this.presenza));
+      if (this.presenza <= 0) this.gruppo.visible = false;
+      return;
+    }
     if (!this.gruppo.visible) return;
     if (this.trasloco > 0) {
       // prima metà: si rimpicciolisce dove era; seconda metà: ricompare nel posto nuovo con il livello nuovo
@@ -152,7 +192,7 @@ export class CerchioMiglioramento {
       return;
     }
     const s = 1 + Math.sin((1 - this.salto) * Math.PI * 3) * this.salto * 0.25;
-    this.gruppo.scale.setScalar(s);
+    this.gruppo.scale.setScalar(Math.max(0.001, s * this.presenza));
   }
 
   // La barra circolare: parte dall'alto e gira come le lancette dell'orologio
@@ -189,6 +229,13 @@ export class CerchioMiglioramento {
     ctx.strokeText(testo, inizio + latoMoneta + 8, 203);
     ctx.fillStyle = '#ffffff';
     ctx.fillText(testo, inizio + latoMoneta + 8, 203);
+    if (this.spento) {
+      // cerchio spento: anche l'icona e il prezzo diventano grigi
+      const immagine = ctx.getImageData(0, 0, l, a);
+      const p = immagine.data;
+      for (let i = 0; i < p.length; i += 4) p[i] = p[i + 1] = p[i + 2] = p[i] * 0.3 + p[i + 1] * 0.59 + p[i + 2] * 0.11;
+      ctx.putImageData(immagine, 0, 0);
+    }
     this.texture.needsUpdate = true;
   }
 }
