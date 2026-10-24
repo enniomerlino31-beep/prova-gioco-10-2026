@@ -56,6 +56,7 @@ Il gioco unisce una corsa infinita con una base di gestione: la squadra corre in
 - Non esiste ancora una schermata di selezione di base o di avanzamento tra più aree di gioco.
 - La parte estetica, l’equilibrio del gioco e la narrazione potrebbero essere ulteriormente sviluppate.
 - Il progetto è ancora in fase di prototipo e di testing di meccaniche base.
+- Prima delle ultime fasi ci sono tre gruppi di modifiche ancora da fare, descritti in `PIANO-GRUPPI.md`: Gruppo 2 (base: monete in un solo cerchio, pavimento, cancelli, pile sulla schiena in fila, mura a tronchi orizzontali), Gruppo 3 (torrette e arcieri che cambiano con le mura e con i potenziamenti), Gruppo 4 (corsa alla lunghezza originale e orso gigante a fine corsa).
 - Per finire il livello 1 mancano ancora (in fasi, da fare più avanti): suoni e guadagni offline. Dopo verranno le espansioni della base (zona clienti con falò, affumicatoio, canile, casa dei lavoratori, grande magazzino), descritte in `PIANO-ESPANSIONI.md` e non ancora realizzate.
 
 ## 🎮 Comandi di gioco
@@ -113,6 +114,8 @@ npm run build
 
 - `index.html`: struttura della pagina, HUD, avviso al centro dello schermo e schermate del gioco.
 - `PIANO-ESPANSIONI.md`: il piano delle 5 espansioni del livello 1 (meccanismo comune e cosa fa ogni zona), da realizzare in futuro una alla volta.
+- `PIANO-GRUPPI.md`: il testo completo dei Gruppi 2, 3 e 4 di modifiche ancora da fare (base, torrette e arcieri, corsa con l’orso gigante), più le decisioni già prese che li riguardano.
+- `public/riferimenti/`: le tre foto di riferimento per le nuove mura del Gruppo 2 (struttura, distanza tra i pali, aspetto del legno).
 - `src/main.js`: punto di partenza del gioco e loop principale.
 - `src/config.js`: tutte le impostazioni principali: velocità, numero di boscaioli, porte, ostacoli, economia e telecamera.
 - `src/corsa/`: logica della corsa: squadra, carro, alberi, porte, lupi, ostacoli e sfida finale.
@@ -155,6 +158,7 @@ npm run build
 - 2026-10-24 — mura senza rosso: un morso fa tremare il palo, con schegge di legno e neve che cade dalla cima (`colpisci` in `mura.js`, un morso ogni 1,1–1,7 secondi in `segheria.js`); danni che crescono con la vita persa (crepe sotto il 70%, schegge e punte rotte sotto il 40%, pali storti e spezzati sotto il 15%, `sistemaPalo`) e spariscono piano dopo riparazioni e miglioramenti (`ratioVisivo`); crepe e schegge disegnate tutte insieme; cerchio dell’aiutante accanto alla catasta; cerchi delle mura e della riparazione in alto al centro, ai lati del futuro cerchio CORSA.
 - 2026-10-24 — aggiunto `?senzatutorial` nell’indirizzo per saltare il tutorial (in `segheria.js`, accanto a `?tutorial`).
 - 2026-10-24 — banco da lavoro del cacciatore al centro della base (nuovi `src/modelli/banco.js` e `src/segheria/banco.js`): tavolo con coltello, corda, pelle tesa, frecce e lanterna; compare con i primi lupi con una piccola costruzione (e la telecamera se è fuori dallo schermo), insieme al cerchio per assumere il cacciatore, prima nascosto; il cacciatore aspetta lì sistemando gli attrezzi (`lavoraAlBanco` in `cacciatore.js`) e dallo sportello CARNE torna dritto al banco; il suo cerchio è accanto al banco; non c’è più il posto vicino al cancello della foresta; il boscaiolo non attraversa il banco. Nuova forma `ciambella` in `pezzi.js` (per la corda).
+- 2026-10-24 — aggiunto `PIANO-GRUPPI.md` con il testo dei Gruppi 2, 3 e 4 ancora da fare (e le decisioni già prese), e salvate in `public/riferimenti/` le foto di riferimento per le mura.
 
 ## ✅ Note finali
 
