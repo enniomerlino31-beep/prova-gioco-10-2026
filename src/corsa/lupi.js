@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { creaLupo } from '../modelli/lupo.js';
+import { animaGaloppo, animaRinghio } from '../modelli/animazioni.js';
 
 export class Lupi {
   constructor(genitore, effetti) {
@@ -31,7 +32,6 @@ export class Lupi {
       corre,
       modello,
       stato: 'attesa', // 'attesa', 'corre', 'sconfitto', 'scappa', 'sparito'
-      fase: Math.random() * 6,
       tempo: 0,
     });
   }
@@ -43,20 +43,19 @@ export class Lupi {
 
       // --- Movimento ---
       if (lupo.stato === 'attesa') {
-        // fermo, ma ringhia (si muove un po' su e giù)
-        lupo.fase += dt * 4;
-        lupo.modello.corpo.position.y = Math.abs(Math.sin(lupo.fase)) * 0.04;
+        // fermo, ma ringhia (basso sulle zampe, con la testa che trema)
+        animaRinghio(lupo.modello, dt);
         if (lupo.corre && lupo.distanza - squadra.distanza < cfg.distanzaAttivazione) lupo.stato = 'corre';
       } else if (lupo.stato === 'corre') {
         lupo.distanza -= cfg.velocita * dt; // corre verso la squadra, dritto nella sua corsia
-        this.animaCorsa(lupo, dt, 16);
+        this.animaCorsa(lupo, dt, 13);
         // superata la squadra e il carro, se ne va
         if (lupo.distanza < carro.distanza - 10) lupo.stato = 'sparito';
       } else if (lupo.stato === 'scappa') {
         // scappa di lato fuori dalla strada
         lupo.x += Math.sign(lupo.x || 1) * 9 * dt;
         g.rotation.y = Math.sign(lupo.x || 1) > 0 ? -Math.PI / 2 : Math.PI / 2;
-        this.animaCorsa(lupo, dt, 18);
+        this.animaCorsa(lupo, dt, 15);
         lupo.tempo += dt;
         if (lupo.tempo > 1.5) lupo.stato = 'sparito';
       } else if (lupo.stato === 'sconfitto') {
@@ -125,14 +124,8 @@ export class Lupi {
     return [...scelti];
   }
 
-  animaCorsa(lupo, dt, velocitaPasso) {
-    lupo.fase += dt * velocitaPasso;
-    const passo = Math.sin(lupo.fase);
-    const [as, ad, ps, pd] = lupo.modello.zampe;
-    as.rotation.x = passo * 0.8;
-    pd.rotation.x = passo * 0.8;
-    ad.rotation.x = -passo * 0.8;
-    ps.rotation.x = -passo * 0.8;
-    lupo.modello.corpo.position.y = Math.abs(passo) * 0.08;
+  // Corsa a balzi (vedi animazioni.js): quando atterra alza un po' di neve
+  animaCorsa(lupo, dt, velocitaBalzi) {
+    if (animaGaloppo(lupo.modello, dt, velocitaBalzi)) this.effetti.polvere(lupo.x, -lupo.distanza, 3, 1.6);
   }
 }

@@ -11,6 +11,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { creaCliente } from '../modelli/cliente.js';
+import { animaPersona } from '../modelli/animazioni.js';
 import { creaScritta } from '../modelli/materiali.js';
 import { prezzo } from '../economia.js';
 import { MAPPA } from './ambiente.js';
@@ -90,7 +91,6 @@ export class Clienti {
     this.genitore.add(modello);
     const cliente = {
       modello,
-      perni: modello.userData.perni,
       posizione: MAPPA.ingressoClienti.clone(),
       obiettivo: new THREE.Vector3(),
       stato: 'inFila',
@@ -99,7 +99,6 @@ export class Clienti {
       preso: 0,           // unità già prese dal bancone
       prossimoPezzo: 0,   // secondi prima di prendere il prossimo pezzo
       attesa: 0,
-      fase: Math.random() * 6,
     };
     this.creaFumetto(cliente);
     this.lista.push(cliente);
@@ -181,15 +180,9 @@ export class Clienti {
       cliente.posizione.addScaledVector(verso, passo / distanza);
       cliente.modello.rotation.y = Math.atan2(-verso.x, -verso.z);
     }
-    // animazione del passo
-    const muove = !arrivato;
-    cliente.fase += dt * (muove ? 11 : 0);
-    const p = muove ? Math.sin(cliente.fase) : 0;
-    cliente.perni.gambaSx.rotation.x = p * 0.7;
-    cliente.perni.gambaDx.rotation.x = -p * 0.7;
-    cliente.perni.braccioSx.rotation.x = -p * 0.5;
-    cliente.perni.braccioDx.rotation.x = p * 0.5;
-    cliente.modello.position.set(cliente.posizione.x, Math.abs(p) * 0.05, cliente.posizione.z);
+    // passo con rimbalzo (vedi animazioni.js), da fermo respira; a ogni passo un po' di neve
+    if (animaPersona(cliente.modello, dt, arrivato ? 0 : 1)) this.effetti.polvere(cliente.posizione.x, cliente.posizione.z, 2, 1);
+    cliente.modello.position.set(cliente.posizione.x, 0, cliente.posizione.z);
     return arrivato;
   }
 

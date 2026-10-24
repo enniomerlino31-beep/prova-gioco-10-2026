@@ -33,6 +33,7 @@ import { Torrette } from './torrette.js';
 import { Tutorial } from './tutorial.js';
 import { Mura } from './mura.js';
 import { creaLupo } from '../modelli/lupo.js';
+import { animaGaloppo, animaMorso, COLPO } from '../modelli/animazioni.js';
 import { creaCarne } from '../modelli/carne.js';
 
 const OGNI_QUANTO_SALVARE = 2; // secondi
@@ -97,7 +98,7 @@ export class Segheria {
     this.scena.add(this.radice);
     this.effetti = new Effetti(this.radice, schermate);
 
-    this.giocatore = new Giocatore(this.radice);
+    this.giocatore = new Giocatore(this.radice, this.effetti);
     for (const [tipo, quantita] of Object.entries(s.schiena)) if (quantita > 0) this.giocatore.aggiungi(tipo, quantita);
     this.catasta = new Deposito(this.radice, 'legna', MAPPA.catasta, s.catasta);
     this.dispensa = new Deposito(this.radice, 'carne', MAPPA.dispensa, s.dispensa);
@@ -131,6 +132,7 @@ export class Segheria {
     this.lupoGigante = this.lupiBase.find((lupo) => lupo.gigante);
     this.prossimoGigante = CONFIG.lupoGigante.ogniMinimo + Math.random() * (CONFIG.lupoGigante.ogniMassimo - CONFIG.lupoGigante.ogniMinimo);
     this.attaccoCooldown = 0;
+    this.colpoInArrivo = null; // il colpo d'ascia del boscaiolo arriva sul lupo quando la lama cala
     this.carneCadute = [];
 
     // Cerchi dei miglioramenti: ognuno è una catena di livelli
@@ -209,10 +211,11 @@ export class Segheria {
     return lupi;
   }
 
-  // Un lupo. gigante: grande il doppio, con il pelo più scuro e la barra della vita grande
+  // Un lupo. gigante: grande il doppio, con il pelo più scuro, gli occhi gialli e la barra della vita grande
   creaLupoBase(gigante) {
     const G = CONFIG.lupoGigante;
-    const { gruppo } = creaLupo();
+    const modello = creaLupo({ gigante });
+    const { gruppo } = modello;
     gruppo.scale.setScalar(SCALA_LUPO * (gigante ? G.grandezza : 1));
     gruppo.rotation.y = Math.PI;
     gruppo.visible = false;
@@ -220,11 +223,7 @@ export class Segheria {
     const materiali = new Map();
     gruppo.traverse((parte) => {
       if (!parte.isMesh) return;
-      if (!materiali.has(parte.material)) {
-        const copia = parte.material.clone();
-        if (gigante && copia.color.getHex() !== 0xffffff) copia.color.multiplyScalar(0.55); // pelo più scuro, occhi bianchi
-        materiali.set(parte.material, copia);
-      }
+      if (!materiali.has(parte.material)) materiali.set(parte.material, parte.material.clone());
       parte.material = materiali.get(parte.material);
     });
     const barra = gigante ? creaBarra(1.1, 0, 1.5) : creaBarra(0.8, 5, 1.45);
@@ -235,7 +234,8 @@ export class Segheria {
       gigante, x: 0, z: 0, vita, hp: vita, vivo: false, obiettivo: null,
       dannoAscia: gigante ? G.dannoAscia : CONFIG.segheria.dannoAscia, // punti tolti da un colpo d'ascia (boscaiolo o cacciatore)
       ingombro: gigante ? 0.8 : 0,            // quanto è più grosso di un lupo normale (per colpirlo e per stare fuori dalle mura)
-      gruppo, barra, flash: 0, lampo: 0, materiali: [...materiali.values()],
+      gruppo, modello, barra, flash: 0, lampo: 0, materiali: [...materiali.values()],
+      angolo: Math.PI, // verso dove guarda (si gira dolcemente verso dove corre)
       generazione: 0, // cresce ogni volta che il lupo ricompare (così le frecce non inseguono il lupo "nuovo")
     };
   }
@@ -250,6 +250,7 @@ export class Segheria {
     lupo.x = x;
     lupo.z = z;
     lupo.obiettivo = this.bersaglioVicino(lupo);
+    lupo.angolo = Math.atan2(-(lupo.obiettivo.x - x), -(lupo.obiettivo.z - z)); // esce già girato verso le mura
     lupo.gruppo.visible = true;
     lupo.barra.gruppo.visible = true;
     lupo.gruppo.position.set(x, 0, z);
@@ -351,14 +352,12 @@ export class Segheria {
       const fuori = this.fuoriDalleMura(lupo.x, lupo.z, 0.6 + lupo.ingombro);
       lupo.x = fuori.x;
       lupo.z = fuori.z;
-      const sollevamento = 0.2 + Math.sin((performance.now() * 0.004) + lupo.x) * 0.05 + lupo.flash * 0.5;
-      lupo.gruppo.position.set(lupo.x, sollevamento, lupo.z);
-      lupo.gruppo.rotation.y = Math.PI - Math.sign(versoX || 1) * 0.2;
-
       const daMura = Math.hypot(lupo.x - target.x, lupo.z - target.z);
+      const attacca = daMura < 1.7 + lupo.ingombro;
+      this.animaLupo(lupo, dt, Math.hypot(versoX, versoZ) * velocita, attacca);
       if (daMura < 1.1 + lupo.ingombro) lupo.obiettivo = this.bersaglioVicino(lupo); // passa a un palo lì vicino
 
-      if (daMura < 1.7 + lupo.ingombro) {
+      if (attacca) {
         this.mura.danneggia(cfg.dannoMura * (lupo.gigante ? G.dannoMura : 1) * dt);
       }
 
@@ -371,6 +370,32 @@ export class Segheria {
     }
   }
 
+  // Come si muove un lupo: corre a balzi girato verso dove va (con la polvere di neve quando atterra);
+  // quando è alle mura si gira verso di loro e le morde e graffia. Salta un po' quando viene colpito.
+  animaLupo(lupo, dt, velocita, attacca) {
+    let angoloVoluto = null;
+    if (attacca) {
+      // si gira verso il punto delle mura più vicino a lui
+      const M = MAPPA.mura;
+      const x = THREE.MathUtils.clamp(lupo.x, M.sinistra, M.destra);
+      const z = THREE.MathUtils.clamp(lupo.z, M.fondo, M.fronte);
+      angoloVoluto = Math.atan2(-(x - lupo.x), -(z - lupo.z));
+      animaMorso(lupo.modello, dt);
+    } else {
+      const lento = lupo.gigante ? 1.4 : 1; // il gigante fa balzi più lunghi e lenti
+      const atterra = animaGaloppo(lupo.modello, dt, (8 + velocita * 1.5) / lento, Math.min(1, velocita / 1.2));
+      if (atterra) this.effetti.polvere(lupo.x, lupo.z, 3, lupo.gigante ? 2 : 1.2);
+      if (velocita > 0.05) angoloVoluto = Math.atan2(-(lupo.obiettivo.x - lupo.x), -(lupo.obiettivo.z - lupo.z));
+    }
+    if (angoloVoluto !== null) {
+      const differenza = Math.atan2(Math.sin(angoloVoluto - lupo.angolo), Math.cos(angoloVoluto - lupo.angolo));
+      lupo.angolo += differenza * Math.min(1, dt * 6);
+    }
+    lupo.gruppo.position.set(lupo.x, lupo.flash * 0.5, lupo.z);
+    lupo.gruppo.rotation.y = lupo.angolo;
+    lupo.barra.gruppo.rotation.y = Math.PI - lupo.angolo; // la barra resta sempre dritta verso la telecamera
+  }
+
   attaccaLupi(auto = false) {
     if (this.attaccoCooldown > 0 || !this.attiva) return;
     const pos = this.giocatore.posizione;
@@ -381,9 +406,20 @@ export class Segheria {
       .find((lupo) => distanza(lupo) < CONFIG.segheria.raggioAttaccoLupo + (auto ? 0.4 : 0));
 
     if (!obiettivo) return;
-    this.giocatore.colpisciAscia();
+    this.giocatore.colpisciAscia(obiettivo.x, obiettivo.z);
     this.attaccoCooldown = CONFIG.segheria.attaccoCooldown;
-    this.colpisciLupo(obiettivo, obiettivo.dannoAscia);
+    // il boscaiolo prima carica l'ascia: il lupo viene colpito quando la lama cala
+    this.colpoInArrivo = { lupo: obiettivo, generazione: obiettivo.generazione, tempo: COLPO.durata * COLPO.impatto };
+  }
+
+  // Conta il tempo del colpo d'ascia in arrivo; se il lupo è ancora lì (vivo e non già ricomparso) viene colpito
+  aggiornaColpo(dt) {
+    if (!this.colpoInArrivo) return;
+    this.colpoInArrivo.tempo -= dt;
+    if (this.colpoInArrivo.tempo > 0) return;
+    const { lupo, generazione } = this.colpoInArrivo;
+    if (lupo.vivo && lupo.generazione === generazione) this.colpisciLupo(lupo, lupo.dannoAscia);
+    this.colpoInArrivo = null;
   }
 
   // Un colpo a un lupo (ascia del boscaiolo, freccia di un arciere o ascia del cacciatore):
@@ -397,6 +433,10 @@ export class Segheria {
     lupo.gruppo.position.z += 0.1;
     const altezza = lupo.gigante ? 2.8 : 1.6;
     this.effetti.testo(lupo.x, altezza, lupo.z, `-${danno}`, 'cattivo');
+    // scintille del colpo e qualche ciuffo di pelo
+    const punto = lupo.gigante ? 1.2 : 0.6;
+    this.effetti.scintille(lupo.x, punto, lupo.z, 0xfff3b0, 5, 2);
+    this.effetti.sbuffo(lupo.x, punto, lupo.z, lupo.gigante ? 0x2b3245 : 0x4d5b7c, 3, 2);
     lupo.barra.aggiorna(lupo);
 
     if (lupo.hp <= 0) {
@@ -666,6 +706,7 @@ export class Segheria {
     this.giocatore.aggiorna(dt, direzione);
     const pos = this.giocatore.posizione;
     this.attaccoCooldown = Math.max(0, this.attaccoCooldown - dt);
+    this.aggiornaColpo(dt);
     this.tempoGioco += dt;
 
     this.aggiornaLupi(dt);
@@ -681,6 +722,7 @@ export class Segheria {
         drop.preso = true;
         this.radice.remove(drop.mesh);
         this.giocatore.aggiungi('carne', CONFIG.segheria.unitaPerPezzo);
+        this.giocatore.rimbalza(0xff9a8a, this.giocatore.cimaSchiena(new THREE.Vector3(), 'carne'));
         this.effetti.testo(drop.x, 1.8, drop.z, `+${CONFIG.segheria.unitaPerPezzo} carne`, 'buono');
       }
     }
@@ -764,6 +806,7 @@ export class Segheria {
     this.effetti.lancia(tipo, partenza, (v) => this.giocatore.cimaSchiena(v, tipo), 0, () => {
       this.inVolo[tipo] -= quantita;
       this.giocatore.aggiungi(tipo, quantita);
+      this.giocatore.rimbalza(tipo === 'carne' ? 0xff9a8a : 0xffd27a, this.giocatore.cimaSchiena(new THREE.Vector3(), tipo));
     }, VOLO_CORTO);
     return true;
   }
@@ -797,6 +840,7 @@ export class Segheria {
       this.effetti.lancia('soldi', partenza, verso, i * 0.05, () => {
         this.inVolo.soldi -= parte;
         this.stato.soldi += parte;
+        this.giocatore.rimbalza(0xffe066);
       }, { durata: 0.35, altezza: 1.2, sbuffo: false });
     }
     this.effetti.testo(this.giocatore.posizione.x, 2.4, this.giocatore.posizione.z, `+${totale} $`, 'buono');

@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { creaLavoratore } from '../modelli/boscaiolo.js';
+import { animaPersona, animaColpo, COLPO } from '../modelli/animazioni.js';
 import { creaCarne } from '../modelli/carne.js';
 import { MAPPA } from './ambiente.js';
 
@@ -40,8 +41,8 @@ export class Cacciatore {
     this.stato = 'casa';    // 'casa', 'esce', 'fuori', 'rientra', 'entra', 'attesa' (carne in volo), 'torna'
     this.percorso = [];     // punti da raggiungere uno dopo l'altro (per passare dal cancello)
     this.ricarica = 0;
-    this.colpo = 0;         // animazione del colpo d'ascia (da 1 a 0)
-    this.fase = 0;
+    this.colpo = null;      // a che punto è il colpo d'ascia (da 0 a 1); null = non sta colpendo
+    this.bersaglio = null;  // il lupo che riceverà il colpo quando la lama cala
     this.comparsa = 0;
     this.posizione = PUNTI.casa.clone();
     // dal cancello allo sportello CARNE: corsia centrale, poi in basso fino accanto al cerchio del deposito
@@ -50,7 +51,6 @@ export class Cacciatore {
     this.postoSportello = new THREE.Vector3(zona.x - 0.9, 0, zona.z);
 
     this.modello = creaLavoratore({ berretto: 0x3d7a34, berrettoScuro: 0x2b5a25, giacca: 0x8a6239 });
-    this.perni = this.modello.userData.perni;
     this.modello.scale.setScalar(0.001);
     this.modello.position.copy(this.posizione);
     this.modello.rotation.y = Math.PI / 2; // guarda il cancello
@@ -68,7 +68,7 @@ export class Cacciatore {
       this.schiena.add(pezzo);
       this.pezzi.push(pezzo);
     }
-    this.modello.add(this.schiena);
+    this.modello.userData.molla.add(this.schiena); // sulla "molla", così rimbalza con lui
   }
 
   aggiorna(dt) {
@@ -77,7 +77,6 @@ export class Cacciatore {
     const c = this.comparsa;
     this.modello.scale.setScalar(Math.max(0.001, CONFIG.segheria.dimensioneBoscaiolo * 0.9 * (c < 1 ? c + Math.sin(c * Math.PI) * 0.35 : 1)));
     this.ricarica = Math.max(0, this.ricarica - dt);
-    this.colpo = Math.max(0, this.colpo - dt * 4);
 
     const lupi = this.base.lupiBase.filter((lupo) => lupo.vivo);
     const carne = this.base.carneCadute.filter((pezzo) => !pezzo.preso);
@@ -114,7 +113,7 @@ export class Cacciatore {
     } else {
       this.fermo(dt); // 'attesa': la carne sta volando verso lo sportello
     }
-    this.animaColpo();
+    this.aggiornaColpo(dt);
   }
 
   // Fuori dalle mura: prima i lupi (il più vicino), poi la carne rimasta a terra; se non c'è niente rientra
@@ -129,9 +128,9 @@ export class Cacciatore {
       this.fermo(dt);
       this.guarda(lupo);
       if (this.ricarica <= 0) {
-        this.colpo = 1;
+        this.colpo = 0;
         this.ricarica = this.livello.ricarica;
-        this.base.colpisciLupo(lupo, lupo.dannoAscia);
+        this.bersaglio = { lupo, generazione: lupo.generazione };
       }
     } else if (carne.length > 0) {
       const pezzo = piuVicino(carne);
@@ -228,22 +227,27 @@ export class Cacciatore {
       this.posizione.addScaledVector(verso, passo / distanza);
       this.modello.rotation.y = Math.atan2(-verso.x, -verso.z);
     }
-    this.fase += arrivato ? 0 : dt * 11;
-    const p = arrivato ? 0 : Math.sin(this.fase);
-    this.perni.gambaSx.rotation.x = p * 0.7;
-    this.perni.gambaDx.rotation.x = -p * 0.7;
-    this.perni.braccioSx.rotation.x = -p * 0.5 + (this.carico > 0 ? 0.5 : 0);
-    this.perni.braccioDx.rotation.x = p * 0.5;
-    this.modello.position.set(this.posizione.x, Math.abs(p) * 0.05, this.posizione.z);
+    // passo con rimbalzo (vedi animazioni.js); a ogni passo un po' di neve
+    if (animaPersona(this.modello, dt, arrivato ? 0 : 1, { carica: this.carico > 0 ? 0.5 : 0 })) {
+      this.base.effetti.polvere(this.posizione.x, this.posizione.z, 2, 1.2);
+    }
+    this.modello.position.set(this.posizione.x, 0, this.posizione.z);
     return arrivato;
   }
 
-  // Il colpo d'ascia: il braccio destro si alza e cala sul lupo (come quello del boscaiolo)
-  animaColpo() {
-    if (this.colpo <= 0) return;
-    const swing = Math.sin((1 - this.colpo) * Math.PI * 2) * 1.3;
-    this.perni.braccioDx.rotation.x = -swing * 1.2;
-    this.perni.braccioSx.rotation.x = swing * 0.3;
+  // Il colpo d'ascia, come quello del boscaiolo: carica, cala, e il lupo viene colpito
+  // quando la lama arriva giù (se nel frattempo non è già morto). Il cacciatore esperto colpisce più svelto.
+  aggiornaColpo(dt) {
+    if (this.colpo === null) return;
+    const prima = this.colpo;
+    this.colpo += dt / Math.min(COLPO.durata, this.livello.ricarica * 0.8);
+    if (prima < COLPO.impatto && this.colpo >= COLPO.impatto && this.bersaglio) {
+      const { lupo, generazione } = this.bersaglio;
+      if (lupo.vivo && lupo.generazione === generazione) this.base.colpisciLupo(lupo, lupo.dannoAscia);
+      this.bersaglio = null;
+    }
+    if (this.colpo >= 1) this.colpo = null;
+    else animaColpo(this.modello, this.colpo);
   }
 }
 

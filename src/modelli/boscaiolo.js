@@ -1,30 +1,40 @@
 // =====================================================================
 //  MODELLO DEL BOSCAIOLO
-//  Costruito con forme semplici: berretto rosso, barba castana,
-//  camicia a quadri, bretelle, jeans arrotolati, scarponi e ascia.
-//  Alto circa 1,25 metri. Guarda verso la Z negativa (la direzione di corsa).
+//  Stile cartoon caldo: testa grande e tonda, guance rosa, occhi con il
+//  riflesso, barba folta, berretto di lana con il pon-pon, camicia a quadri,
+//  bretelle, cintura con la fibbia, jeans arrotolati, scarponi e ascia.
+//  Alto circa 1,3 metri. Guarda verso la Z negativa (la direzione di corsa).
+//
+//  I pezzi che si muovono insieme sono uniti in una forma sola (vedi pezzi.js):
+//  così anche la folla della corsa resta leggera sul telefono.
 //
 //  COME SOSTITUIRLO IN FUTURO con un modello 3D vero:
 //  basta cambiare questo file. La squadra usa solo "partiBoscaiolo()"
-//  (l'elenco dei pezzi) e "PERNI" (i punti in cui gambe e braccia ruotano).
+//  (l'elenco delle forme) e "PERNI" (i punti in cui gambe e braccia ruotano).
 // =====================================================================
 
 import * as THREE from 'three';
-import { tinta, materialeQuadri, matrice } from './materiali.js';
+import { materialeQuadri } from './materiali.js';
+import { pezzo, unisciPezzi, costruisci } from './pezzi.js';
 
 // Colori del personaggio
-const PELLE = 0xf5c49c;
-const PELLE_SCURA = 0xe9a27f;
-const BARBA = 0x7b4a22;
+const PELLE = 0xf7c9a0;
+const GUANCE = 0xf08f80;
+const NASO = 0xec9f7e;
+const BARBA = 0x8a5226;
 const BERRETTO = 0xd8262e;
 const BERRETTO_SCURO = 0xa91c22;
-const JEANS = 0x2f5fb3;
+const JEANS = 0x3366b8;
 const JEANS_CHIARO = 0x7aa3e6;
 const SCARPONI = 0x6b3f1f;
-const BRETELLE = 0x2a1a10;
+const SUOLA = 0x3a2414;
+const CUOIO = 0x4a2a14;
+const FIBBIA = 0xf2c14e;
 const MANICO = 0x9a6234;
-const LAMA = 0xc9d2dc;
+const LAMA = 0xb9c3cf;
+const FILO = 0xf1f5fa;
 const NERO = 0x1b1b1b;
+const BIANCO = 0xffffff;
 
 // Punti attorno a cui ruotano le parti mobili (anche e spalle)
 export const PERNI = {
@@ -35,103 +45,92 @@ export const PERNI = {
   braccioDx: new THREE.Vector3(0.23, 0.78, 0),
 };
 
-// Geometrie riusate (create una volta sola)
-const G = {
-  sfera: new THREE.SphereGeometry(1, 14, 10),
-  mezzaSfera: new THREE.SphereGeometry(1, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2),
-  cilindro: new THREE.CylinderGeometry(1, 1, 1, 12),
-  scatola: new THREE.BoxGeometry(1, 1, 1),
-  capsula: new THREE.CapsuleGeometry(1, 1, 4, 12),
-};
+// Elenco dei pezzi. colori: { berretto, berrettoScuro, giacca, senzaAscia } per i lavoratori
+// (giacca = colore che prende il posto della camicia a quadri).
+function pezziBoscaiolo({ berretto = BERRETTO, berrettoScuro = BERRETTO_SCURO, giacca = null, senzaAscia = false }) {
+  const stoffa = giacca ?? materialeQuadri();
+  const pezzi = [
+    // --- Corpo: bacino, camicia, cintura con la fibbia, bretelle ---
+    pezzo('corpo', 'sfera', JEANS, [0, 0.46, 0], [0.17, 0.1, 0.13]),
+    pezzo('corpo', 'capsula', stoffa, [0, 0.64, 0], [0.2, 0.13, 0.16]),
+    pezzo('corpo', 'cilindro', CUOIO, [0, 0.515, 0], [0.188, 0.055, 0.152]),
+    pezzo('corpo', 'scatola', FIBBIA, [0, 0.515, -0.155], [0.06, 0.045, 0.015]),
 
-let partiGiaCreate = null;
+    // --- Testa: viso, orecchie, barba, baffi, naso, guance, occhi, sopracciglia ---
+    pezzo('corpo', 'sfera', PELLE, [0, 1.0, 0], [0.235, 0.225, 0.225]),
+    pezzo('corpo', 'sfera', BARBA, [0, 0.86, -0.07], [0.2, 0.17, 0.16]),
+    pezzo('corpo', 'sfera', BARBA, [0, 0.76, -0.12], [0.11, 0.09, 0.08]),
+    pezzo('corpo', 'sfera', NASO, [0, 0.985, -0.225], [0.055, 0.048, 0.05]),
 
-// Elenco dei pezzi: ognuno dice a quale perno è attaccato, che forma ha,
-// di che materiale è e dove si trova rispetto al perno.
-export function partiBoscaiolo() {
-  if (partiGiaCreate) return partiGiaCreate;
-  const p = (perno, geometria, materiale, pos, rot, scala) => ({
-    perno,
-    geometria,
-    materiale,
-    matrice: matrice(pos, rot, scala),
-  });
-  const quadri = materialeQuadri();
-
-  partiGiaCreate = [
-    // --- Gambe (jeans, risvolto chiaro, scarpone) ---
-    p('gambaSx', G.cilindro, tinta(JEANS), [0, -0.15, 0], [0, 0, 0], [0.075, 0.3, 0.075]),
-    p('gambaSx', G.cilindro, tinta(JEANS_CHIARO), [0, -0.29, 0], [0, 0, 0], [0.088, 0.06, 0.088]),
-    p('gambaSx', G.scatola, tinta(SCARPONI), [0, -0.36, -0.03], [0, 0, 0], [0.15, 0.12, 0.24]),
-    p('gambaDx', G.cilindro, tinta(JEANS), [0, -0.15, 0], [0, 0, 0], [0.075, 0.3, 0.075]),
-    p('gambaDx', G.cilindro, tinta(JEANS_CHIARO), [0, -0.29, 0], [0, 0, 0], [0.088, 0.06, 0.088]),
-    p('gambaDx', G.scatola, tinta(SCARPONI), [0, -0.36, -0.03], [0, 0, 0], [0.15, 0.12, 0.24]),
-
-    // --- Corpo: bacino, camicia a quadri, bretelle ---
-    p('corpo', G.scatola, tinta(JEANS), [0, 0.45, 0], [0, 0, 0], [0.32, 0.12, 0.2]),
-    p('corpo', G.capsula, quadri, [0, 0.65, 0], [0, 0, 0], [0.19, 0.14, 0.14]),
-    p('corpo', G.scatola, tinta(BRETELLE), [-0.08, 0.64, -0.135], [0, 0, 0], [0.04, 0.32, 0.02]),
-    p('corpo', G.scatola, tinta(BRETELLE), [0.08, 0.64, -0.135], [0, 0, 0], [0.04, 0.32, 0.02]),
-
-    // --- Testa: viso, barba, baffi, naso, occhi ---
-    p('corpo', G.sfera, tinta(PELLE), [0, 0.99, 0], [0, 0, 0], [0.2, 0.2, 0.2]),
-    p('corpo', G.sfera, tinta(BARBA), [0, 0.9, -0.08], [0, 0, 0], [0.18, 0.17, 0.14]),
-    p('corpo', G.sfera, tinta(BARBA), [0, 0.95, -0.18], [0, 0, 0], [0.1, 0.035, 0.04]),
-    p('corpo', G.sfera, tinta(PELLE_SCURA), [0, 0.99, -0.2], [0, 0, 0], [0.05, 0.045, 0.045]),
-    p('corpo', G.sfera, tinta(NERO), [-0.07, 1.05, -0.175], [0, 0, 0], [0.026, 0.032, 0.02]),
-    p('corpo', G.sfera, tinta(NERO), [0.07, 1.05, -0.175], [0, 0, 0], [0.026, 0.032, 0.02]),
-
-    // --- Berretto di lana rosso con risvolto e pon-pon ---
-    p('corpo', G.mezzaSfera, tinta(BERRETTO), [0, 1.06, 0], [0, 0, 0], [0.21, 0.22, 0.21]),
-    p('corpo', G.cilindro, tinta(BERRETTO_SCURO), [0, 1.07, 0], [0, 0, 0], [0.215, 0.07, 0.215]),
-    p('corpo', G.sfera, tinta(BERRETTO), [0, 1.3, 0.02], [0, 0, 0], [0.06, 0.06, 0.06]),
-
-    // --- Braccia: manica a quadri e mano ---
-    p('braccioSx', G.capsula, quadri, [0, -0.14, 0], [0, 0, 0], [0.065, 0.14, 0.065]),
-    p('braccioSx', G.sfera, tinta(PELLE), [0, -0.3, 0], [0, 0, 0], [0.065, 0.065, 0.065]),
-    p('braccioDx', G.capsula, quadri, [0, -0.14, 0], [0, 0, 0], [0.065, 0.14, 0.065]),
-    p('braccioDx', G.sfera, tinta(PELLE), [0, -0.3, 0], [0, 0, 0], [0.065, 0.065, 0.065]),
-
-    // --- Ascia nella mano destra: manico e lama ---
-    p('braccioDx', G.cilindro, tinta(MANICO), [0, -0.3, -0.16], [Math.PI / 2, 0, 0], [0.022, 0.5, 0.022]),
-    p('braccioDx', G.scatola, tinta(LAMA), [0, -0.24, -0.37], [0, 0, 0], [0.035, 0.16, 0.12]),
+    // --- Berretto di lana con il risvolto e il pon-pon ---
+    pezzo('corpo', 'mezzaSfera', berretto, [0, 1.1, 0], [0.245, 0.25, 0.245]),
+    pezzo('corpo', 'cilindro', berrettoScuro, [0, 1.125, 0], [0.25, 0.075, 0.25]),
+    pezzo('corpo', 'sfera', berretto, [0, 1.37, 0.02], [0.075, 0.075, 0.075]),
   ];
-  return partiGiaCreate;
+  for (const lato of [-1, 1]) {
+    pezzi.push(
+      pezzo('corpo', 'scatola', CUOIO, [lato * 0.085, 0.67, -0.158], [0.04, 0.26, 0.02]),
+      pezzo('corpo', 'sfera', PELLE, [lato * 0.228, 0.99, 0.01], [0.045, 0.06, 0.04]),
+      pezzo('corpo', 'sfera', BARBA, [lato * 0.055, 0.945, -0.205], [0.07, 0.032, 0.04], [0, 0, -lato * 0.25]),
+      pezzo('corpo', 'sfera', GUANCE, [lato * 0.13, 0.965, -0.175], [0.05, 0.035, 0.03]),
+      pezzo('corpo', 'sfera', NERO, [lato * 0.078, 1.03, -0.2], [0.03, 0.042, 0.02]),
+      pezzo('corpo', 'sfera', BIANCO, [lato * 0.07, 1.045, -0.217], [0.01, 0.012, 0.006]),
+      pezzo('corpo', 'scatola', BARBA, [lato * 0.08, 1.074, -0.19], [0.07, 0.022, 0.025], [0, 0, lato * 0.12]),
+    );
+    // --- Gambe: jeans, risvolto chiaro, scarpone con la suola ---
+    const gamba = lato < 0 ? 'gambaSx' : 'gambaDx';
+    pezzi.push(
+      pezzo(gamba, 'cilindro', JEANS, [0, -0.14, 0], [0.08, 0.28, 0.08]),
+      pezzo(gamba, 'cilindro', JEANS_CHIARO, [0, -0.28, 0], [0.09, 0.06, 0.09]),
+      pezzo(gamba, 'sfera', SCARPONI, [0, -0.355, -0.035], [0.095, 0.075, 0.14]),
+      pezzo(gamba, 'cilindro', SUOLA, [0, -0.405, -0.035], [0.095, 0.03, 0.14]),
+    );
+    // --- Braccia: manica e mano ---
+    const braccio = lato < 0 ? 'braccioSx' : 'braccioDx';
+    pezzi.push(
+      pezzo(braccio, 'capsula', stoffa, [0, -0.14, 0], [0.068, 0.13, 0.068]),
+      pezzo(braccio, 'sfera', PELLE, [0, -0.31, 0], [0.07, 0.07, 0.07]),
+    );
+  }
+  // --- Ascia nella mano destra: manico, lama e filo lucido ---
+  if (!senzaAscia) {
+    pezzi.push(
+      pezzo('braccioDx', 'cilindro', MANICO, [0, -0.3, -0.16], [0.024, 0.5, 0.024], [Math.PI / 2, 0, 0]),
+      pezzo('braccioDx', 'scatola', LAMA, [0, -0.24, -0.37], [0.035, 0.16, 0.12]),
+      pezzo('braccioDx', 'scatola', FILO, [0, -0.24, -0.437], [0.04, 0.17, 0.02]),
+    );
+  }
+  return pezzi;
 }
 
-// Crea un singolo boscaiolo come oggetto normale (utile per menu e schermate future).
-// La squadra invece usa direttamente "partiBoscaiolo()" per disegnarne tanti in modo veloce.
-export function creaBoscaiolo() {
+// Le forme unite, preparate una volta sola per ogni combinazione di colori
+const giaPronte = new Map();
+function partiPer(colori) {
+  const chiave = JSON.stringify(colori);
+  if (!giaPronte.has(chiave)) giaPronte.set(chiave, unisciPezzi(pezziBoscaiolo(colori)));
+  return giaPronte.get(chiave);
+}
+
+// Elenco delle forme: ognuna dice a quale perno è attaccata e di che materiale è.
+// La squadra della corsa le disegna tutte insieme in modo veloce.
+export function partiBoscaiolo() {
+  return partiPer({});
+}
+
+// Crea un boscaiolo come oggetto normale. Dentro c'è la "molla": il gruppo che
+// le animazioni fanno rimbalzare, piegare e respirare (vedi animazioni.js).
+export function creaBoscaiolo(colori = {}) {
   const radice = new THREE.Group();
-  const gruppiPerno = {};
-  for (const [nome, posizione] of Object.entries(PERNI)) {
-    const g = new THREE.Group();
-    g.position.copy(posizione);
-    radice.add(g);
-    gruppiPerno[nome] = g;
-  }
-  for (const parte of partiBoscaiolo()) {
-    const mesh = new THREE.Mesh(parte.geometria, parte.materiale);
-    mesh.applyMatrix4(parte.matrice);
-    mesh.castShadow = true;
-    gruppiPerno[parte.perno].add(mesh);
-  }
-  radice.userData.perni = gruppiPerno;
+  const molla = new THREE.Group();
+  radice.add(molla);
+  radice.userData.perni = costruisci(partiPer(colori), PERNI, molla);
+  radice.userData.molla = molla;
   return radice;
 }
 
 // Un boscaiolo con altri colori, per riconoscere a colpo d'occhio i lavoratori
 // (cacciatore, venditore, arciere). berretto/berrettoScuro: colori del berretto e del risvolto;
-// giacca: colore che prende il posto della camicia a quadri; senzaAscia: nasconde l'ascia.
+// giacca: colore che prende il posto della camicia a quadri; senzaAscia: senza l'ascia.
 export function creaLavoratore({ berretto, berrettoScuro, giacca = null, senzaAscia = false }) {
-  const modello = creaBoscaiolo();
-  const cambi = new Map([[tinta(BERRETTO), tinta(berretto)], [tinta(BERRETTO_SCURO), tinta(berrettoScuro)]]);
-  if (giacca) cambi.set(materialeQuadri(), tinta(giacca));
-  const ascia = [tinta(MANICO), tinta(LAMA)];
-  modello.traverse((m) => {
-    if (!m.isMesh) return;
-    if (senzaAscia && ascia.includes(m.material)) m.visible = false;
-    if (cambi.has(m.material)) m.material = cambi.get(m.material);
-  });
-  return modello;
+  return creaBoscaiolo({ berretto, berrettoScuro, giacca, senzaAscia });
 }

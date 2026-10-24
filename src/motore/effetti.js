@@ -3,6 +3,7 @@
 //  - oggetti che VOLANO da un punto a un altro (tronchi, carne, soldi)
 //    con un arco e una rotazione
 //  - sbuffi di particelle: schegge di legno, neve, polvere
+//  - polvere di neve sotto i piedi e scintille che brillano (raccolta, colpi)
 //  - testi volanti ("+12 legna", "-3"), disegnati dalle schermate
 // =====================================================================
 
@@ -13,6 +14,7 @@ import { creaCarne } from '../modelli/carne.js';
 import { creaMazzetta } from '../modelli/soldi.js';
 
 const MASSIMO_PARTICELLE = 300;
+const MASSIMO_SCINTILLE = 120;
 const GRAVITA = 14;
 
 export class Effetti {
@@ -33,6 +35,17 @@ export class Effetti {
     this.cubetti.setColorAt(0, new THREE.Color(0xffffff));
     genitore.add(this.cubetti);
 
+    // Le scintille sono rombi luminosi: il materiale "Basic" non ha ombre, così sembrano brillare
+    this.scintilleAttive = [];
+    const luce = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    luce.userData.daLiberare = true;
+    this.rombi = new THREE.InstancedMesh(new THREE.OctahedronGeometry(1, 0), luce, MASSIMO_SCINTILLE);
+    this.rombi.geometry.userData.daLiberare = true;
+    this.rombi.frustumCulled = false;
+    this.rombi.count = 0;
+    this.rombi.setColorAt(0, new THREE.Color(0xffffff));
+    genitore.add(this.rombi);
+
     this._m = new THREE.Matrix4();
     this._q = new THREE.Quaternion();
     this._e = new THREE.Euler();
@@ -48,10 +61,9 @@ export class Effetti {
   // Sbuffo di particelle in un punto: colore e quantità a scelta
   sbuffo(x, y, z, colore, quante = 8, forza = 3) {
     for (let i = 0; i < quante; i++) {
-      if (this.particelle.length >= MASSIMO_PARTICELLE) this.particelle.shift();
       const angolo = Math.random() * Math.PI * 2;
       const v = forza * (0.4 + Math.random() * 0.8);
-      this.particelle.push({
+      this.aggiungi(this.particelle, MASSIMO_PARTICELLE, {
         posizione: new THREE.Vector3(x, y, z),
         velocita: new THREE.Vector3(Math.cos(angolo) * v, 2 + Math.random() * forza, Math.sin(angolo) * v),
         rotazione: new THREE.Vector3(Math.random() * 6, Math.random() * 6, 0),
@@ -59,8 +71,52 @@ export class Effetti {
         vita: 0,
         durata: 0.5 + Math.random() * 0.4,
         colore: new THREE.Color(colore).offsetHSL(0, 0, (Math.random() - 0.5) * 0.15),
+        gravita: GRAVITA,
       });
     }
+  }
+
+  // Polvere di neve sollevata da un piede o da una zampa: pochi fiocchi bassi e lenti che svaniscono subito
+  polvere(x, z, quante = 3, grandezza = 1) {
+    for (let i = 0; i < quante; i++) {
+      const angolo = Math.random() * Math.PI * 2;
+      const v = (0.5 + Math.random() * 0.7) * grandezza;
+      this.aggiungi(this.particelle, MASSIMO_PARTICELLE, {
+        posizione: new THREE.Vector3(x + Math.cos(angolo) * 0.12, 0.05, z + Math.sin(angolo) * 0.12),
+        velocita: new THREE.Vector3(Math.cos(angolo) * v, 0.6 + Math.random() * 0.6, Math.sin(angolo) * v),
+        rotazione: new THREE.Vector3(Math.random() * 6, Math.random() * 6, 0),
+        dimensione: (0.05 + Math.random() * 0.05) * grandezza,
+        vita: 0,
+        durata: 0.35 + Math.random() * 0.2,
+        colore: new THREE.Color(0xf4f8ff),
+        gravita: 3,
+      });
+    }
+  }
+
+  // Scintille che brillano (raccolta, monete, colpi): salgono girando, lampeggiano e svaniscono
+  scintille(x, y, z, colore = 0xffe066, quante = 6, forza = 1.6) {
+    for (let i = 0; i < quante; i++) {
+      const angolo = Math.random() * Math.PI * 2;
+      const v = forza * (0.3 + Math.random() * 0.7);
+      this.aggiungi(this.scintilleAttive, MASSIMO_SCINTILLE, {
+        posizione: new THREE.Vector3(x, y, z),
+        velocita: new THREE.Vector3(Math.cos(angolo) * v, 1 + Math.random() * forza, Math.sin(angolo) * v),
+        rotazione: new THREE.Vector3(0, Math.random() * 6, 0),
+        dimensione: 0.07 + Math.random() * 0.05,
+        vita: 0,
+        durata: 0.45 + Math.random() * 0.25,
+        colore: new THREE.Color(colore),
+        gravita: 2,
+        luccica: true,
+      });
+    }
+  }
+
+  // Aggiunge una particella a un elenco; se è pieno toglie la più vecchia
+  aggiungi(lista, massimo, particella) {
+    if (lista.length >= massimo) lista.shift();
+    lista.push(particella);
   }
 
   // Lancia un oggetto ('legna', 'carne' o 'soldi') dal punto "da" fino alla destinazione.
@@ -136,25 +192,32 @@ export class Effetti {
     }
     this.voli = this.voli.filter((v) => !v.finito);
 
-    // --- Particelle ---
+    // --- Particelle e scintille ---
+    this.particelle = this.disegna(this.particelle, this.cubetti, dt);
+    this.scintilleAttive = this.disegna(this.scintilleAttive, this.rombi, dt);
+  }
+
+  // Muove le particelle di un elenco e le disegna tutte insieme; restituisce quelle ancora vive
+  disegna(lista, mesh, dt) {
     let n = 0;
-    for (const p of this.particelle) {
+    for (const p of lista) {
       p.vita += dt;
       if (p.vita > p.durata) continue;
-      p.velocita.y -= GRAVITA * dt;
+      p.velocita.y -= p.gravita * dt;
       p.posizione.addScaledVector(p.velocita, dt);
       p.rotazione.x += dt * 8;
       p.rotazione.y += dt * 6;
-      const scala = p.dimensione * (1 - p.vita / p.durata);
+      let scala = p.dimensione * (1 - p.vita / p.durata);
+      if (p.luccica) scala *= 0.7 + 0.3 * Math.sin(p.vita * 40); // le scintille lampeggiano
       this._q.setFromEuler(this._e.set(p.rotazione.x, p.rotazione.y, 0));
       this._m.compose(p.posizione, this._q, this._s.setScalar(scala));
-      this.cubetti.setMatrixAt(n, this._m);
-      this.cubetti.setColorAt(n, p.colore);
+      mesh.setMatrixAt(n, this._m);
+      mesh.setColorAt(n, p.colore);
       n++;
     }
-    this.particelle = this.particelle.filter((p) => p.vita <= p.durata);
-    this.cubetti.count = n;
-    this.cubetti.instanceMatrix.needsUpdate = true;
-    if (this.cubetti.instanceColor) this.cubetti.instanceColor.needsUpdate = true;
+    mesh.count = n;
+    mesh.instanceMatrix.needsUpdate = true;
+    if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+    return lista.filter((p) => p.vita <= p.durata);
   }
 }

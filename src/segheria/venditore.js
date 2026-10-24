@@ -12,6 +12,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { creaLavoratore } from '../modelli/boscaiolo.js';
+import { animaPersona } from '../modelli/animazioni.js';
 import { tinta } from '../modelli/materiali.js';
 import { DEPOSITO_Z, DEPOSITO_MEZZA_Z, BANCO_DENTRO } from '../modelli/sportello.js';
 
@@ -60,6 +61,8 @@ export class Venditore {
     this.modello.scale.setScalar(Math.max(0.001, CONFIG.segheria.dimensioneBoscaiolo * 0.9 * (c < 1 ? c + Math.sin(c * Math.PI) * 0.35 : 1)));
     this.tempo += dt;
     this.servizio = Math.max(0, this.servizio - dt * 3.5);
+
+    animaPersona(this.modello, dt, 0); // da fermo respira (le braccia le muove il gesto qui sotto)
 
     // Il gesto: prima metà si gira un po' verso il deposito e abbassa le braccia a prendere il pezzo,
     // seconda metà si sporge verso il cliente con le braccia tese in avanti

@@ -8,6 +8,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { creaBoscaiolo } from '../modelli/boscaiolo.js';
+import { animaPersona, animaColpo, COLPO } from '../modelli/animazioni.js';
 import { geometriaTronco, materialiTronco } from '../modelli/carro.js';
 import { creaCarne } from '../modelli/carne.js';
 import { creaEtichetta, liberaEtichetta } from '../modelli/materiali.js';
@@ -18,24 +19,24 @@ const X_COLONNA = { legna: -0.28, carne: 0.28 }; // le due colonne sulla schiena
 const RAGGIO_BOSCAIOLO = 0.35; // ingombro per non attraversare banconi e depositi degli sportelli
 
 export class Giocatore {
-  constructor(genitore) {
+  constructor(genitore, effetti) {
     this.modello = creaBoscaiolo();
     this.modello.scale.setScalar(CONFIG.segheria.dimensioneBoscaiolo);
     genitore.add(this.modello);
-    this.perni = this.modello.userData.perni;
+    this.effetti = effetti; // per la polvere di neve sotto i piedi e le scintille
 
     this.posizione = MAPPA.partenza.clone();
     this.angolo = 0;        // verso dove guarda (0 = verso il fondo della radura)
-    this.fase = 0;          // per l'animazione del passo
-    this.velocitaAttuale = 0;
-    this.attaccoAnim = 0;
+    this.colpo = null;      // a che punto è il colpo d'ascia (da 0 a 1); null = non sta colpendo
+    this.versoColpo = 0;    // verso dove si gira per colpire il lupo
+    this.saltoPila = 0;     // saltello della pila quando arriva un pezzo (da 1 a 0)
 
-    // Le pile sulla schiena: un gruppo attaccato al boscaiolo, dietro le spalle.
+    // Le pile sulla schiena: un gruppo attaccato al boscaiolo (alla sua "molla", così rimbalza con lui), dietro le spalle.
     // Il carico NON ha limiti: si disegnano al massimo "pezziVisibiliSchiena" pezzi per colonna
     // e sopra ogni colonna c'è il numero vero (es. "x150").
     this.schiena = new THREE.Group();
     this.schiena.position.set(0, 0.55, 0.24);
-    this.modello.add(this.schiena);
+    this.modello.userData.molla.add(this.schiena);
     this.carico = { legna: 0, carne: 0 }; // unità portate sulla schiena
     this.colonne = {};
     for (const tipo of Object.keys(this.carico)) this.creaColonna(tipo);
@@ -132,13 +133,10 @@ export class Giocatore {
       const dz = direzione.y;
       this.posizione.x += dx * cfg.velocitaBoscaiolo * dt;
       this.posizione.z += dz * cfg.velocitaBoscaiolo * dt;
-      // si gira dolcemente verso dove cammina
-      const angoloVoluto = Math.atan2(-dx, -dz);
-      let differenza = angoloVoluto - this.angolo;
-      differenza = Math.atan2(Math.sin(differenza), Math.cos(differenza));
-      this.angolo += differenza * Math.min(1, dt * 12);
+      // si gira dolcemente verso dove cammina (mentre colpisce resta girato verso il lupo)
+      if (this.colpo === null) this.giraVerso(Math.atan2(-dx, -dz), dt * 12);
     }
-    this.velocitaAttuale = forza * cfg.velocitaBoscaiolo;
+    if (this.colpo !== null) this.giraVerso(this.versoColpo, dt * 18);
 
     // Resta dentro la radura e non attraversa banconi e depositi
     const L = MAPPA.limiti;
@@ -149,6 +147,13 @@ export class Giocatore {
     this.modello.position.copy(this.posizione);
     this.modello.rotation.y = this.angolo;
     this.anima(dt, forza);
+  }
+
+  // Si gira un po' alla volta verso un angolo (dalla parte più corta)
+  giraVerso(angoloVoluto, quanto) {
+    let differenza = angoloVoluto - this.angolo;
+    differenza = Math.atan2(Math.sin(differenza), Math.cos(differenza));
+    this.angolo += differenza * Math.min(1, quanto);
   }
 
   // Ogni ostacolo è un rettangolo: se il boscaiolo ci entra, viene spinto fuori dal lato più vicino
@@ -165,27 +170,39 @@ export class Giocatore {
     }
   }
 
-  // Passo: gambe e braccia oscillano; con la pila le braccia stanno un po' avanti
+  // Passo con rimbalzo (vedi animazioni.js); con la pila le braccia stanno un po' avanti.
+  // A ogni passo si alza un po' di neve; durante il colpo d'ascia si muovono braccia e corpo.
   anima(dt, forza) {
-    this.fase += dt * 12 * forza;
-    const passo = forza > 0 ? Math.sin(this.fase) : 0;
-    const p = this.perni;
-    p.gambaSx.rotation.x = passo * 0.7;
-    p.gambaDx.rotation.x = -passo * 0.7;
     const carica = this.carico.legna + this.carico.carne > 0 ? 0.5 : 0;
-    this.attaccoAnim = Math.max(0, this.attaccoAnim - dt * 5);
-    const swing = this.attaccoAnim > 0 ? Math.sin((1 - this.attaccoAnim) * Math.PI * 2) * 1.3 : 0;
-    p.braccioSx.rotation.x = -passo * 0.5 + carica + swing * 0.3;
-    p.braccioDx.rotation.x = passo * 0.5 + carica - swing * 1.2;
-    p.braccioDx.rotation.z = -0.6 + swing * 0.4;
-    this.modello.position.y = Math.abs(passo) * 0.05;
-    // la pila ondeggia un po' mentre cammina
-    this.schiena.rotation.x = -Math.abs(passo) * 0.06 * forza;
-    this.schiena.rotation.z = Math.sin(this.fase * 0.5) * 0.04 * forza;
+    if (animaPersona(this.modello, dt, forza, { velocita: 12, carica })) {
+      this.effetti?.polvere(this.posizione.x, this.posizione.z, 3, 1.3);
+    }
+    if (this.colpo !== null) {
+      this.colpo += dt / COLPO.durata;
+      if (this.colpo >= 1) this.colpo = null;
+      else animaColpo(this.modello, this.colpo);
+    }
+    // la pila ondeggia un po' mentre cammina e fa un saltello quando arriva un pezzo
+    const { fase, moto } = this.modello.userData.anim;
+    this.schiena.rotation.x = -Math.abs(Math.sin(fase)) * 0.06 * moto;
+    this.schiena.rotation.z = Math.sin(fase * 0.5) * 0.04 * moto;
+    this.saltoPila = Math.max(0, this.saltoPila - dt * 5);
+    const salto = Math.sin(this.saltoPila * Math.PI);
+    this.schiena.scale.set(1 + salto * 0.12, 1 + salto * 0.2, 1 + salto * 0.12);
   }
 
-  colpisciAscia() {
-    this.attaccoAnim = 1;
+  // Inizia il colpo d'ascia verso il lupo che si trova in (x, z)
+  colpisciAscia(x, z) {
+    this.colpo = 0;
+    this.versoColpo = Math.atan2(-(x - this.posizione.x), -(z - this.posizione.z));
+  }
+
+  // È arrivato qualcosa (legna, carne o soldi): la pila fa un saltello e brillano delle scintille.
+  // punto: dove brillano (se manca, sopra la testa)
+  rimbalza(colore = 0xffe066, punto = null) {
+    this.saltoPila = 1;
+    const p = punto ?? this.posizione.clone().setY(2.2);
+    this.effetti?.scintille(p.x, p.y, p.z, colore, 4);
   }
 
   // Mette a posto il boscaiolo (es. quando torna da una corsa)

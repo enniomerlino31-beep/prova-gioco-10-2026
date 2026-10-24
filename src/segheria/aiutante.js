@@ -11,9 +11,9 @@
 
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
-import { creaBoscaiolo } from '../modelli/boscaiolo.js';
+import { creaLavoratore } from '../modelli/boscaiolo.js';
+import { animaPersona } from '../modelli/animazioni.js';
 import { geometriaTronco, materialiTronco } from '../modelli/carro.js';
-import { tinta } from '../modelli/materiali.js';
 
 const VOLO = { durata: 0.4, altezza: 1.3, scala: 0.55, sbuffo: false };
 
@@ -26,7 +26,6 @@ export class Aiutante {
     this.inVolo = inVolo;
     this.carico = 0;
     this.stato = 'catasta'; // 'catasta' (va a prendere), 'sportello' (va a scaricare), 'attesa' (la legna sta volando)
-    this.fase = 0;
     this.comparsa = 0;      // animazione quando compare (da 0 a 1)
 
     // I due soli punti del giro: davanti alla catasta e sul cerchio del deposito, sulla stessa linea
@@ -34,13 +33,8 @@ export class Aiutante {
     this.puntoSportello = new THREE.Vector3(this.puntoCatasta.x, 0, sportello.zona.z);
     this.posizione = this.puntoCatasta.clone();
 
-    this.modello = creaBoscaiolo();
     // berretto blu, per distinguerlo dal boscaiolo del giocatore
-    const cambi = new Map([[tinta(0xd8262e), tinta(0x2f7fd6)], [tinta(0xa91c22), tinta(0x1f5fa8)]]);
-    this.modello.traverse((m) => {
-      if (cambi.has(m.material)) m.material = cambi.get(m.material);
-    });
-    this.perni = this.modello.userData.perni;
+    this.modello = creaLavoratore({ berretto: 0x2f7fd6, berrettoScuro: 0x1f5fa8 });
     this.modello.scale.setScalar(0.001);
     this.modello.position.copy(this.posizione);
     genitore.add(this.modello);
@@ -57,7 +51,7 @@ export class Aiutante {
       this.schiena.add(tronco);
     }
     this.schiena.visible = false;
-    this.modello.add(this.schiena);
+    this.modello.userData.molla.add(this.schiena); // sulla "molla", così rimbalza con lui
   }
 
   aggiorna(dt) {
@@ -130,13 +124,11 @@ export class Aiutante {
       this.posizione.addScaledVector(verso, passo / distanza);
       this.modello.rotation.y = Math.atan2(-verso.x, -verso.z);
     }
-    this.fase += arrivato ? 0 : dt * 11;
-    const p = arrivato ? 0 : Math.sin(this.fase);
-    this.perni.gambaSx.rotation.x = p * 0.7;
-    this.perni.gambaDx.rotation.x = -p * 0.7;
-    this.perni.braccioSx.rotation.x = -p * 0.5 + (this.carico > 0 ? 0.5 : 0);
-    this.perni.braccioDx.rotation.x = p * 0.5 + (this.carico > 0 ? 0.5 : 0);
-    this.modello.position.set(this.posizione.x, Math.abs(p) * 0.05, this.posizione.z);
+    // passo con rimbalzo (vedi animazioni.js); a ogni passo un po' di neve
+    if (animaPersona(this.modello, dt, arrivato ? 0 : 1, { carica: this.carico > 0 ? 0.5 : 0 })) {
+      this.effetti.polvere(this.posizione.x, this.posizione.z, 2, 1.2);
+    }
+    this.modello.position.set(this.posizione.x, 0, this.posizione.z);
     return arrivato;
   }
 }

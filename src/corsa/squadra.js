@@ -13,7 +13,7 @@
 //  squadra è di nuovo al sicuro (così nessun altro omino ci finisce contro).
 //
 //  Per disegnare tanti omini velocemente usiamo le "InstancedMesh":
-//  ogni pezzo del boscaiolo (berretto, barba, gamba...) viene disegnato
+//  ogni forma del boscaiolo (corpo, gambe, braccia...) viene disegnata
 //  una volta sola per TUTTI gli omini insieme.
 // =====================================================================
 
@@ -211,9 +211,9 @@ export class Squadra {
       const passo = Math.sin(o.fase);
       const saltello = this.azione === 'corre' && o.vivo ? Math.abs(passo) * 0.06 : 0;
 
-      // Matrice dell'omino intero (posizione nella folla + dimensione)
+      // Matrice dell'omino intero (posizione nella folla + dimensione); quando corre si piega un po' in avanti
       this._v.set(o.x, saltello, o.z);
-      this._q.identity();
+      this._q.setFromEuler(this._e.set(this.azione === 'corre' ? -0.14 : 0, 0, 0));
       this._s.setScalar(o.scala * dimensione);
       this._mOmino.compose(this._v, this._q, this._s);
 
@@ -225,7 +225,7 @@ export class Squadra {
         this._e.set(angoli[parte.perno] || 0, 0, 0);
         this._q.setFromEuler(this._e);
         this._mPerno.compose(perno, this._q, this._s.setScalar(1));
-        this._mFinale.multiplyMatrices(this._mOmino, this._mPerno).multiply(parte.matrice);
+        this._mFinale.multiplyMatrices(this._mOmino, this._mPerno);
         parte.mesh.setMatrixAt(i, this._mFinale);
       }
     }
