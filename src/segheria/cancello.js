@@ -123,10 +123,18 @@ export class Cancello {
     return this.apertura < 0.8 ? [...this.ostacoliPali, this.ostacoloAnte] : this.ostacoliPali;
   }
 
+  // Le ante sono aperte abbastanza per passare (serve al cacciatore, che aspetta prima di attraversare)
+  get aperto() {
+    return this.apertura >= 0.8;
+  }
+
   // Restituisce true quando il cerchio è pieno (= parte la corsa)
-  aggiorna(dt, posizioneBoscaiolo) {
-    // Le ante si aprono verso l'esterno quando il boscaiolo si avvicina al varco, da dentro o da fuori
-    const vicino = Math.hypot(posizioneBoscaiolo.x - this.posizione.x, posizioneBoscaiolo.z - this.posizione.z) < DISTANZA_APERTURA;
+  // altri: posizioni di chi altro può aprire il cancello (es. il cacciatore), ma non far partire la corsa
+  aggiorna(dt, posizioneBoscaiolo, altri = []) {
+    // Le ante si aprono verso l'esterno quando qualcuno si avvicina al varco, da dentro o da fuori
+    const vicino = [posizioneBoscaiolo, ...altri].some(
+      (p) => Math.hypot(p.x - this.posizione.x, p.z - this.posizione.z) < DISTANZA_APERTURA
+    );
     const passo = dt * 2.5;
     this.apertura += THREE.MathUtils.clamp((vicino ? 1 : 0) - this.apertura, -passo, passo);
     const morbido = THREE.MathUtils.smoothstep(this.apertura, 0, 1);

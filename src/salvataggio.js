@@ -17,7 +17,11 @@ function statoIniziale() {
     schiena: { legna: 0, carne: 0 },           // unità portate sulla schiena del boscaiolo (nessun limite)
     miglioramenti: {                           // per ogni cerchio: livelli comprati e soldi già messi nel livello attuale
       mura: { comprati: 0, pagato: 0 },
+      riparazione: { comprati: 0, pagato: 0 },
+      torretta: { comprati: 0, pagato: 0 },
       aiutante: { comprati: 0, pagato: 0 },
+      cacciatore: { comprati: 0, pagato: 0 },
+      venditore: { comprati: 0, pagato: 0 },
     },
     sportelli: { legna: 0, carne: 0 },         // merce esposta negli sportelli di vendita (unità)
     soldiSportelli: { legna: 0, carne: 0 },    // soldi lasciati dai clienti accanto a ogni sportello, da raccogliere

@@ -148,10 +148,13 @@ export const CONFIG = {
     raggioAttaccoLupo: 2.4,      // distanza massima per colpire un lupo con l'ascia
     attaccoCooldown: 0.45,        // secondi tra un colpo e il successivo
     velocitaLupo: 1.2,           // velocità dei lupi intorno alla base
-    inizioLupi: 45,              // dopo quanti secondi di gioco i lupi iniziano ad avvicinarsi (poi il primo arriva dopo altrettanto)
+    primoLupo: 6,                // dopo quanti secondi di gioco arriva il primo lupo (fin dall'inizio della partita)
     intervalloLupiMinimo: 9.5,   // secondi minimi tra un lupo e il successivo
-    intervalloLupiMassimo: 15.5, // secondi massimi tra un lupo e il successivo (in tutto circa il 35% di lupi in più di prima)
+    intervalloLupiMassimo: 15.5, // secondi massimi tra un lupo e il successivo
     unLupoInPiuOgni: 90,         // ogni quanti secondi può esserci un lupo in più contemporaneamente
+    calmaIniziale: 180,          // nei primi secondi di gioco (questi) i lupi sono più lenti e più radi, poi vanno come sempre
+    velocitaLupiInizio: 0.55,    // all'inizio i lupi camminano a questa parte della loro velocità (0.55 = poco più della metà)
+    intervalloLupiInizio: 1.6,   // all'inizio il tempo tra un lupo e l'altro è 1,6 volte più lungo
     dannoGiocatore: 0.5,          // danno molto basso se il lupo sfiora il boscaiolo
   },
 
@@ -170,15 +173,59 @@ export const CONFIG = {
 
   // ---------------- MIGLIORAMENTI DELLA BASE ----------------
   // Ogni catena ha un cerchio verde a terra. Comprato un livello, nello stesso cerchio compare il successivo.
+  // Ogni livello costa circa il doppio del precedente.
   miglioramenti: {
+    // --- Difesa ---
     mura: [
       { nome: 'Mura di pietra', prezzo: 80, icona: 'pietra', hpMura: 220 },        // rocce appuntite alla base, verso fuori
       { nome: 'Rinforzo in metallo', prezzo: 160, icona: 'metallo', hpMura: 360 }, // assi di ferro con i bulloni tra i pali
     ],
+    riparazione: [ // le mura recuperano vita da sole, lentamente (vita al secondo)
+      { nome: 'Riparazione', prezzo: 100, icona: 'martello', vitaAlSecondo: 0.4 },
+      { nome: 'Riparazione veloce', prezzo: 200, icona: 'martello', vitaAlSecondo: 0.8 },
+      { nome: 'Riparazione esperta', prezzo: 400, icona: 'martello', vitaAlSecondo: 1.6 },
+    ],
+    // Torri di legno sulle mura con un arciere che tira frecce ai lupi vicini. Comprate tutte le torri,
+    // nello stesso cerchio (spostato accanto alla seconda torre) compare "Potenzia arcieri".
+    // danno = tacche di vita tolte da ogni freccia (un lupo ne ha 3); ricarica = secondi tra una freccia e l'altra;
+    // aspetto = come sono fatte torri, archi e frecce (0 legno, 1 base di pietra, 2 rinforzi di metallo e punte che brillano)
+    torretta: [
+      { nome: 'Torretta', prezzo: 150, icona: 'torre', torri: 1, ricarica: 1.6, gittata: 8, danno: 1, aspetto: 0 },        // torre sulle mura di sinistra
+      { nome: 'Seconda torretta', prezzo: 300, icona: 'torre', torri: 2, ricarica: 1.6, gittata: 8, danno: 1, aspetto: 0 }, // torre anche sulle mura di destra
+      { nome: 'Potenzia arcieri', prezzo: 600, icona: 'arco', torri: 2, ricarica: 1.2, gittata: 9, danno: 2, aspetto: 1 },     // 2 frecce per lupo
+      { nome: 'Potenzia arcieri 2', prezzo: 1200, icona: 'arcoOro', torri: 2, ricarica: 0.8, gittata: 10, danno: 3, aspetto: 2 }, // 1 freccia per lupo
+    ],
+    // --- Lavoratori ---
     aiutante: [
       { nome: 'Aiutante', prezzo: 120, icona: 'ascia' }, // porta da solo la legna dalla catasta allo sportello
     ],
+    cacciatore: [ // esce dal cancello della foresta, combatte i lupi e porta la loro carne alla dispensa
+      { nome: 'Cacciatore', prezzo: 200, icona: 'cacciatore', ricarica: 0.9, velocita: 3.2 },          // ricarica = secondi tra un colpo e l'altro
+      { nome: 'Cacciatore esperto', prezzo: 400, icona: 'cacciatore', ricarica: 0.5, velocita: 4.2 },
+    ],
+    venditore: [ // un venditore per sportello: porta la merce dal magazzino al deposito e i clienti vengono serviti (e arrivano) più in fretta
+      { nome: 'Venditore', prezzo: 100, icona: 'venditore', rapidita: 1.6 },        // 1.6 = una volta e mezza più veloce
+      { nome: 'Venditore svelto', prezzo: 200, icona: 'venditore', rapidita: 2.2 },
+      { nome: 'Venditore esperto', prezzo: 400, icona: 'venditore', rapidita: 3 },
+    ],
     tempoPagamento: 1.5,     // secondi per pagare un livello intero stando sul cerchio (le monete volano dentro)
+  },
+
+  // ---------------- LAVORATORI E TORRETTE ----------------
+  lavoratori: {
+    velocitaFreccia: 16,     // velocità delle frecce degli arcieri (metri al secondo)
+    raggioColpoCacciatore: 1.2, // da quanto vicino il cacciatore colpisce un lupo (metri)
+    velocitaVenditore: 3,    // velocità dei venditori quando portano la merce (metri al secondo)
+    caricoVenditore: 20,     // unità che un venditore porta a ogni viaggio dalla catasta (o dalla dispensa) allo sportello
+    scortaSportello: 60,     // se sul deposito dello sportello c'è meno merce di così, il venditore va a prenderne altra
+  },
+
+  // ---------------- TELECAMERA SUI MIGLIORAMENTI ----------------
+  // Quando si compra qualcosa che compare lontano (o fuori dallo schermo) la telecamera va a vederlo
+  regia: {
+    viaggio: 1.0,            // secondi per arrivare sul punto (poi parte l'animazione della costruzione)
+    sosta: 1.8,              // secondi fermi a guardare la costruzione
+    ritorno: 1.2,            // secondi per tornare sul boscaiolo
   },
 
   // ---------------- ECONOMIA ----------------

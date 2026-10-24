@@ -22,31 +22,42 @@ const PASSO_PALI = 0.55; // distanza tra un palo e l'altro
 // Dove si trova ogni cosa nella segheria (x = destra/sinistra, z = avanti/indietro; z negativo = lontano)
 // Disposizione: a sinistra la colonna della LEGNA, a destra quella della CARNE, al centro una corsia libera.
 // Dall'alto in basso ogni colonna ha: cerchio del miglioramento, catasta (o dispensa), deposito e sportello.
-const COLONNA = 4.5; // distanza delle due colonne dal centro della base
+const COLONNA = 5.5; // distanza delle due colonne dal centro della base
+// le torrette stanno a cavallo della palizzata: la prima a sinistra tra i due cancelli, la seconda a destra
+const TORRI = [new THREE.Vector3(-11.2, 0, -0.3), new THREE.Vector3(11.2, 0, -0.3)];
+const CERCHIO_TORRE = (torre) => new THREE.Vector3(torre.x - Math.sign(torre.x) * 2, 0, torre.z); // 2 metri dentro la base
 export const MAPPA = {
-  limiti: { xMin: -16, xMax: 16, zMin: -12, zMax: 13 }, // fin dove può andare il boscaiolo (anche fuori dalle mura)
-  mura: { sinistra: -9.2, destra: 9.2, fondo: -6.1, fronte: 6.0 }, // le quattro file della palizzata
-  partenza: new THREE.Vector3(0, 0, 1),                  // dove compare il boscaiolo: in mezzo alla corsia centrale
-  catasta: new THREE.Vector3(-COLONNA, 0, -1.3),         // qui arriva la legna dalla corsa
-  dispensa: new THREE.Vector3(COLONNA, 0, -1.3),         // qui arriva la carne dalla corsa
-  // Cerchi dei miglioramenti, in cima alle colonne vicino a quello che migliorano
+  limiti: { xMin: -19, xMax: 19, zMin: -14.5, zMax: 16 }, // fin dove può andare il boscaiolo (anche fuori dalle mura)
+  mura: { sinistra: -11.2, destra: 11.2, fondo: -7.4, fronte: 7.3 }, // le quattro file della palizzata
+  partenza: new THREE.Vector3(0, 0, 1.2),                // dove compare il boscaiolo: in mezzo alla corsia centrale
+  catasta: new THREE.Vector3(-COLONNA, 0, -1.6),         // qui arriva la legna dalla corsa
+  dispensa: new THREE.Vector3(COLONNA, 0, -1.6),         // qui arriva la carne dalla corsa
+  casaCacciatore: new THREE.Vector3(-7.8, 0, -3.7),      // dove aspetta il cacciatore (abbastanza lontano da non tenere aperto il cancello)
+  // Cerchi dei miglioramenti, ognuno accanto a dove compare quello che compra (nessuno tocca un altro cerchio o un edificio).
+  // Una lista invece di un punto = un posto diverso per ogni livello (il cerchio si sposta dopo l'acquisto).
   miglioramenti: {
-    aiutante: new THREE.Vector3(-COLONNA, 0, -4.6),      // sopra la catasta: l'aiutante porta la legna allo sportello
-    mura: new THREE.Vector3(COLONNA, 0, -4.6),           // vicino alle mura di fondo
+    aiutante: new THREE.Vector3(-COLONNA, 0, -5.3),      // sopra la catasta, dove compare l'aiutante
+    cacciatore: new THREE.Vector3(-8.6, 0, -5.8),        // accanto alla casa del cacciatore, vicino al cancello della foresta
+    // prima torre: accanto alla torre di sinistra; seconda torre e "Potenzia arcieri": accanto alla torre di destra
+    torretta: [CERCHIO_TORRE(TORRI[0]), CERCHIO_TORRE(TORRI[1]), CERCHIO_TORRE(TORRI[1]), CERCHIO_TORRE(TORRI[1])],
+    mura: new THREE.Vector3(COLONNA, 0, -5.3),           // vicino alle mura di fondo
+    riparazione: new THREE.Vector3(8.6, 0, -5.8),        // nell'angolo delle mura, accanto al cerchio delle mura
+    venditore: new THREE.Vector3(8.8, 0, 3.6),           // accanto allo sportello CARNE, dove compare uno dei due venditori
   },
+  torri: TORRI,
   // Due cancelli nella palizzata di sinistra (il punto è il centro del varco, sulla linea delle mura)
   cancelli: {
-    foresta: new THREE.Vector3(-9.2, 0, -3.0),           // per uscire nella foresta
-    corsa: new THREE.Vector3(-9.2, 0, 2.5),              // per partire per una nuova corsa
+    foresta: new THREE.Vector3(-11.2, 0, -3.6),          // per uscire nella foresta
+    corsa: new THREE.Vector3(-11.2, 0, 3.0),             // per partire per una nuova corsa
   },
   // Gli sportelli di vendita sono varchi nella palizzata davanti (in basso nello schermo)
   sportelli: {
-    legna: new THREE.Vector3(-COLONNA, 0, 6.0),
-    carne: new THREE.Vector3(COLONNA, 0, 6.0),
+    legna: new THREE.Vector3(-COLONNA, 0, 7.3),
+    carne: new THREE.Vector3(COLONNA, 0, 7.3),
   },
   // I clienti arrivano dal basso, si mettono in fila davanti al loro sportello e se ne vanno di nuovo in basso
-  ingressoClienti: new THREE.Vector3(0, 0, 13),
-  casa: new THREE.Vector3(-1, 0, -10),
+  ingressoClienti: new THREE.Vector3(0, 0, 16),
+  casa: new THREE.Vector3(-1, 0, -12.5),
 };
 
 export function creaAmbiente() {
@@ -61,7 +72,7 @@ export function creaAmbiente() {
   sole.position.set(8, 20, 8);
   sole.castShadow = true;
   sole.shadow.mapSize.set(2048, 2048);
-  Object.assign(sole.shadow.camera, { left: -18, right: 18, top: 18, bottom: -18, near: 1, far: 60 });
+  Object.assign(sole.shadow.camera, { left: -22, right: 22, top: 22, bottom: -22, near: 1, far: 60 });
   sole.shadow.bias = -0.0008;
   scena.add(sole, sole.target);
 
@@ -72,10 +83,10 @@ export function creaAmbiente() {
   terreno.receiveShadow = true;
   scena.add(terreno);
 
-  const radura = new THREE.Mesh(new THREE.CircleGeometry(7.8, 48), tinta(0xd3e0ee));
+  const radura = new THREE.Mesh(new THREE.CircleGeometry(9.6, 48), tinta(0xd3e0ee));
   radura.rotation.x = -Math.PI / 2;
   radura.scale.set(1, 0.75, 1);
-  radura.position.set(0, -0.01, 0.5);
+  radura.position.set(0, -0.01, 0.6);
   radura.receiveShadow = true;
   scena.add(radura);
 
@@ -151,11 +162,10 @@ export function creaAmbiente() {
   const posti = [];
   for (let i = 0; i < 560; i++) {
     const angolo = Math.random() * Math.PI * 2;
-    const raggio = 18 + Math.random() * 36;
+    const raggio = 21.5 + Math.random() * 36;
     const x = Math.cos(angolo) * raggio;
     const z = Math.sin(angolo) * raggio * 0.95;
-    if (Math.abs(x) < 12 && Math.abs(z) < 9) continue;
-    if (x < -7 && Math.abs(z - MAPPA.cancelli.corsa.z) < 3.5) continue;
+    if (x < -9 && Math.abs(z - MAPPA.cancelli.corsa.z) < 3.5) continue;
     const scala = 1.1 + Math.random() * 1.3;
     posti.push(matrice([x, 0, z], [0, Math.random() * 6, 0], [scala, scala * 1.18, scala]));
   }
@@ -199,6 +209,7 @@ export function creaAmbiente() {
   adattaSchermo();
 
   const puntoSeguito = new THREE.Vector3();
+  let zoomAttuale = 1;
   let primaVolta = true;
 
   return {
@@ -206,22 +217,27 @@ export function creaAmbiente() {
     telecamera,
     palizzata,
     muri,
-    // La telecamera segue il boscaiolo con un po' di morbidezza
-    segui(posizione, dt) {
+    // La telecamera segue il boscaiolo con un po' di morbidezza.
+    // Opzioni (le usa la telecamera che va a vedere un miglioramento appena comprato):
+    //  zoom: 1 = normale, più di 1 = più in alto e più lontano, meno di 1 = più vicino
+    //  libero: true = può guardare anche il bordo della base (di solito resta un po' verso il centro)
+    //  morbidezza: più è alta, più in fretta raggiunge il punto
+    segui(posizione, dt, { zoom = 1, libero = false, morbidezza = 4 } = {}) {
       const cfg = CONFIG.telecameraSegheria;
       // la telecamera non si allontana troppo dalla base (ma segue il boscaiolo anche quando esce)
-      const obiettivo = new THREE.Vector3(
-        THREE.MathUtils.clamp(posizione.x, -8, 8),
-        0,
-        THREE.MathUtils.clamp(posizione.z, -5, 6)
-      );
+      const obiettivo = libero
+        ? new THREE.Vector3(posizione.x, 0, posizione.z)
+        : new THREE.Vector3(THREE.MathUtils.clamp(posizione.x, -10, 10), 0, THREE.MathUtils.clamp(posizione.z, -6.5, 7.5));
+      const passo = Math.min(1, dt * morbidezza);
       if (primaVolta) {
         puntoSeguito.copy(obiettivo);
+        zoomAttuale = zoom;
         primaVolta = false;
       } else {
-        puntoSeguito.lerp(obiettivo, Math.min(1, dt * 4));
+        puntoSeguito.lerp(obiettivo, passo);
+        zoomAttuale += (zoom - zoomAttuale) * passo;
       }
-      telecamera.position.set(puntoSeguito.x, cfg.altezza, puntoSeguito.z + cfg.distanzaDietro);
+      telecamera.position.set(puntoSeguito.x, cfg.altezza * zoomAttuale, puntoSeguito.z + cfg.distanzaDietro * zoomAttuale);
       telecamera.lookAt(puntoSeguito.x, 0, puntoSeguito.z - 1);
       neve.aggiorna(dt, telecamera.position);
       // la lama della sega gira

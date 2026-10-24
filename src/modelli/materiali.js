@@ -111,8 +111,9 @@ export function liberaEtichetta(etichetta) {
   etichetta.material.dispose();
 }
 
-// Disegna un'iconcina ('legna', 'carne', 'moneta', 'pietra', 'metallo', 'ascia') in un quadrato di lato "lato"
-// (stessi disegni delle icone in stile.css). Niente emoji: non tutti i dispositivi le hanno.
+// Disegna un'iconcina ('legna', 'carne', 'moneta', 'pietra', 'metallo', 'ascia', 'torre', 'martello', 'arco',
+// 'arcoOro', 'cacciatore', 'venditore') in un quadrato di lato "lato"
+// (legna, carne, moneta e ascia sono uguali alle icone in stile.css). Niente emoji: non tutti i dispositivi le hanno.
 export function disegnaIcona(ctx, tipo, x, y, lato) {
   ctx.save();
   ctx.translate(x, y);
@@ -171,6 +172,42 @@ export function disegnaIcona(ctx, tipo, x, y, lato) {
       blocco(2, py, 28, 5, 1.2, '#3b4149', '#22262b', 1);
       for (const px of [7.75, 16.25, 24.75]) ellisse(px, py + 2.5, 1.5, 1.5, 0, '#c9d0d8');
     }
+  } else if (tipo === 'torre') {
+    // torretta di legno: quattro gambe incrociate, piattaforma con la ringhiera e una bandierina
+    tratto('M10 30L11.5 16M22 30L20.5 16M11 22L21 29M21 22L11 29', '#7a461c', 2.2);
+    blocco(6, 12.5, 20, 4, 1.2, '#a0672f', '#6b4426', 1.2);
+    blocco(7.5, 8, 17, 4.5, 1, '#c08a52', '#6b4426', 1.2);
+    tratto('M23 8V1.5', '#6b4426', 1.4);
+    pieno('M23.5 1.5L30 3.5L23.5 5.5Z', '#d8262e');
+  } else if (tipo === 'martello') {
+    // martello (manico e testa di ferro) con un "+" verde: le mura si riparano
+    tratto('M7 28L18 15', '#8a5328', 4);
+    ctx.save();
+    ctx.translate(19.5, 12.5);
+    ctx.rotate(0.7);
+    blocco(-7.5, -3.5, 15, 7, 1.5, '#9aa3ad', '#5d6672', 1.5);
+    ctx.restore();
+    tratto('M26 21v9M21.5 25.5h9', '#3fae5a', 3.2);
+  } else if (tipo === 'arco' || tipo === 'arcoOro') {
+    // arco con la corda e una freccia pronta ("arcoOro": arco dorato e punta che brilla, l'ultimo potenziamento)
+    const oro = tipo === 'arcoOro';
+    if (oro) ellisse(27.5, 16, 5, 5, 0, 'rgba(255,214,90,0.55)');
+    tratto('M11 3Q27 16 11 29', oro ? '#d9a520' : '#4a2d16', 3.2);
+    tratto('M11 3L11 29', '#efe6d0', 1.2);
+    tratto('M4 16H26', '#6b4426', 2.2);
+    pieno('M31 16L25 12.5V19.5Z', oro ? '#ffe066' : '#9aa3ad', oro ? '#e0a010' : '#5d6672', 1);
+    pieno('M5 16L2 12.5H6L8.5 16L6 19.5H2Z', oro ? '#f2b632' : '#2f7fd6');
+  } else if (tipo === 'cacciatore' || tipo === 'venditore') {
+    // la faccia del lavoratore con il suo berretto (verde il cacciatore, giallo il venditore)
+    // e in basso a destra cosa fa: la carne che porta o la moneta che incassa
+    const [berretto, scuro] = tipo === 'cacciatore' ? ['#3d7a34', '#2b5a25'] : ['#f2b632', '#c98f1c'];
+    ellisse(14, 18, 9.5, 9.5, 0, '#f5c49c', '#c98a6a', 1.2);
+    ellisse(10.5, 18.5, 1.4, 1.7, 0, '#1b1b1b');
+    ellisse(17.5, 18.5, 1.4, 1.7, 0, '#1b1b1b');
+    pieno('M4 14.5A10 10 0 0 1 24 14.5Z', berretto, scuro, 1.2);
+    blocco(3.5, 12.5, 21, 4, 1.5, scuro, scuro, 0.5);
+    ellisse(14, 4, 2.8, 2.8, 0, berretto);
+    disegnaIcona(ctx, tipo === 'cacciatore' ? 'carne' : 'moneta', 18, 18, 14);
   } else if (tipo === 'ascia') {
     tratto('M8 29L21 6', '#8a5328', 3.6);
     pieno('M16.5 5.5L21.5 8.4Q29 8 28.4 16.6Q24.6 12.6 19.2 12.2Z', '#c9d2dc', '#6f7b88', 1.5);

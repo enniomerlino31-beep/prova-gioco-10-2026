@@ -6,6 +6,9 @@
 //  cerchio fa un piccolo "salto" e mostra il livello successivo; quando
 //  i livelli sono finiti sparisce.
 //  Ogni cerchio è una "catena" di livelli (vedi CONFIG.miglioramenti).
+//  Un livello può stare in un posto diverso dal precedente (es. la seconda
+//  torretta è dall'altra parte della base): allora, dopo l'acquisto, il
+//  cerchio si rimpicciolisce, si sposta lì e ricompare.
 // =====================================================================
 
 import * as THREE from 'three';
@@ -17,9 +20,11 @@ const LARGHEZZA_BARRA = 0.24; // spessore della barra circolare
 const PASSI_PAGAMENTO = 12;   // in quanti "voli" di monete si paga un livello
 
 export class CerchioMiglioramento {
+  // posizioni: un punto, oppure un punto per ogni livello (da MAPPA.miglioramenti)
   // livelli: la catena da CONFIG.miglioramenti; comprati: quanti livelli sono già stati comprati; pagato: soldi già messi nel livello attuale
-  constructor(genitore, posizione, livelli, comprati, pagato) {
-    this.posizione = posizione.clone();
+  constructor(genitore, posizioni, livelli, comprati, pagato) {
+    this.posizioni = Array.isArray(posizioni) ? posizioni : livelli.map(() => posizioni);
+    this.posizione = (this.posizioni[comprati] ?? this.posizioni[this.posizioni.length - 1]).clone();
     this.livelli = livelli;
     this.comprati = comprati;
     this.pagato = pagato;
@@ -27,9 +32,10 @@ export class CerchioMiglioramento {
     this.attesa = 0;      // secondi prima del prossimo volo di monete
     this.salto = 0;       // animazione quando si completa un livello (da 1 a 0)
     this.sparisce = false;
+    this.trasloco = 0;    // animazione dello spostamento verso il posto del livello successivo (da 1 a 0)
 
     this.gruppo = new THREE.Group();
-    this.gruppo.position.copy(posizione).setY(0.02);
+    this.gruppo.position.copy(this.posizione).setY(0.02);
     genitore.add(this.gruppo);
     const piatto = (geometria, colore, opacita, y) => {
       const mesh = new THREE.Mesh(
@@ -67,10 +73,11 @@ export class CerchioMiglioramento {
   }
 
   get attivo() {
-    return Boolean(this.livello) && !this.sparisce;
+    return Boolean(this.livello) && !this.sparisce && this.trasloco <= 0;
   }
 
   contiene(posizione) {
+    if (this.trasloco > 0) return false;
     return Math.hypot(posizione.x - this.posizione.x, posizione.z - this.posizione.z) < RAGGIO;
   }
 
@@ -103,8 +110,14 @@ export class CerchioMiglioramento {
     this.inArrivo = 0;
     this.salto = 1;
     if (this.livello) {
-      this.ridisegna();
-      this.aggiornaBarra();
+      const nuova = this.posizioni[this.comprati];
+      if (nuova.distanceTo(this.posizione) > 0.01) {
+        this.trasloco = 1; // a metà animazione il cerchio cambia posto e disegno (vedi aggiorna)
+        this.salto = 0;
+      } else {
+        this.ridisegna();
+        this.aggiornaBarra();
+      }
     } else {
       this.sparisce = true;
     }
@@ -117,6 +130,20 @@ export class CerchioMiglioramento {
 
   aggiorna(dt) {
     if (!this.gruppo.visible) return;
+    if (this.trasloco > 0) {
+      // prima metà: si rimpicciolisce dove era; seconda metà: ricompare nel posto nuovo con il livello nuovo
+      const primaMeta = this.trasloco > 0.5;
+      this.trasloco = Math.max(0, this.trasloco - dt * 1.6);
+      if (primaMeta && this.trasloco <= 0.5) {
+        this.posizione.copy(this.posizioni[this.comprati]);
+        this.gruppo.position.copy(this.posizione).setY(0.02);
+        this.ridisegna();
+        this.aggiornaBarra();
+      }
+      this.gruppo.scale.setScalar(Math.max(0.001, Math.abs(this.trasloco - 0.5) * 2));
+      if (this.trasloco <= 0) this.salto = 1;
+      return;
+    }
     this.salto = Math.max(0, this.salto - dt * 2.2);
     if (this.sparisce) {
       // si rimpicciolisce e sparisce

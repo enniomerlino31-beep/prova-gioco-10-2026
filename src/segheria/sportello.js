@@ -18,6 +18,7 @@ import { geometriaTronco, materialiTronco } from '../modelli/carro.js';
 import { partiCarne } from '../modelli/carne.js';
 import { PilaSoldi } from './soldi.js';
 import { creaZonaATerra } from './catasta.js';
+import { MAPPA } from './ambiente.js';
 
 const ZONA_Z = DEPOSITO_Z - 1.2;  // dove si mette il boscaiolo per scaricare (davanti al deposito, verso l'interno)
 const SOLDI_X = 2.5;              // la pila di monete sta accanto al deposito, dalla parte del centro della base
@@ -46,7 +47,7 @@ export class Sportello {
     // Dove si ferma il cliente che compra, fuori dal bancone; la fila si allunga lungo le mura, verso l'esterno
     this.puntoCliente = posizione.clone().add(new THREE.Vector3(0, 0, CLIENTE_Z));
     this.versoFuori = posizione.x < 0 ? -1 : 1;
-    this.uscita = new THREE.Vector3(posizione.x + this.versoFuori * 3.5, 0, 13);
+    this.uscita = new THREE.Vector3(posizione.x + this.versoFuori * 3.5, 0, MAPPA.ingressoClienti.z);
 
     // Monete da raccogliere, dentro la base accanto al deposito (dalla parte del centro)
     this.soldi = new PilaSoldi(genitore, posizione.clone().add(new THREE.Vector3(-this.versoFuori * SOLDI_X, 0, DEPOSITO_Z)), soldiATerra);

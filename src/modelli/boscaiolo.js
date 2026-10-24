@@ -119,3 +119,19 @@ export function creaBoscaiolo() {
   radice.userData.perni = gruppiPerno;
   return radice;
 }
+
+// Un boscaiolo con altri colori, per riconoscere a colpo d'occhio i lavoratori
+// (cacciatore, venditore, arciere). berretto/berrettoScuro: colori del berretto e del risvolto;
+// giacca: colore che prende il posto della camicia a quadri; senzaAscia: nasconde l'ascia.
+export function creaLavoratore({ berretto, berrettoScuro, giacca = null, senzaAscia = false }) {
+  const modello = creaBoscaiolo();
+  const cambi = new Map([[tinta(BERRETTO), tinta(berretto)], [tinta(BERRETTO_SCURO), tinta(berrettoScuro)]]);
+  if (giacca) cambi.set(materialeQuadri(), tinta(giacca));
+  const ascia = [tinta(MANICO), tinta(LAMA)];
+  modello.traverse((m) => {
+    if (!m.isMesh) return;
+    if (senzaAscia && ascia.includes(m.material)) m.visible = false;
+    if (cambi.has(m.material)) m.material = cambi.get(m.material);
+  });
+  return modello;
+}

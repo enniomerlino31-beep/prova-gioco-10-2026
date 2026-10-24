@@ -28,6 +28,7 @@ export class Clienti {
     this.inVolo = inVolo;
     this.lista = [];
     this.prossimoArrivo = 1; // il primo cliente arriva quasi subito
+    this.rapidita = 1;       // con il venditore è più di 1: i clienti arrivano e vengono serviti più in fretta
   }
 
   aggiorna(dt) {
@@ -37,7 +38,8 @@ export class Clienti {
     this.prossimoArrivo -= dt;
     if (this.prossimoArrivo <= 0) {
       const arrivato = this.aggiungiCliente();
-      this.prossimoArrivo = arrivato ? cfg.intervalloMinimo + Math.random() * (cfg.intervalloMassimo - cfg.intervalloMinimo) : 0.5;
+      const intervallo = cfg.intervalloMinimo + Math.random() * (cfg.intervalloMassimo - cfg.intervalloMinimo);
+      this.prossimoArrivo = arrivato ? intervallo / this.rapidita : 0.5;
     }
 
     // --- Ogni fila: il primo al bancone, gli altri dietro, lungo le mura ---
@@ -52,7 +54,7 @@ export class Clienti {
         }
         if (posto === 0 && arrivato) {
           cliente.attesa += dt;
-          if (cliente.attesa > cfg.tempoAcquisto) this.compra(cliente, dt);
+          if (cliente.attesa > cfg.tempoAcquisto / this.rapidita) this.compra(cliente, dt);
         } else {
           cliente.attesa = 0;
         }
@@ -142,7 +144,7 @@ export class Clienti {
     cliente.preso += presa;
     const testa = cliente.posizione.clone().setY(1.6);
     this.effetti.lancia(cliente.vuole, partenza, () => testa, 0, null, { durata: 0.4, altezza: 1.4, scala: 0.5, sbuffo: false });
-    cliente.prossimoPezzo = CONFIG.clienti.intervalloPezzi;
+    cliente.prossimoPezzo = CONFIG.clienti.intervalloPezzi / this.rapidita;
 
     if (cliente.preso >= cliente.quantita) this.paga(cliente);
     else this.creaFumetto(cliente);

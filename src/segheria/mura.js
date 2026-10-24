@@ -141,6 +141,11 @@ export class Mura {
     this.aggiornaPezzi();
   }
 
+  // Riparazione automatica: un po' di vita in più, senza superare il massimo
+  ripara(quantita) {
+    this.hp = Math.min(this.maxHp, this.hp + quantita);
+  }
+
   danneggia(quantita) {
     this.hp = Math.max(0, this.hp - quantita);
     this.flash = Math.min(0.52, this.flash + 0.45);
