@@ -69,7 +69,7 @@ Il gioco unisce una corsa infinita con una base di gestione: la squadra corre in
 - La parte estetica, l’equilibrio del gioco e la narrazione potrebbero essere ulteriormente sviluppate.
 - Il progetto è ancora in fase di prototipo e di testing di meccaniche base.
 - I Gruppi 1, 2 e 3 di `PIANO-GRUPPI.md` sono fatti, provati e salvati (Gruppo 2: commit f279bf9; Gruppo 3 con le richieste A, B, C: commit f0f1279).
-- Gruppo A di `PIANO-GRUPPI.md` (cartellino delle monete, boscaiolo secondario e guadagni offline = Fase 5): fatto, provato e approvato dall’utente, insieme alla modifica dopo la prova (boscaiolo secondario a 5000 monete come ultimo acquisto, `?tuttocomprato`).
+- Gruppo A di `PIANO-GRUPPI.md` (cartellino delle monete, boscaiolo secondario e guadagni offline = Fase 5): fatto, provato e approvato dall’utente, insieme alla modifica dopo la prova (boscaiolo secondario a 5000 monete come ultimo acquisto, `?tuttocomprato`): commit 363bb2c.
 - Ancora da fare, descritti in `PIANO-GRUPPI.md`: Gruppo B (suoni cartoon = Fase 4), poi Gruppo C (lupi più deboli, mura più resistenti, partita persa se le mura cadono, arrivo e aspetto del lupo gigante), poi Gruppo 4 (corsa alla lunghezza originale e orso gigante a fine corsa) e Gruppo 5 (edificio della segheria in stile cartoon, che migliora insieme alle mura).
 - Dopo verranno le espansioni della base (zona clienti con falò, affumicatoio, canile, casa dei lavoratori, grande magazzino), descritte in `PIANO-ESPANSIONI.md` e non ancora realizzate.
 
@@ -188,7 +188,7 @@ npm run build
 - 2026-10-25 — Gruppo A (da provare): cartellino con la moneta e il numero sopra il cerchio delle monete (`soldi.js`, `creaEtichettaVariabile` in `materiali.js`); nuovo lavoratore “Boscaiolo secondario” (500 monete, terzo cerchio ECONOMIA `CONFIG.file.secondario` dopo i quattro lavoratori), berretto viola e slitta, un giro ogni 5 minuti con 40 unità di legna (scelta dell’utente dopo i conti: con 250 si arrivava a circa 6.000 monete all’ora), conto alla rovescia accanto al cancello della corsa, lavora anche durante le corse (`lavoraDuranteLaCorsa`) (`secondario.js`, `MAPPA.giroSecondario`); guadagni mentre si è via (Fase 5, `offline.js`, `lavoroMentreVia` in `segheria.js`, `CONFIG.offline`) con la schermata “Bentornato!” e il pulsante “Raccogli” (`index.html`, `mostraBentornato`), protezione contro l’orologio che va indietro (`orologio` nel salvataggio) e `?offline=N` per provarli; salvataggi vecchi: le voci nuove partono vuote.
 - 2026-10-25 — aggiunto `?moneteinfinite` nell’indirizzo per le prove: le monete in tasca tornano sempre a 999.999 (`MONETE_INFINITE` in `segheria.js`).
 - 2026-10-25 — Gruppo A provato dall’utente; poi il boscaiolo secondario costa 5000 monete ed è l’ultimo acquisto: il suo cerchio compare solo con tutte le altre file finite e il pavimento comprato (`aggiornaVisibilita`), spostato un po’ più verso il centro (x -2,2) per non sfiorare il cerchio della catasta; salvataggi (`cerchi` 4): chi l’aveva comprato lo tiene, le monete messe nel suo cerchio tornano in tasca; nuovo `?tuttocomprato` per provarlo (`compraTuttoPerProva`); in `PIANO-GRUPPI.md` aggiunto il Gruppo C (lupi, mura e lupo gigante), da fare dopo il Gruppo B.
-- 2026-10-25 — il Gruppo A e la modifica al boscaiolo secondario sono stati provati dall’utente e approvati.
+- 2026-10-25 — il Gruppo A e la modifica al boscaiolo secondario sono stati provati dall’utente e approvati (commit 363bb2c).
 
 ## ✅ Note finali
 

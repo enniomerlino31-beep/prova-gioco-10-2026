@@ -7,7 +7,7 @@
 > e approvato dall'utente e salvato** (commit b32a24b): due cerchi che vanno avanti a coppie, prima "Aiutante" + "Cacciatore", poi
 > "Venditore" + "Secondo cacciatore", poi i potenziamenti; tolte le scritte DIFESA ed ECONOMIA (vedi le decisioni qui sotto).
 > **Adesso si fanno i Gruppi A, B e C** (scritti qui sotto), uno alla volta, in quest'ordine. Il **Gruppo A è fatto,
-> provato e approvato dall'utente e salvato** (2026-10-25), con la modifica chiesta dopo la prova (boscaiolo
+> provato e approvato dall'utente e salvato** (2026-10-25, commit 363bb2c), con la modifica chiesta dopo la prova (boscaiolo
 > secondario a 5000 monete come ultimo acquisto, `?tuttocomprato`), anche lei provata e approvata.
 > Ora il Gruppo B (suoni), poi il Gruppo C (lupi, mura e lupo gigante).
 > I Gruppi 4 e 5 sono **rimandati a più avanti** (dopo A, B e C).
