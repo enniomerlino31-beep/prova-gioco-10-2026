@@ -4,13 +4,61 @@
 > Il Gruppo 3 è **fatto, provato dall'utente e salvato** (2026-10-25, commit f0f1279), insieme a tre richieste in più
 > (A pavimento solo in pietra al centro, B nuovo Gruppo 5 scritto qui sotto, C due cacciatori).
 > Fatto anche il **nuovo ordine della fila ECONOMIA** (2026-10-25, corretto dopo la prima prova dell'utente), **provato
-> e approvato dall'utente e salvato**: due cerchi che vanno avanti a coppie, prima "Aiutante" + "Cacciatore", poi
+> e approvato dall'utente e salvato** (commit b32a24b): due cerchi che vanno avanti a coppie, prima "Aiutante" + "Cacciatore", poi
 > "Venditore" + "Secondo cacciatore", poi i potenziamenti; tolte le scritte DIFESA ed ECONOMIA (vedi le decisioni qui sotto).
-> I Gruppi 4 e 5 qui sotto sono **ancora da fare**, uno alla volta, nell'ordine.
+> **Adesso si fanno i Gruppi A e B** (Fasi 5 e 4, scritti qui sotto), uno alla volta: finito il Gruppo A ci si
+> ferma e si aspetta la prova dell'utente. I Gruppi 4 e 5 sono **rimandati a più avanti** (dopo A e B).
 
 Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il gioco lo prova l'utente, niente partite di prova lunghe), aggiornare il README e dire cosa è stato fatto. Commit solo quando lo dice l'utente. Se la sessione sta per finire, fermarsi alla fine di un gruppo e dirlo.
 
 Qui sotto c'è il testo dei gruppi così come l'ha scritto l'utente.
+
+---
+
+## GRUPPO A: CONTATORE DELLE MONETE, BOSCAIOLO SECONDARIO E GUADAGNI OFFLINE (da fare per primo)
+
+A1. Cerchio delle monete: sopra il cerchio delle monete tra i due sportelli deve vedersi quante monete ci sono dentro, con l'icona della moneta e il numero (per esempio "120"). Il numero si aggiorna quando i clienti pagano e quando le raccolgo. Se il cerchio è vuoto, il numero sparisce o mostra 0 (scegli tu e dimmi cosa hai scelto). Deve leggersi bene e non sovrapporsi a cerchi, scritte o insegne.
+
+A2. Nuovo lavoratore "Boscaiolo secondario":
+- Si compra con un nuovo cerchio nella fila ECONOMIA, dopo i quattro lavoratori (Aiutante, Cacciatore, Venditore, Secondo cacciatore), a 500 monete.
+- Ogni 5 minuti fa una corsa da solo: esce dal cancello della corsa, sparisce nella foresta e dopo 5 minuti torna con 250 pezzi di legna, che scarica sulla catasta. Poi riparte.
+- Ha un suo colore, come gli altri lavoratori, ed è in stile cartoon. Mentre torna, la legna si vede (per esempio su una slitta o sulla schiena).
+- Sopra il cerchio CORSA (o vicino al cancello) un piccolo conto alla rovescia mostra tra quanto torna.
+- Funziona sia mentre gioco sia quando sono via.
+- Il numero di minuti e di pezzi di legna mettili in config.js, così si possono cambiare facilmente.
+
+A3. Guadagni offline (Fase 5): quando chiudo il gioco e lo riapro, la base ha continuato a lavorare.
+- Mentre sono via, il boscaiolo secondario continua a portare 250 pezzi di legna ogni 5 minuti sulla catasta.
+- La legna diventa monete solo se viene venduta: calcola le vendite offline in base a quanto riescono a vendere davvero i miei lavoratori e i clienti (aiutante, venditori e loro potenziamenti), non più veloce di come succederebbe giocando. Senza aiutante e venditore la legna resta nella catasta e non diventa monete. Fai lo stesso con la carne se ci sono i cacciatori, ma solo se è semplice: altrimenti dimmelo.
+- Massimo 24 ore: oltre le 24 ore non succede più niente, né legna né vendite.
+- Sotto i 2 minuti di assenza non succede niente.
+- Mentre sono via i lupi non fanno danni.
+- Al ritorno compare una schermata "Bentornato!" con quanto tempo sono stato via, quanta legna ha portato il boscaiolo secondario e quante monete ho guadagnato (con le icone), e un pulsante "Raccogli". Premuto il pulsante, le monete vanno nel cerchio delle monete e la legna non venduta resta nella catasta.
+- Se l'orologio del telefono va indietro o fa cose strane, non deve dare monete in più né rompere il salvataggio.
+- La schermata non deve comparire durante il tutorial.
+- Aggiungi un modo per provarlo senza aspettare: per esempio ?offline=60 nell'indirizzo per fingere di essere stato via 60 minuti. Scrivilo nel README tra i comandi.
+- Dimmi i numeri: quante monete all'ora si guadagnano offline con i vari lavoratori. Se superano le 1.000 monete all'ora, fermati e chiedimelo prima di andare avanti.
+
+## GRUPPO B: SUONI (Fase 4, dopo il Gruppo A)
+
+Suoni fatti dal codice (con il Web Audio del browser), senza file audio, così il gioco resta leggero.
+Stile CARTOON: suoni buffi, rotondi e allegri come nei cartoni animati e nei giochi per telefono (boing, pop, plin, swoosh). Niente suoni realistici o cupi, niente versi di lupo veri: anche il lupo deve sembrare un cartone animato.
+- Base: colpo d'ascia sul lupo, lupo che muore, morso alle mura, arrivo del lupo gigante (ululato buffo), freccia della torretta, monete raccolte, vendita allo sportello, mancia, pagamento in un cerchio, acquisto completato, cancello che si apre, ritorno del boscaiolo secondario con la legna.
+- Corsa: passaggio da una porta buona e da una porta cattiva, albero abbattuto, boscaiolo perso, vittoria e sconfitta.
+- Tutorial e "Bentornato!": suono di festa.
+- Un pulsante sempre visibile per togliere e rimettere l'audio (icona dell'altoparlante), che resta salvato.
+- Volume moderato. Se tanti suoni uguali arrivano insieme (per esempio molte monete), non devono sommarsi in un rumore forte: limita quanti ne partono insieme.
+- Sul telefono l'audio parte solo dopo il primo tocco: fai in modo che funzioni comunque.
+- Niente musica di sottofondo per ora.
+
+Regole per tutti e due i gruppi A e B:
+- Prezzi, regole e aspetto del resto del gioco non cambiano.
+- I salvataggi già esistenti devono continuare a funzionare.
+- Verifica veloce, niente partite di prova lunghe: il gioco lo prova l'utente. Alla fine di ogni gruppo usare Chrome DevTools solo per aprire il gioco e controllare che nella console non ci siano errori.
+- Aggiornare README e PIANO-GRUPPI.md.
+- Niente commit: aspettare la prova dell'utente.
+- Se la sessione sta per finire, fermarsi e dire a che punto si è.
+- Alla fine di ogni gruppo scrivere in poche righe cosa è stato fatto, le decisioni prese da soli e cosa controllare nella prova.
 
 ---
 
