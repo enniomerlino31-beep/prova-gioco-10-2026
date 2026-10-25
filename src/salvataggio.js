@@ -24,11 +24,12 @@ function statoIniziale() {
       venditore: { comprati: 0, pagato: 0 },
       pavimentoPietra: { comprati: 0, pagato: 0 },
     },
-    file: {                                    // le due file di cerchi: monete già messe nel loro prossimo acquisto
+    file: {                                    // le file di cerchi: monete già messe nel loro prossimo acquisto
       difesa: { pagato: 0 },
       economia: { pagato: 0 },
+      caccia: { pagato: 0 },
     },
-    cerchi: 2,                                 // 2 = salvataggio fatto con le due file di cerchi (vedi carica)
+    cerchi: 3,                                 // 2 = con le due file di cerchi, 3 = con i due cerchi ECONOMIA (vedi carica)
     sportelli: { legna: 0, carne: 0 },         // merce esposta negli sportelli di vendita (unità; la carne della corsa arriva qui)
     soldiATerra: 0,                            // soldi lasciati dai clienti nel cerchio delle monete tra i due sportelli, da raccogliere
     vendute: { legna: 0, carne: 0 },           // unità vendute in tutto (serviranno per sbloccare le basi)
@@ -94,13 +95,19 @@ export function carica() {
     // Salvataggi di prima delle due file di cerchi: le monete già messe in un cerchio tornano in tasca
     // (quei cerchi ora non ci sono più); le torrette sono diventate 4 prima di "Potenzia arcieri":
     // chi aveva già un potenziamento degli arcieri ha subito anche le due torrette nuove
-    if (salvato.cerchi !== 2) {
+    if (!salvato.cerchi || salvato.cerchi < 2) {
       for (const catena of Object.values(stato.miglioramenti)) {
         stato.soldi += catena.pagato ?? 0;
         catena.pagato = 0;
       }
       if (stato.miglioramenti.torretta.comprati >= 3) stato.miglioramenti.torretta.comprati += 2;
-      stato.cerchi = 2;
+    }
+    // Salvataggi di prima dei due cerchi ECONOMIA: le monete già messe nel cerchio ECONOMIA tornano in tasca
+    // (ora il prossimo acquisto può essere in un altro cerchio); quello che è già comprato resta comprato
+    if (!salvato.cerchi || salvato.cerchi < 3) {
+      stato.soldi += stato.file.economia.pagato ?? 0;
+      stato.file.economia.pagato = 0;
+      stato.cerchi = 3;
     }
     return stato;
   } catch {

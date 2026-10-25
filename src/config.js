@@ -230,8 +230,8 @@ export const CONFIG = {
   },
 
   // ---------------- MIGLIORAMENTI DELLA BASE ----------------
-  // Le "catene" qui sotto dicono cosa fa ogni livello. I cerchi a terra però sono solo due "file"
-  // (vedi "file" più giù): DIFESA ed ECONOMIA, sempre visibili insieme; ogni fila mostra solo il suo
+  // Le "catene" qui sotto dicono cosa fa ogni livello. I cerchi a terra però seguono le "file"
+  // (vedi "file" più giù): DIFESA (un cerchio) ed ECONOMIA (due cerchi); ogni cerchio mostra solo il suo
   // prossimo acquisto, nell'ordine scritto lì. Il pavimento ha il suo cerchio.
   miglioramenti: {
     // --- Difesa ---
@@ -284,10 +284,13 @@ export const CONFIG = {
     tempoPagamento: 1.5,     // secondi per pagare un livello intero stando sul cerchio (le monete volano dentro)
   },
 
-  // ---------------- LE DUE FILE DI CERCHI ----------------
+  // ---------------- LE FILE DI CERCHI ----------------
   // Ogni fila è un solo cerchio a terra che mostra il prossimo acquisto: [catena, livello] (il livello parte da 0).
-  // Comprato un passo, nello stesso cerchio compare il successivo. Il pavimento compare (come terzo
-  // cerchio) solo quando sono stati assunti tutti i lavoratori base: aiutante, venditore e cacciatore.
+  // Comprato un passo, nello stesso cerchio compare il successivo. La fila ECONOMIA ha due cerchi, "economia"
+  // (aiutante e venditore) e "caccia" (i due cacciatori), che compaiono insieme con le mura di pietra e vanno
+  // avanti a coppie: prima Aiutante e Cacciatore, comprati tutti e due Venditore e Secondo cacciatore, poi i
+  // potenziamenti (quando sono stati assunti tutti e quattro). Vedi aggiornaVisibilita in segheria.js.
+  // Il pavimento compare (con il suo cerchio) solo quando sono stati assunti aiutante, venditore e cacciatore.
   file: {
     difesa: [
       ['mura', 0],        // Mura di pietra (è il passaggio del tutorial)
@@ -305,11 +308,13 @@ export const CONFIG = {
     economia: [
       ['aiutante', 0],    // Aiutante
       ['venditore', 0],   // Venditore
+      ['venditore', 1],   // Venditore svelto
+      ['venditore', 2],   // Venditore esperto
+    ],
+    caccia: [
       ['cacciatore', 0],  // Cacciatore (il suo banco compare già dopo le mura di pietra)
       ['secondoCacciatore', 0], // Secondo cacciatore
-      ['venditore', 1],   // Venditore svelto
       ['cacciatore', 1],  // Cacciatore esperto
-      ['venditore', 2],   // Venditore esperto
     ],
   },
 

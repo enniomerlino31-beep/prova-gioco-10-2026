@@ -2,8 +2,8 @@
 //  CERCHIO DI UN MIGLIORAMENTO (verde, piatto a terra)
 //  Dentro c'è un'icona grande di cosa si compra e sotto, con la moneta,
 //  quante monete MANCANO per comprarlo (il numero scende mentre si paga).
-//  Sopra il cerchio, a terra, c'è la scritta con il nome della fila (es.
-//  DIFESA) e di cosa si compra. Quando il boscaiolo ci sta sopra, le monete
+//  Sopra il cerchio, a terra, c'è la scritta con il nome di cosa si compra
+//  (per il pavimento anche il titolo PAVIMENTO). Quando il boscaiolo ci sta sopra, le monete
 //  volano dentro e il bordo si riempie come una barra circolare. A
 //  pagamento finito il cerchio fa un piccolo "salto" e mostra il livello
 //  successivo; quando i livelli sono finiti sparisce.
@@ -26,7 +26,7 @@ const ALTEZZA_SCRITTA = 0.95; // la scritta a terra sopra il cerchio (metri)
 export class CerchioMiglioramento {
   // posizioni: un punto, oppure un punto per ogni livello (da MAPPA.miglioramenti; scrittaSotto = scritta sotto il cerchio)
   // livelli: la lista dei livelli ({ nome, prezzo, icona }); comprati: a quale livello si è arrivati; pagato: monete già messe nel livello attuale
-  // titolo: il nome scritto sopra il cerchio (es. 'DIFESA'), insieme al nome di cosa si compra;
+  // titolo: una parola piccola scritta sopra il nome di cosa si compra (es. 'PAVIMENTO'; '' = solo il nome);
   // larghezzaScritta: quanto è larga la scritta (metri), così non tocca le scritte e le insegne vicine
   constructor(genitore, posizioni, livelli, comprati, pagato, titolo = '', larghezzaScritta = 2.5) {
     this.posizioni = Array.isArray(posizioni) ? posizioni : livelli.map(() => posizioni);
@@ -186,7 +186,14 @@ export class CerchioMiglioramento {
     this.presenza = THREE.MathUtils.clamp(this.presenza + (this.nascosto ? -dt : dt) * 3, 0, 1);
     if (this.nascosto) {
       this.gruppo.scale.setScalar(Math.max(0.001, this.presenza));
-      if (this.presenza <= 0) this.gruppo.visible = false;
+      if (this.presenza <= 0) {
+        this.gruppo.visible = false;
+        // si è nascosto mentre si spostava: quando ricompare è già nel posto nuovo
+        if (this.trasloco > 0) {
+          this.trasloco = 0;
+          this.cambiaPosto();
+        }
+      }
       return;
     }
     if (!this.gruppo.visible) return;
@@ -194,13 +201,7 @@ export class CerchioMiglioramento {
       // prima metà: si rimpicciolisce dove era; seconda metà: ricompare nel posto nuovo con il livello nuovo
       const primaMeta = this.trasloco > 0.5;
       this.trasloco = Math.max(0, this.trasloco - dt * 1.6);
-      if (primaMeta && this.trasloco <= 0.5) {
-        this.posizione.copy(this.posizioni[this.comprati] ?? this.posizione);
-        this.sistemaScritta();
-        this.gruppo.position.copy(this.posizione).setY(0.02);
-        this.ridisegna();
-        this.aggiornaBarra();
-      }
+      if (primaMeta && this.trasloco <= 0.5) this.cambiaPosto();
       this.gruppo.scale.setScalar(Math.max(0.001, Math.abs(this.trasloco - 0.5) * 2));
       if (this.trasloco <= 0) this.salto = 1;
       return;
@@ -214,6 +215,15 @@ export class CerchioMiglioramento {
     }
     const s = 1 + Math.sin((1 - this.salto) * Math.PI * 3) * this.salto * 0.25;
     this.gruppo.scale.setScalar(Math.max(0.001, s * this.presenza));
+  }
+
+  // Il cerchio va nel posto del livello di adesso, con il suo disegno
+  cambiaPosto() {
+    this.posizione.copy(this.posizioni[this.comprati] ?? this.posizione);
+    this.sistemaScritta();
+    this.gruppo.position.copy(this.posizione).setY(0.02);
+    this.ridisegna();
+    this.aggiornaBarra();
   }
 
   // La barra circolare: parte dall'alto e gira come le lancette dell'orologio
@@ -261,7 +271,7 @@ export class CerchioMiglioramento {
     this.scritta.position.z = (posto.scrittaSotto ? 1 : -1) * (RAGGIO + ALTEZZA_SCRITTA / 2 + 0.05);
   }
 
-  // La scritta a terra sopra il cerchio: il titolo piccolo (es. DIFESA) e sotto il nome di cosa si compra
+  // La scritta a terra sopra il cerchio: il titolo piccolo (se c'è) e sotto il nome di cosa si compra
   ridisegnaScritta() {
     const ctx = this.telaScritta.getContext('2d');
     const { width: l, height: a } = this.telaScritta;

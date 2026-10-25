@@ -41,6 +41,10 @@ import { creaCarne } from '../modelli/carne.js';
 
 const OGNI_QUANTO_SALVARE = 2; // secondi
 const LAVORATORI_BASE = ['aiutante', 'cacciatore', 'venditore']; // assunti tutti e tre, compare il cerchio del pavimento
+// I due cerchi della fila ECONOMIA vanno avanti a coppie: prima "Aiutante" e "Cacciatore", poi "Venditore" e
+// "Secondo cacciatore", poi i potenziamenti (vedi aggiornaVisibilita)
+const CERCHI_ECONOMIA = ['economia', 'caccia'];
+const PASSI_INSIEME = 2; // quanti passi dei due cerchi si comprano a coppie (dopo, i potenziamenti aspettano tutti e quattro)
 // il cerchio del pavimento (nome del cerchio -> tipo di pavimento)
 const PAVIMENTI = { pavimentoPietra: 'pietra' };
 
@@ -157,8 +161,9 @@ export class Segheria {
     for (const [nome, catena] of Object.entries(CONFIG.miglioramenti)) {
       if (Array.isArray(catena)) this.livelli[nome] = s.miglioramenti[nome]?.comprati ?? 0;
     }
-    // Cerchi dei miglioramenti: le due file (DIFESA ed ECONOMIA), che mostrano solo il loro prossimo acquisto
-    // nel posto giusto per lui (accanto a quello che compra), e il pavimento
+    // Cerchi dei miglioramenti: le file (DIFESA e i due cerchi ECONOMIA), che mostrano solo il loro prossimo
+    // acquisto nel posto giusto per lui (accanto a quello che compra), e il pavimento. Sopra c'è solo il nome
+    // dell'acquisto (niente titolo della fila)
     this.cerchi = {};
     const posto = (catena, indice) => {
       const p = MAPPA.miglioramenti[catena];
@@ -167,7 +172,7 @@ export class Segheria {
     for (const [fila, passi] of Object.entries(CONFIG.file)) {
       const livelli = passi.map(([catena, indice]) => ({ ...CONFIG.miglioramenti[catena][indice], catena, indice }));
       const posti = passi.map(([catena, indice]) => posto(catena, indice));
-      this.cerchi[fila] = new CerchioMiglioramento(this.radice, posti, livelli, this.prossimoPasso(fila), s.file[fila]?.pagato ?? 0, fila.toUpperCase());
+      this.cerchi[fila] = new CerchioMiglioramento(this.radice, posti, livelli, this.prossimoPasso(fila), s.file[fila]?.pagato ?? 0);
     }
     for (const nome of Object.keys(PAVIMENTI)) {
       this.cerchi[nome] = new CerchioMiglioramento(this.radice, MAPPA.miglioramenti[nome], CONFIG.miglioramenti[nome], this.livelli[nome], s.miglioramenti[nome].pagato, 'PAVIMENTO', 2);
@@ -589,12 +594,17 @@ export class Segheria {
     return i < 0 ? passi.length : i;
   }
 
-  // Quali cerchi si vedono. La fila ECONOMIA, quando tocca al cacciatore, aspetta che ci sia il suo banco.
+  // Quali cerchi si vedono. I due cerchi ECONOMIA compaiono insieme quando c'è il banco del cacciatore
+  // (con le mura di pietra) e vanno avanti a coppie: un cerchio al passo N si vede solo quando anche
+  // l'altro ha comprato i suoi passi prima di N (dopo il secondo passo: quando sono stati assunti tutti e quattro).
   // Il pavimento compare quando sono stati assunti tutti i lavoratori base.
   // subito: all'avvio, senza l'animazione del cerchio che compare
   aggiornaVisibilita(subito) {
-    const economia = this.cerchi.economia;
-    economia.nascondi(economia.livello?.catena === 'cacciatore' && !this.bancoAperto, subito);
+    for (const fila of CERCHI_ECONOMIA) {
+      const passo = Math.min(this.cerchi[fila].comprati, PASSI_INSIEME);
+      const coppiaPronta = CERCHI_ECONOMIA.every((altra) => this.cerchi[altra].comprati >= passo);
+      this.cerchi[fila].nascondi(!this.bancoAperto || !coppiaPronta, subito);
+    }
     const tuttiAssunti = LAVORATORI_BASE.every((nome) => this.livelli[nome] > 0);
     for (const nome of Object.keys(PAVIMENTI)) this.cerchi[nome].nascondi(!tuttiAssunti || this.livelli[nome] > 0, subito);
   }
