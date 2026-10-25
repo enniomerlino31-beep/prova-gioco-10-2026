@@ -14,15 +14,15 @@ function statoIniziale() {
     soldi: 0,                                  // soldi in tasca al giocatore
     catasta: CONFIG.segheria.legnaIniziale,    // legna nella catasta (unità)
     schiena: { legna: 0, carne: 0 },           // unità portate sulla schiena del boscaiolo (nessun limite)
-    miglioramenti: {                           // per ogni catena: livelli comprati (e, per i pavimenti, monete già messe nel cerchio)
+    miglioramenti: {                           // per ogni catena: livelli comprati (e, per il pavimento, monete già messe nel cerchio)
       mura: { comprati: 0, pagato: 0 },
       riparazione: { comprati: 0, pagato: 0 },
       torretta: { comprati: 0, pagato: 0 },
       aiutante: { comprati: 0, pagato: 0 },
       cacciatore: { comprati: 0, pagato: 0 },
+      secondoCacciatore: { comprati: 0, pagato: 0 },
       venditore: { comprati: 0, pagato: 0 },
       pavimentoPietra: { comprati: 0, pagato: 0 },
-      parquet: { comprati: 0, pagato: 0 },
     },
     file: {                                    // le due file di cerchi: monete già messe nel loro prossimo acquisto
       difesa: { pagato: 0 },
@@ -70,7 +70,26 @@ export function carica() {
       for (const pezzo of stato.schiena) if (pezzo.tipo in schiena) schiena[pezzo.tipo] += pezzo.quantita;
       stato.schiena = schiena;
     }
+    // Salvataggi di prima del secondo cacciatore: nella fila ECONOMIA c'è un passo nuovo, quindi le monete già
+    // messe nel cerchio ECONOMIA tornano in tasca (erano per un altro acquisto)
+    if (salvato.miglioramenti && !salvato.miglioramenti.secondoCacciatore && stato.file?.economia) {
+      stato.soldi += stato.file.economia.pagato ?? 0;
+      stato.file.economia.pagato = 0;
+    }
     stato.miglioramenti = { ...statoIniziale().miglioramenti, ...stato.miglioramenti };
+    // Salvataggi con il parquet (non c'è più): chi l'aveva comprato ha il pavimento in pietra;
+    // le monete messe nel cerchio del parquet (o in quello della pietra, se ormai è comprato) tornano in tasca
+    const parquet = stato.miglioramenti.parquet;
+    if (parquet) {
+      const pietra = stato.miglioramenti.pavimentoPietra;
+      stato.soldi += parquet.pagato ?? 0;
+      if (parquet.comprati > 0) {
+        stato.soldi += pietra.pagato ?? 0;
+        pietra.pagato = 0;
+        pietra.comprati = 1;
+      }
+      delete stato.miglioramenti.parquet;
+    }
     stato.file = { ...statoIniziale().file, ...stato.file };
     // Salvataggi di prima delle due file di cerchi: le monete già messe in un cerchio tornano in tasca
     // (quei cerchi ora non ci sono più); le torrette sono diventate 4 prima di "Potenzia arcieri":

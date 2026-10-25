@@ -232,7 +232,7 @@ export const CONFIG = {
   // ---------------- MIGLIORAMENTI DELLA BASE ----------------
   // Le "catene" qui sotto dicono cosa fa ogni livello. I cerchi a terra però sono solo due "file"
   // (vedi "file" più giù): DIFESA ed ECONOMIA, sempre visibili insieme; ogni fila mostra solo il suo
-  // prossimo acquisto, nell'ordine scritto lì. I due pavimenti hanno un cerchio a testa.
+  // prossimo acquisto, nell'ordine scritto lì. Il pavimento ha il suo cerchio.
   miglioramenti: {
     // --- Difesa ---
     mura: [
@@ -247,8 +247,10 @@ export const CONFIG = {
     // Torri di legno sulle mura con un arciere che tira frecce ai lupi: due torri per lato (quattro in tutto),
     // poi "Potenzia arcieri" per tutte. torri = quante torri ci sono (nell'ordine di MAPPA.torri).
     // danno = punti di vita tolti da ogni freccia (un lupo normale ne ha 15); ricarica = secondi tra una freccia e l'altra;
-    // gittata = fin dove tira (metri);
-    // aspetto = come sono fatte torri, archi e frecce (0 legno, 1 base di pietra, 2 rinforzi di metallo e punte che brillano)
+    // gittata = fin dove tira, in metri dalla linea delle mura del SUO lato (dentro e fuori); ogni arciere copre
+    // tutto il suo lato da un angolo all'altro, ma mai l'altra metà della base (il centro è a 11,2 metri dalle mura);
+    // aspetto = arcieri, archi, frecce e parte alta delle torri (0 stoffa, 1 cuoio e scudi blu, 2 metallo e oro);
+    // la parte bassa delle torri invece segue il materiale delle mura (legno, pietra, metallo)
     torretta: [
       { nome: 'Torretta sinistra 1', prezzo: 150, icona: 'torre', torri: 1, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 }, // 5 frecce per lupo
       { nome: 'Torretta destra 1', prezzo: 150, icona: 'torre', torri: 2, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 },
@@ -261,28 +263,30 @@ export const CONFIG = {
     aiutante: [
       { nome: 'Aiutante', prezzo: 120, icona: 'ascia' }, // porta da solo la legna dalla catasta allo sportello
     ],
-    cacciatore: [ // esce dal cancello della foresta, combatte i lupi e porta la loro carne allo sportello CARNE
+    // i cacciatori combattono i lupi (finché non ci sono tutte e quattro le torrette) e portano la carne allo sportello CARNE:
+    // il primo esce dal cancello di sinistra, il secondo da quello di destra; "Cacciatore esperto" vale per tutti e due
+    cacciatore: [
       { nome: 'Cacciatore', prezzo: 200, icona: 'cacciatore', ricarica: 0.9, velocita: 3.2 },          // ricarica = secondi tra un colpo e l'altro
       { nome: 'Cacciatore esperto', prezzo: 400, icona: 'cacciatore', ricarica: 0.5, velocita: 4.2 },
+    ],
+    secondoCacciatore: [ // lavora allo stesso banco del primo e difende il lato destro
+      { nome: 'Secondo cacciatore', prezzo: 300, icona: 'cacciatore' },
     ],
     venditore: [ // un venditore dietro ogni sportello passa la merce ai clienti: vengono serviti (e arrivano) più in fretta
       { nome: 'Venditore', prezzo: 100, icona: 'venditore', rapidita: 1.6 },        // 1.6 = una volta e mezza più veloce
       { nome: 'Venditore svelto', prezzo: 200, icona: 'venditore', rapidita: 2.2 },
       { nome: 'Venditore esperto', prezzo: 400, icona: 'venditore', rapidita: 3 },
     ],
-    // --- Pavimento della base (solo aspetto): se ne compra UNO solo, l'altro cerchio sparisce ---
+    // --- Pavimento della base (solo aspetto) ---
     pavimentoPietra: [
       { nome: 'Pavimento in pietra', etichetta: 'Pietra', prezzo: 300, icona: 'pavimento' }, // etichetta: scritta sopra il cerchio
-    ],
-    parquet: [
-      { nome: 'Parquet', prezzo: 300, icona: 'parquet' },
     ],
     tempoPagamento: 1.5,     // secondi per pagare un livello intero stando sul cerchio (le monete volano dentro)
   },
 
   // ---------------- LE DUE FILE DI CERCHI ----------------
   // Ogni fila è un solo cerchio a terra che mostra il prossimo acquisto: [catena, livello] (il livello parte da 0).
-  // Comprato un passo, nello stesso cerchio compare il successivo. I due pavimenti compaiono (come terzo
+  // Comprato un passo, nello stesso cerchio compare il successivo. Il pavimento compare (come terzo
   // cerchio) solo quando sono stati assunti tutti i lavoratori base: aiutante, venditore e cacciatore.
   file: {
     difesa: [
@@ -302,6 +306,7 @@ export const CONFIG = {
       ['aiutante', 0],    // Aiutante
       ['venditore', 0],   // Venditore
       ['cacciatore', 0],  // Cacciatore (il suo banco compare già dopo le mura di pietra)
+      ['secondoCacciatore', 0], // Secondo cacciatore
       ['venditore', 1],   // Venditore svelto
       ['cacciatore', 1],  // Cacciatore esperto
       ['venditore', 2],   // Venditore esperto
@@ -319,7 +324,8 @@ export const CONFIG = {
   lavoratori: {
     velocitaFreccia: 16,     // velocità delle frecce degli arcieri (metri al secondo)
     raggioColpoCacciatore: 1.2, // da quanto vicino il cacciatore colpisce un lupo (metri)
-    caricoMassimo: 20,       // unità che l'aiutante e il cacciatore portano al massimo a ogni viaggio
+    caricoMassimo: 20,       // unità di legna che l'aiutante porta al massimo a ogni viaggio
+    caricoCacciatore: 30,    // unità di carne che ogni cacciatore porta al massimo a ogni viaggio
   },
 
   // ---------------- TELECAMERA SUI MIGLIORAMENTI ----------------

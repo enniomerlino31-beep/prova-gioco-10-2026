@@ -15,6 +15,60 @@ export function tinta(colore) {
   return materialiGiaCreati.get(colore);
 }
 
+// Numeri "a caso" ma sempre uguali per lo stesso seme (così il legno è sempre uguale)
+function casoLegno(i, k) {
+  const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
+  return v - Math.floor(v);
+}
+
+// --- Il legno della palizzata (fatto una volta sola), ispirato a public/riferimenti/legno-riferimento.png ---
+// Lo usano le mura e le torrette di legno: corteccia con le venature, punta chiara e neve in cima
+let disegni = null;
+export function legnoPali() {
+  if (disegni) return disegni;
+  // Corteccia: bruno rossiccio con le venature lungo il palo e qualche nodo
+  // (sulla tela le venature sono verticali: è la direzione lungo il palo)
+  const corteccia = document.createElement('canvas');
+  corteccia.width = 64;
+  corteccia.height = 256;
+  let ctx = corteccia.getContext('2d');
+  ctx.fillStyle = '#8c4c27';
+  ctx.fillRect(0, 0, 64, 256);
+  for (let i = 0; i < 16; i++) {
+    const scura = i % 3 !== 0;
+    ctx.strokeStyle = scura ? 'rgba(80,38,16,0.75)' : 'rgba(184,112,62,0.6)';
+    ctx.lineWidth = 1.5 + casoLegno(i, 1) * 3;
+    const x = casoLegno(i, 2) * 64;
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    for (let y = 0; y <= 256; y += 32) ctx.lineTo(x + Math.sin(y * 0.05 + i) * 3, y);
+    ctx.stroke();
+  }
+  for (let i = 0; i < 3; i++) {
+    const x = 10 + casoLegno(i, 3) * 44;
+    const y = 30 + casoLegno(i, 4) * 200;
+    ctx.fillStyle = '#5a2a12';
+    ctx.beginPath();
+    ctx.ellipse(x, y, 4, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(190,120,70,0.7)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+  const texture = (tela) => {
+    const t = new THREE.CanvasTexture(tela);
+    t.colorSpace = THREE.SRGBColorSpace;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    return t;
+  };
+  disegni = {
+    corteccia: new THREE.MeshLambertMaterial({ map: texture(corteccia) }),
+    punta: new THREE.MeshLambertMaterial({ color: 0xd99a5c, flatShading: true }), // legno chiaro appuntito a colpi d'ascia
+    neve: new THREE.MeshLambertMaterial({ color: 0xf4f8ff }),
+  };
+  return disegni;
+}
+
 // Stoffa a quadri rossi e neri per la camicia del boscaiolo
 let stoffaQuadri = null;
 export function materialeQuadri() {
@@ -223,13 +277,6 @@ export function disegnaIcona(ctx, tipo, x, y, lato) {
     blocco(19, 3, 11, 11, 2, '#8e97a3', '#5d6672', 1.5);
     blocco(2, 16, 9, 13, 2, '#9aa2ad', '#5d6672', 1.5);
     blocco(13, 16, 17, 13, 2, '#b8c0ca', '#5d6672', 1.5);
-  } else if (tipo === 'parquet') {
-    // assi di legno sfalsate, con le venature
-    const assi = [[2, 3, 18, '#c98a4b'], [22, 3, 8, '#b9773d'], [2, 11, 9, '#d69a5a'], [13, 11, 17, '#c98a4b'],
-      [2, 19, 14, '#b9773d'], [18, 19, 12, '#d69a5a']];
-    for (const [ax, ay, larga, colore] of assi) blocco(ax, ay, larga, 7, 1.2, colore, '#6b4426', 1.2);
-    tratto('M5 6.5h9M16 14.5h10M5 22.5h7M21 22.5h6', '#8a5328', 1);
-    blocco(2, 27, 28, 3, 1, '#a0672f', '#6b4426', 1);
   } else if (tipo === 'ascia') {
     tratto('M8 29L21 6', '#8a5328', 3.6);
     pieno('M16.5 5.5L21.5 8.4Q29 8 28.4 16.6Q24.6 12.6 19.2 12.2Z', '#c9d2dc', '#6f7b88', 1.5);

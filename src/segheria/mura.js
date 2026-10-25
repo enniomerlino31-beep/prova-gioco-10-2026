@@ -28,6 +28,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { R_PALO } from './ambiente.js';
+import { legnoPali } from '../modelli/materiali.js';
 
 const DURATA_ONDA = 1.8;   // secondi perché l'onda faccia il giro delle mura
 const DURATA_COMPARSA = 0.4; // secondi perché ogni pezzo "spunti" fuori
@@ -46,53 +47,6 @@ const ALTEZZE_FASCE = [0.45, 1.15]; // le fasce di ferro sui pali (dentro e fuor
 function caso(i, k) {
   const v = Math.sin(i * 12.9898 + k * 78.233) * 43758.5453;
   return v - Math.floor(v);
-}
-
-// --- Disegni del legno (fatti una volta sola), ispirati a legno-riferimento.png ---
-let disegni = null;
-function legno() {
-  if (disegni) return disegni;
-  // Corteccia: bruno rossiccio con le venature lungo il palo e qualche nodo
-  // (sulla tela le venature sono verticali: è la direzione lungo il palo)
-  const corteccia = document.createElement('canvas');
-  corteccia.width = 64;
-  corteccia.height = 256;
-  let ctx = corteccia.getContext('2d');
-  ctx.fillStyle = '#8c4c27';
-  ctx.fillRect(0, 0, 64, 256);
-  for (let i = 0; i < 16; i++) {
-    const scura = i % 3 !== 0;
-    ctx.strokeStyle = scura ? 'rgba(80,38,16,0.75)' : 'rgba(184,112,62,0.6)';
-    ctx.lineWidth = 1.5 + caso(i, 1) * 3;
-    const x = caso(i, 2) * 64;
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    for (let y = 0; y <= 256; y += 32) ctx.lineTo(x + Math.sin(y * 0.05 + i) * 3, y);
-    ctx.stroke();
-  }
-  for (let i = 0; i < 3; i++) {
-    const x = 10 + caso(i, 3) * 44;
-    const y = 30 + caso(i, 4) * 200;
-    ctx.fillStyle = '#5a2a12';
-    ctx.beginPath();
-    ctx.ellipse(x, y, 4, 7, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(190,120,70,0.7)';
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-  }
-  const texture = (tela) => {
-    const t = new THREE.CanvasTexture(tela);
-    t.colorSpace = THREE.SRGBColorSpace;
-    t.wrapS = t.wrapT = THREE.RepeatWrapping;
-    return t;
-  };
-  disegni = {
-    corteccia: new THREE.MeshLambertMaterial({ map: texture(corteccia) }),
-    punta: new THREE.MeshLambertMaterial({ color: 0xd99a5c, flatShading: true }), // legno chiaro appuntito a colpi d'ascia
-    neve: new THREE.MeshLambertMaterial({ color: 0xf4f8ff }),
-  };
-  return disegni;
 }
 
 export class Mura {
@@ -162,7 +116,7 @@ export class Mura {
 
   // I pali verticali, le loro punte e la neve in cima (si muovono: tremano, si storcono, si spezzano)
   creaPali(genitore) {
-    const d = legno();
+    const d = legnoPali();
     const n = this.pali.length;
     this.meshPali = this.istanze(genitore, new THREE.CylinderGeometry(R_PALO_CIMA, R_PALO, ALTEZZA_PALO, 10), d.corteccia, n, { mobili: true });
     this.meshPunte = this.istanze(genitore, new THREE.ConeGeometry(R_PALO_CIMA, ALTEZZA_PUNTA, 8), d.punta, n, { mobili: true });
@@ -251,6 +205,11 @@ export class Mura {
     this.hp = this.maxHp;
     this.onda = conAnimazione ? 0 : null;
     this.aggiornaPezzi();
+  }
+
+  // L'onda del miglioramento è già arrivata nel punto (x, z)? (le torrette cambiano quando passa sotto di loro)
+  ondaArrivata(x, z) {
+    return this.onda === null || this.onda >= this.ritardo(x, z) * DURATA_ONDA;
   }
 
   // Riparazione automatica: un po' di vita in più, senza superare il massimo

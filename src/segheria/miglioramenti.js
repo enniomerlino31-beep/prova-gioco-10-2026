@@ -8,7 +8,7 @@
 //  pagamento finito il cerchio fa un piccolo "salto" e mostra il livello
 //  successivo; quando i livelli sono finiti sparisce.
 //  Ogni cerchio è una lista di livelli: una "fila" di acquisti (DIFESA,
-//  ECONOMIA, vedi CONFIG.file) oppure una catena (i pavimenti).
+//  ECONOMIA, vedi CONFIG.file) oppure una catena (il pavimento).
 //  Un livello può stare in un posto diverso dal precedente (es. la seconda
 //  torretta è dall'altra parte della base): allora, dopo l'acquisto, il
 //  cerchio si rimpicciolisce, si sposta lì e ricompare.

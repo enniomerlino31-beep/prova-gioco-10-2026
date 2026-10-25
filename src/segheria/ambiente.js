@@ -32,7 +32,7 @@ const TORRI = [
   new THREE.Vector3(-11.2, 0, 2.8), new THREE.Vector3(11.2, 0, 2.8),
 ];
 // Il cerchio di ogni torre, dentro la base: quelle in alto 2 metri dentro, alla stessa altezza; quelle in basso
-// un po' più dentro e più in alto, così in basso nell'angolo resta posto per i pavimenti
+// un po' più dentro e più in alto
 const CERCHIO_TORRE = (i) => {
   const torre = TORRI[i];
   const verso = Math.sign(torre.x);
@@ -45,7 +45,7 @@ const META_LATO = (MURA.fondo + MURA.fronte) / 2; // il centro dei lati sinistro
 export const MAPPA = {
   limiti: { xMin: -19, xMax: 19, zMin: -14.5, zMax: 16 }, // fin dove può andare il boscaiolo (anche fuori dalle mura)
   mura: MURA,
-  partenza: new THREE.Vector3(0, 0, 0),                  // dove compare il boscaiolo: in mezzo alla corsia centrale
+  partenza: new THREE.Vector3(0, 0, 0.2),                // dove compare il boscaiolo: in mezzo alla corsia centrale (tra la scritta del pavimento e quella del venditore)
   catasta: new THREE.Vector3(-COLONNA, 0, -1.6),         // qui arriva la legna dalla corsa
   // Il banco da lavoro del cacciatore, nella colonna di destra (di fronte alla catasta);
   // quando non caccia, il cacciatore sta davanti al banco, girato verso il tavolo
@@ -63,11 +63,12 @@ export const MAPPA = {
     // ogni torretta accanto alla sua torre; "Potenzia arcieri" (livelli 5 e 6) accanto alla torre destra 1
     torretta: [CERCHIO_TORRE(0), CERCHIO_TORRE(1), CERCHIO_TORRE(2), CERCHIO_TORRE(3), CERCHIO_TORRE(1), CERCHIO_TORRE(1)],
     aiutante: sotto(new THREE.Vector3(-2.6, 0, -1.6)), // accanto alla catasta, verso la corsia (non sulla strada catasta-sportello)
-    venditore: new THREE.Vector3(0, 0, 2.4),           // al centro, tra i due sportelli dove lavorano i venditori
+    venditore: new THREE.Vector3(0, 0, 2.65),          // al centro, tra i due sportelli dove lavorano i venditori
     cacciatore: new THREE.Vector3(5.8, 0, -4.5),       // accanto al banco del cacciatore, in alto a destra: non è sulla strada di nessuno
-    // i due pavimenti (si vedono solo quando sono stati assunti tutti i lavoratori base): in basso a sinistra e a destra
-    pavimentoPietra: new THREE.Vector3(-8.6, 0, 5.2),
-    parquet: new THREE.Vector3(8.6, 0, 5.2),
+    secondoCacciatore: new THREE.Vector3(5.8, 0, -4.5), // nello stesso posto: si compra dopo il primo
+    // il pavimento (si vede solo quando sono stati assunti tutti i lavoratori base): al centro della base, tra il
+    // cerchio CORSA e il punto dove compare il boscaiolo, con la scritta sotto
+    pavimentoPietra: sotto(new THREE.Vector3(0, 0, -3.45)),
   },
   // L'unico cerchio delle monete: i clienti dei due sportelli pagano qui, dentro la base tra i due depositi
   monete: new THREE.Vector3(0, 0, 5.2),

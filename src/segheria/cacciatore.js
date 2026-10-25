@@ -1,15 +1,26 @@
 // =====================================================================
-//  CACCIATORE (si compra con il cerchio "Cacciatore")
+//  CACCIATORI (si comprano dalla fila ECONOMIA: "Cacciatore", poi
+//  "Secondo cacciatore"; "Cacciatore esperto" li rende più svelti tutti e due)
 //  Un boscaiolo con il berretto verde e la giacca di pelle marrone.
-//  Aspetta al suo banco da lavoro, al centro della base, sistemando gli
-//  attrezzi (vedi banco.js). Appena c'è
-//  un lupo (o della carne a terra) esce dal cancello di destra, gira attorno alle
-//  mura senza attraversarle, combatte il lupo con l'ascia e raccoglie la
-//  carne che lascia. Quando fuori non c'è più niente (o ha già sulla
-//  schiena il massimo, "caricoMassimo" unità), rientra dal cancello e porta
-//  la carne direttamente al deposito dello sportello CARNE, poi torna al banco
-//  (o esce di nuovo). Il banco è nella colonna di destra, tra il cancello di
-//  destra e lo sportello CARNE: tutti i giri sono in linea dritta.
+//  Aspettano al loro banco da lavoro, nella colonna di destra, sistemando
+//  gli attrezzi (vedi banco.js). Ognuno difende un lato della base:
+//   - il primo esce dal cancello di SINISTRA e si occupa del lato sinistro
+//   - il secondo esce dal cancello di DESTRA e si occupa del lato destro
+//  così non inseguono mai lo stesso lupo. Finché c'è un solo cacciatore,
+//  lui si occupa di tutti e due i lati ed esce dal cancello più vicino a
+//  quello che deve fare.
+//  Appena c'è un lupo (o della carne a terra) dalla sua parte, esce dal suo
+//  cancello, gira attorno alle mura senza attraversarle, combatte il lupo
+//  con l'ascia e raccoglie la carne che lascia. Quando fuori non c'è più
+//  niente (o ha già sulla schiena il massimo, "caricoCacciatore" unità),
+//  rientra dallo stesso cancello e porta la carne al tavolo dello sportello
+//  CARNE, poi torna al banco (o esce di nuovo).
+//  Quando ci sono tutte e quattro le torrette i lupi li fermano gli arcieri:
+//  i cacciatori smettono di combattere ed escono solo a raccogliere la
+//  carne rimasta a terra.
+//  Fuori dalle mura: se le mura sono in mezzo, gira da un angolo all'altro
+//  (sempre nello stesso verso finché non vede l'obiettivo), così non resta
+//  mai incastrato contro le mura.
 // =====================================================================
 
 import * as THREE from 'three';
@@ -22,37 +33,54 @@ import { MAPPA } from './ambiente.js';
 const VOLO = { durata: 0.45, altezza: 1.4, scala: 0.55, sbuffo: false };
 const MARGINE_GIRO = 1.3;   // a che distanza dalle mura gira attorno agli angoli (metri)
 const MARGINE_MURA = 0.6;   // più vicino di così alle mura non va (come i lupi)
+const SPESSORE_MURA = 0.45; // per decidere se le mura sono in mezzo (meno di MARGINE_MURA: lui non ci sta mai dentro)
 const PEZZI_SCHIENA = 3;    // pezzi di carne disegnati al massimo sulla schiena
+const PASSAGGIO = 1.6;      // i punti appena dentro e appena fuori da un cancello, a questa distanza dal varco
+// dentro la base il cacciatore di sinistra passa da qui (tra la catasta e il cerchio del venditore),
+// così non attraversa la catasta né i cerchi
+const CORRIDOIO = new THREE.Vector3(-4, 0, 0.9);
+const CORRIDOIO_DESTRA = new THREE.Vector3(2.8, 0, 0.9);
 
-// I punti fissi del suo giro: il suo posto (davanti al banco) e i due lati del cancello di destra
-const cancello = MAPPA.cancelli.destra;
-const PUNTI = {
-  casa: MAPPA.casaCacciatore,
-  dentro: new THREE.Vector3(cancello.x - 1.6, 0, cancello.z),
-  fuori: new THREE.Vector3(cancello.x + 1.6, 0, cancello.z),
-};
+// I due punti di un cancello: appena dentro e appena fuori (lato: -1 = cancello di sinistra, 1 = di destra)
+function puntiCancello(lato) {
+  const cancello = lato < 0 ? MAPPA.cancelli.foresta : MAPPA.cancelli.destra;
+  return {
+    cancello,
+    nome: lato < 0 ? 'foresta' : 'destra',
+    dentro: new THREE.Vector3(cancello.x - lato * PASSAGGIO, 0, cancello.z),
+    fuori: new THREE.Vector3(cancello.x + lato * PASSAGGIO, 0, cancello.z),
+  };
+}
+
+// Il lato della base di un punto: -1 = metà sinistra, 1 = metà destra
+const latoDi = (x) => (x < 0 ? -1 : 1);
 
 export class Cacciatore {
-  // base: la segheria (lupi, carne a terra, sportello CARNE, cancello, effetti); livello: da CONFIG.miglioramenti.cacciatore
-  constructor(base, livello) {
+  // base: la segheria (lupi, carne a terra, sportello CARNE, cancelli, effetti); livello: da CONFIG.miglioramenti.cacciatore
+  // numero: 0 = il primo (cancello di sinistra), 1 = il secondo (cancello di destra)
+  constructor(base, livello, numero) {
     this.base = base;
     this.livello = livello;
+    this.numero = numero;
     this.carico = 0;        // unità di carne sulla schiena
     this.stato = 'casa';    // 'casa', 'esce', 'fuori', 'rientra', 'entra', 'attesa' (carne in volo), 'torna'
     this.percorso = [];     // punti da raggiungere uno dopo l'altro (per passare dal cancello)
+    this.porta = puntiCancello(numero === 0 ? -1 : 1); // il cancello da cui esce (e rientra) in questo giro
+    this.giro = null;       // come gira attorno alle mura: { verso: 1 o -1, chi: l'obiettivo } (null = va dritto)
     this.ricarica = 0;
     this.colpo = null;      // a che punto è il colpo d'ascia (da 0 a 1); null = non sta colpendo
     this.bersaglio = null;  // il lupo che riceverà il colpo quando la lama cala
     this.comparsa = 0;
-    this.posizione = PUNTI.casa.clone();
-    // dal cancello allo sportello CARNE: dritto fino accanto al cerchio del deposito
+    // al banco: il primo sta a sinistra, il secondo a destra
+    this.casa = MAPPA.casaCacciatore.clone().add(new THREE.Vector3(numero === 0 ? -0.5 : 0.5, 0, 0));
+    this.posizione = this.casa.clone();
+    // dal cancello allo sportello CARNE: fino accanto al cerchio del deposito
     const zona = base.sportelli.carne.zona;
     this.postoSportello = new THREE.Vector3(zona.x - 0.9, 0, zona.z);
 
     this.modello = creaLavoratore({ berretto: 0x3d7a34, berrettoScuro: 0x2b5a25, giacca: 0x8a6239 });
     this.modello.scale.setScalar(0.001);
     this.modello.position.copy(this.posizione);
-    this.modello.rotation.y = -Math.PI / 2; // guarda il cancello
     base.radice.add(this.modello);
 
     // la carne sulla schiena (si vede solo quando ne porta)
@@ -70,6 +98,12 @@ export class Cacciatore {
     this.modello.userData.molla.add(this.schiena); // sulla "molla", così rimbalza con lui
   }
 
+  // Il lato che difende: -1 sinistro, 1 destro, 0 = tutti e due (quando è l'unico cacciatore)
+  get lato() {
+    if (this.base.cacciatori.length < 2) return 0;
+    return this.numero === 0 ? -1 : 1;
+  }
+
   aggiorna(dt) {
     // compare con un piccolo salto
     this.comparsa = Math.min(1, this.comparsa + dt * 2);
@@ -77,18 +111,22 @@ export class Cacciatore {
     this.modello.scale.setScalar(Math.max(0.001, CONFIG.segheria.dimensioneBoscaiolo * 0.9 * (c < 1 ? c + Math.sin(c * Math.PI) * 0.35 : 1)));
     this.ricarica = Math.max(0, this.ricarica - dt);
 
-    const lupi = this.base.lupiBase.filter((lupo) => lupo.vivo);
-    const massimo = CONFIG.lavoratori.caricoMassimo;
+    // solo quello che sta dalla sua parte; i lupi solo finché non ci sono tutte le torrette
+    const suo = (cosa) => this.lato === 0 || latoDi(cosa.x) === this.lato;
+    const lupi = this.base.cacciatoriCombattono ? this.base.lupiBase.filter((lupo) => lupo.vivo && suo(lupo)) : [];
+    const massimo = CONFIG.lavoratori.caricoCacciatore;
     // la carne a terra che ci sta ancora sulla schiena
-    const carne = this.base.carneCadute.filter((pezzo) => !pezzo.preso && this.carico + pezzo.quantita <= massimo);
+    const carne = this.base.carneCadute.filter((pezzo) => !pezzo.preso && suo(pezzo) && this.carico + pezzo.quantita <= massimo);
     const fuoriCeQualcosa = lupi.length > 0 || carne.length > 0;
     const pieno = this.carico >= massimo;
 
     if (this.stato === 'casa' || this.stato === 'torna') {
       if (fuoriCeQualcosa) {
-        // esce subito: va dritto al cancello
+        // esce: va al suo cancello (quello del suo lato, o il più vicino a ciò che c'è da fare)
+        const primo = [...lupi, ...carne].reduce((a, b) => (this.distanza(b) < this.distanza(a) ? b : a));
+        this.porta = puntiCancello(this.lato || latoDi(primo.x));
         this.stato = 'esce';
-        this.percorso = [PUNTI.dentro, PUNTI.fuori];
+        this.percorso = [...this.versoIlCancello(), this.porta.dentro, this.porta.fuori];
       } else if (this.stato === 'torna') {
         if (this.seguiPercorso(dt)) this.stato = 'casa';
       } else {
@@ -96,23 +134,36 @@ export class Cacciatore {
       }
     } else if (this.stato === 'esce' || this.stato === 'entra') {
       if (this.seguiPercorso(dt)) {
-        if (this.stato === 'esce') this.stato = 'fuori';
-        else if (this.carico > 0) this.scarica();
-        else this.torna([PUNTI.casa]);
+        if (this.stato === 'esce') {
+          this.stato = 'fuori';
+          this.giro = null;
+        } else if (this.carico > 0) this.scarica();
+        else this.torna([this.casa]);
       }
     } else if (this.stato === 'fuori') {
       if (pieno) this.stato = 'rientra'; // schiena piena: prima porta la carne allo sportello
       else this.caccia(lupi, carne, dt);
     } else if (this.stato === 'rientra') {
       if (fuoriCeQualcosa && !pieno) this.stato = 'fuori';
-      else if (this.vaiFuori(PUNTI.fuori, dt)) {
+      else if (this.vaiFuori(this.porta.fuori, dt)) {
         this.stato = 'entra';
-        this.percorso = this.carico > 0 ? [PUNTI.dentro, this.postoSportello] : [PUNTI.dentro];
+        this.percorso = [this.porta.dentro, ...this.dalCancello(), ...(this.carico > 0 ? [this.postoSportello] : [this.casa])];
       }
     } else {
       this.fermo(dt); // 'attesa': la carne sta volando verso lo sportello
     }
     this.aggiornaColpo(dt);
+  }
+
+  // Dentro la base, i punti da cui passare prima di arrivare al cancello (o dopo esserne entrati):
+  // per il cancello di sinistra si passa dal corridoio tra la catasta e il cerchio del venditore
+  versoIlCancello() {
+    if (this.porta.nome !== 'foresta') return [];
+    return this.posizione.x > CORRIDOIO.x ? [CORRIDOIO] : [];
+  }
+
+  dalCancello() {
+    return this.porta.nome === 'foresta' ? [CORRIDOIO, CORRIDOIO_DESTRA] : [];
   }
 
   // Fuori dalle mura: prima i lupi (il più vicino), poi la carne rimasta a terra; se non c'è niente rientra
@@ -121,7 +172,7 @@ export class Cacciatore {
     if (lupi.length > 0) {
       const lupo = piuVicino(lupi);
       if (this.distanza(lupo) > CONFIG.lavoratori.raggioColpoCacciatore + lupo.ingombro) {
-        this.vaiFuori(new THREE.Vector3(lupo.x, 0, lupo.z), dt);
+        this.vaiFuori(lupo, dt);
         return;
       }
       this.fermo(dt);
@@ -133,7 +184,7 @@ export class Cacciatore {
       }
     } else if (carne.length > 0) {
       const pezzo = piuVicino(carne);
-      if (this.vaiFuori(new THREE.Vector3(pezzo.x, 0, pezzo.z), dt) || this.distanza(pezzo) < 0.8) this.prendi(pezzo);
+      if (this.vaiFuori(pezzo, dt) || this.distanza(pezzo) < 0.8) this.prendi(pezzo);
     } else {
       this.stato = 'rientra';
     }
@@ -163,7 +214,7 @@ export class Cacciatore {
     effetti.lancia('carne', partenza, sportello, 0, () => {
       inVolo.carne -= quantita;
       sportello.aggiungi(quantita);
-      this.torna([PUNTI.casa]); // dallo sportello sale dritto fino al banco
+      this.torna([this.casa]); // dallo sportello sale dritto fino al banco
     }, VOLO);
     effetti.testo(sportello.zona.x, 2.2, sportello.zona.z, `+${quantita} carne`, 'buono');
   }
@@ -183,8 +234,9 @@ export class Cacciatore {
   seguiPercorso(dt) {
     const prossimo = this.percorso[0];
     if (!prossimo) return true;
-    const attraversaCancello = (this.posizione.x - cancello.x) * (prossimo.x - cancello.x) < 0;
-    if (attraversaCancello && !this.base.cancelli.destra.aperto) {
+    const x = this.porta.cancello.x;
+    const attraversaCancello = (this.posizione.x - x) * (prossimo.x - x) < 0;
+    if (attraversaCancello && !this.base.cancelli[this.porta.nome].aperto) {
       this.fermo(dt);
       return false;
     }
@@ -192,9 +244,16 @@ export class Cacciatore {
     return this.percorso.length === 0;
   }
 
-  // Cammina fuori dalle mura verso un punto, girando attorno agli angoli se le mura sono in mezzo. True quando è arrivato.
-  vaiFuori(obiettivo, dt) {
-    const tappa = prossimaTappa(this.posizione, obiettivo);
+  // Cammina fuori dalle mura verso "chi" (un lupo, un pezzo di carne o un punto). True quando è arrivato.
+  // Se le mura sono in mezzo va all'angolo successivo, sempre nello stesso verso (quello più corto, deciso
+  // la prima volta) finché non vede di nuovo l'obiettivo: così non torna mai indietro e non resta incastrato.
+  vaiFuori(chi, dt) {
+    const obiettivo = new THREE.Vector3(chi.x, 0, chi.z);
+    let tappa = obiettivo;
+    if (muraInMezzo(this.posizione, obiettivo)) {
+      if (this.giro?.chi !== chi) this.giro = { chi, verso: versoPiuCorto(this.posizione, obiettivo) };
+      tappa = prossimoAngolo(this.posizione, this.giro.verso);
+    } else this.giro = null;
     const arrivato = this.cammina(tappa, dt) && tappa === obiettivo;
     const fuori = this.base.fuoriDalleMura(this.posizione.x, this.posizione.z, MARGINE_MURA);
     this.posizione.set(fuori.x, 0, fuori.z);
@@ -219,7 +278,7 @@ export class Cacciatore {
   // e ogni tanto si gira un po' a guardare un altro attrezzo
   lavoraAlBanco(dt) {
     this.fermo(dt);
-    this.tempoBanco = (this.tempoBanco ?? 0) + dt;
+    this.tempoBanco = (this.tempoBanco ?? this.numero * 1.7) + dt;
     const t = this.tempoBanco;
     const { perni, molla } = this.modello.userData;
     perni.braccioDx.rotation.x = 1.0 + Math.sin(t * 3.1) * 0.25;
@@ -264,38 +323,44 @@ export class Cacciatore {
 }
 
 // ---------------- Come girare attorno alle mura ----------------
+// Il "giro" è un rettangolo un po' più largo delle mura: i suoi quattro angoli sono le curve.
+// Ogni punto fuori dalle mura ha una "distanza lungo il giro" (0 = angolo in alto a sinistra,
+// poi in senso orario visto dall'alto: alto a destra, basso a destra, basso a sinistra).
 
-// Il prossimo punto verso cui camminare per andare da "da" ad "a" restando fuori dalle mura:
-// se la linea dritta non attraversa le mura si va dritti, altrimenti si va al prossimo angolo
-// (girando dalla parte più corta).
-function prossimaTappa(da, a) {
+function rettangoloGiro() {
   const M = MAPPA.mura;
-  if (!attraversa(da, a, M.sinistra - 0.4, M.destra + 0.4, M.fondo - 0.4, M.fronte + 0.4)) return a;
-
-  // un rettangolo un po' più largo delle mura: i suoi angoli sono le "curve" del giro
   const x1 = M.sinistra - MARGINE_GIRO;
   const x2 = M.destra + MARGINE_GIRO;
   const z1 = M.fondo - MARGINE_GIRO;
   const z2 = M.fronte + MARGINE_GIRO;
   const W = x2 - x1;
   const H = z2 - z1;
-  const giro = 2 * (W + H);
-  // ogni punto diventa una "distanza lungo il giro" (0 = angolo in fondo a sinistra, in senso orario visto dall'alto)
-  const lungoIlGiro = (p) => {
-    const px = THREE.MathUtils.clamp(p.x, x1, x2);
-    const pz = THREE.MathUtils.clamp(p.z, z1, z2);
-    const distanze = [pz - z1, x2 - px, z2 - pz, px - x1]; // dal lato di fondo, destro, davanti, sinistro
-    const lato = distanze.indexOf(Math.min(...distanze));
-    return [px - x1, W + pz - z1, W + H + x2 - px, 2 * W + H + z2 - pz][lato];
-  };
-  const angoli = [[x1, z1, 0], [x2, z1, W], [x2, z2, W + H], [x1, z2, 2 * W + H]];
-  const tDa = lungoIlGiro(da);
-  const avanti = (((lungoIlGiro(a) - tDa) % giro) + giro) % giro;
-  const senso = avanti <= giro / 2 ? 1 : -1;
-  let migliore = angoli[0];
+  return { x1, x2, z1, z2, W, H, giro: 2 * (W + H), angoli: [[x1, z1, 0], [x2, z1, W], [x2, z2, W + H], [x1, z2, 2 * W + H]] };
+}
+
+function lungoIlGiro(p, r) {
+  const px = THREE.MathUtils.clamp(p.x, r.x1, r.x2);
+  const pz = THREE.MathUtils.clamp(p.z, r.z1, r.z2);
+  const distanze = [pz - r.z1, r.x2 - px, r.z2 - pz, px - r.x1]; // dal lato in alto, destro, in basso, sinistro
+  const lato = distanze.indexOf(Math.min(...distanze));
+  return [px - r.x1, r.W + pz - r.z1, r.W + r.H + r.x2 - px, 2 * r.W + r.H + r.z2 - pz][lato];
+}
+
+// Il verso più corto per andare da "da" ad "a" lungo il giro: 1 = senso orario, -1 = antiorario
+function versoPiuCorto(da, a) {
+  const r = rettangoloGiro();
+  const avanti = (((lungoIlGiro(a, r) - lungoIlGiro(da, r)) % r.giro) + r.giro) % r.giro;
+  return avanti <= r.giro / 2 ? 1 : -1;
+}
+
+// Il prossimo angolo del giro nel verso indicato (se è già su un angolo, quello dopo)
+function prossimoAngolo(da, verso) {
+  const r = rettangoloGiro();
+  const t = lungoIlGiro(da, r);
+  let migliore = r.angoli[0];
   let piuVicino = Infinity;
-  for (const angolo of angoli) {
-    const d = ((((angolo[2] - tDa) * senso) % giro) + giro) % giro;
+  for (const angolo of r.angoli) {
+    const d = ((((angolo[2] - t) * verso) % r.giro) + r.giro) % r.giro;
     if (d > 0.05 && d < piuVicino) {
       piuVicino = d;
       migliore = angolo;
@@ -304,8 +369,14 @@ function prossimaTappa(da, a) {
   return new THREE.Vector3(migliore[0], 0, migliore[1]);
 }
 
-// La linea da "a" a "b" passa dentro il rettangolo? (metodo di Liang-Barsky)
-function attraversa(a, b, xMin, xMax, zMin, zMax) {
+// Le mura sono in mezzo tra "a" e "b"? (la linea dritta passa dentro il rettangolo delle mura,
+// un po' ingrossato: metodo di Liang-Barsky)
+function muraInMezzo(a, b) {
+  const M = MAPPA.mura;
+  const xMin = M.sinistra - SPESSORE_MURA;
+  const xMax = M.destra + SPESSORE_MURA;
+  const zMin = M.fondo - SPESSORE_MURA;
+  const zMax = M.fronte + SPESSORE_MURA;
   let t0 = 0;
   let t1 = 1;
   const dx = b.x - a.x;

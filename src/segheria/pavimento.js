@@ -1,12 +1,12 @@
 // =====================================================================
-//  PAVIMENTO DELLA BASE (si compra con il cerchio "Pavimento in pietra"
-//  oppure con il cerchio "Parquet": se ne compra uno solo)
+//  PAVIMENTO DELLA BASE (si compra con il cerchio "Pavimento in pietra",
+//  al centro della base)
 //  All'inizio dentro la base c'è la neve, come fuori. Comprato un
 //  pavimento, compare con un cerchio che si allarga dal punto d'acquisto
 //  (con il bordo che luccica e un po' di polvere) fino a coprire tutta
 //  la base. Cambia solo l'aspetto.
 //  Leggero per il telefono: una sola forma piatta, con il disegno delle
-//  lastre (o delle assi) fatto una volta sola su una tela e ripetuto.
+//  lastre fatto una volta sola su una tela e ripetuto.
 // =====================================================================
 
 import * as THREE from 'three';
@@ -58,55 +58,9 @@ function disegnaPietra() {
   return tela;
 }
 
-// Assi di legno caldo, sfalsate, con le venature e le giunture scure
-function disegnaParquet() {
-  const tela = document.createElement('canvas');
-  tela.width = tela.height = 512;
-  const ctx = tela.getContext('2d');
-  ctx.fillStyle = '#5a3418'; // le giunture
-  ctx.fillRect(0, 0, 512, 512);
-  const colori = ['#c98a4b', '#b9773d', '#d69a5a', '#c07f43', '#a96a33'];
-  let seme = 3;
-  for (let riga = 0; riga < 8; riga++) {
-    const y = riga * 64;
-    let x = -casuale(seme++) * 200;
-    while (x < 512) {
-      const lungo = 160 + casuale(seme++) * 150;
-      const colore = colori[Math.floor(casuale(seme++) * colori.length)];
-      for (const dx of [0, -512, 512]) {
-        ctx.fillStyle = colore;
-        ctx.fillRect(x + dx + 2, y + 2, lungo - 4, 60);
-        // venature lungo l'asse
-        ctx.strokeStyle = 'rgba(110,60,25,0.35)';
-        ctx.lineWidth = 2;
-        for (let k = 0; k < 3; k++) {
-          const vy = y + 12 + k * 17 + casuale(seme + k) * 6;
-          ctx.beginPath();
-          ctx.moveTo(x + dx + 8, vy);
-          ctx.bezierCurveTo(x + dx + lungo * 0.3, vy - 5, x + dx + lungo * 0.6, vy + 5, x + dx + lungo - 8, vy);
-          ctx.stroke();
-        }
-        // un nodo ogni tanto
-        if (casuale(seme + 9) < 0.4) {
-          ctx.fillStyle = 'rgba(100,55,22,0.5)';
-          ctx.beginPath();
-          ctx.ellipse(x + dx + lungo * casuale(seme + 4), y + 32, 7, 4, 0, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        ctx.fillStyle = 'rgba(255,240,210,0.12)'; // un filo di luce in alto
-        ctx.fillRect(x + dx + 4, y + 4, lungo - 8, 5);
-      }
-      seme += 20;
-      x += lungo;
-    }
-  }
-  return tela;
-}
-
-// Come è fatto ogni pavimento: il disegno e quanti metri copre una tela
+// Come è fatto il pavimento: il disegno e quanti metri copre una tela
 const TIPI = {
   pietra: { disegna: disegnaPietra, metri: 3, polvere: 0x9aa2ad },
-  parquet: { disegna: disegnaParquet, metri: 2.4, polvere: 0xc98a4b },
 };
 
 export class Pavimento {
@@ -133,7 +87,7 @@ export class Pavimento {
     this.uniformi = { centro: { value: this.centro }, raggio: { value: 0 } };
   }
 
-  // Mette il pavimento ("pietra" o "parquet"). punto: da dove si allarga; conAnimazione: false = subito tutto (all'avvio)
+  // Mette il pavimento ("pietra"). punto: da dove si allarga; conAnimazione: false = subito tutto (all'avvio)
   posa(tipo, punto, conAnimazione) {
     const cfg = TIPI[tipo];
     this.tipo = tipo;

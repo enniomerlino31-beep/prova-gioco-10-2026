@@ -1,10 +1,9 @@
 # Piano dei gruppi di modifiche (prima delle Fasi 4 e 5)
 
-> **Stato:** il Gruppo 1 (economia e prezzi) e le correzioni successive sono fatti e salvati.
-> Il Gruppo 2 è **fatto** (2026-10-25), con le correzioni chieste dopo la prima prova (mura solo a pali, quattro torrette,
-> arcieri che tirano da un lato all'altro, soldi sempre monete, impronte cartoon, cerchi in due file DIFESA ed ECONOMIA,
-> monete che mancano nei cerchi): in attesa della prova dell'utente prima del commit.
-> I Gruppi 3 e 4 qui sotto sono **ancora da fare**, uno alla volta, nell'ordine.
+> **Stato:** i Gruppi 1 e 2 (con le loro correzioni) sono fatti e salvati (Gruppo 2: commit f279bf9).
+> Il Gruppo 3 è **fatto** (2026-10-25), insieme a tre richieste in più (A pavimento solo in pietra al centro,
+> B nuovo Gruppo 5 scritto qui sotto, C due cacciatori): in attesa della prova dell'utente prima del commit.
+> I Gruppi 4 e 5 qui sotto sono **ancora da fare**, uno alla volta, nell'ordine.
 
 Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il gioco lo prova l'utente, niente partite di prova lunghe), aggiornare il README e dire cosa è stato fatto. Commit solo quando lo dice l'utente. Se la sessione sta per finire, fermarsi alla fine di un gruppo e dirlo.
 
@@ -47,7 +46,7 @@ Qui sotto c'è il testo dei gruppi così come l'ha scritto l'utente.
    - tutto deve restare leggero: disegna tronchi e pali in un colpo solo come ora, così il gioco non rallenta sul telefono
    Non cambiare vita, prezzi e animazioni delle mura (a parte quanto chiesto nel Gruppo 1): cambia solo l'aspetto.
 
-## GRUPPO 3: TORRETTE E ARCIERI
+## GRUPPO 3: TORRETTE E ARCIERI (fatto)
 
 13. Tre tipi di torretta, in base al materiale delle mura:
    - mura di legno: torretta di legno, con lo stesso stile delle nuove mura
@@ -77,6 +76,22 @@ Qui sotto c'è il testo dei gruppi così come l'ha scritto l'utente.
    - Il livello raggiunto dall'orso resta salvato.
    - L'orso è in stile cartoon come gli altri personaggi della Fase 3, grande e minaccioso ma simpatico.
 
+## GRUPPO 5: GRAFICA DELLA SEGHERIA
+
+17. Edificio della segheria in stile cartoon, come gli altri personaggi:
+   - capanno di legno con lo stesso legno delle mura, tetto spiovente coperto di neve e qualche ghiacciolo che pende dal bordo
+   - camino che fuma piano
+   - finestre con una luce calda e una lanterna accanto alla porta
+   - insegna di legno "SEGHERIA" sopra la porta
+   - di lato, sotto una tettoia, una grande lama circolare che gira, con un tronco che avanza verso la lama e un po' di segatura che vola
+
+18. La segheria migliora insieme alle mura, con la stessa animazione a onda:
+   - mura di legno: capanno semplice
+   - mura di pietra: basamento e camino in pietra
+   - rinforzo in metallo: angoli e cerniere di ferro con i bulloni, lama più grande e lucida
+
+19. Cambia solo l'aspetto: posizione, porta, sentiero e regole restano uguali. Tutto deve restare leggero sul telefono (pezzi disegnati in un colpo solo, come per le mura).
+
 ---
 
 ## Note già decise (dalle sessioni precedenti)
@@ -90,5 +105,9 @@ Qui sotto c'è il testo dei gruppi così come l'ha scritto l'utente.
 - **Gruppo 2, fatto**: quattro torri, due per lato (MAPPA.torri: x ±11,2, z -4,2 e z 2,8); le due nuove costano 250 monete; gittata degli arcieri tornata a 8 / 9 / 10 metri; tolta la dispensa (la carne della corsa va sul tavolo dello sportello CARNE) e il banco del cacciatore è al suo posto, nella colonna di destra; il cacciatore esce dal cancello di destra; pavimenti a 300 monete ciascuno.
 - **Gruppo 2, cerchi**: i miglioramenti sono in due file (DIFESA ed ECONOMIA, `CONFIG.file`): di ogni fila si vede solo il prossimo acquisto, nel suo posto accanto a quello che compra (`MAPPA.miglioramenti`, un posto per livello), e dopo l'acquisto il cerchio si sposta nel posto del successivo; i pavimenti compaiono dopo aver assunto aiutante, venditore e cacciatore. Per aggiungere un acquisto in una fila basta aggiungere [catena, livello] in `CONFIG.file`.
 - **Gruppo 3, torrette**: `Torrette` in `src/segheria/torrette.js` gestisce già quattro torri (una per posto di MAPPA.torri); "Potenzia arcieri" inquadra tutte le torri con `zoomPerVedere`.
+- **Gruppo 3, fatto**: ogni torre ha due aspetti che si combinano liberamente. La parte bassa segue il materiale delle mura (gruppi `materiali` in `modelli/torretta.js`) e cambia quando l'onda del miglioramento delle mura passa sotto la torre (`ondaArrivata` in `mura.js`). La parte alta, l'arco e l'armatura dell'arciere (stoffa, cuoio, metallo) seguono "Potenzia arcieri" (gruppi `arcieri`, `armatura` in `creaLavoratore`). Portata: ogni arciere solo sul suo lato (stesso segno di x della torre), da un angolo all'altro (+3 m oltre), fino a `gittata` metri dalla linea delle mura (`lupoDaColpire` in `torrette.js`).
+- **A, pavimento (fatto)**: il parquet è stato tolto; resta solo il "Pavimento in pietra", con il cerchio al centro (x 0, z -3,45, scritta sotto). Per fare posto: il boscaiolo compare a z 0,2 e il cerchio del venditore è a z 2,65. Nei salvataggi vecchi il parquet diventa pietra e le monete tornano in tasca.
+- **C, cacciatori (fatto)**: due cacciatori (catena `secondoCacciatore`, 300 monete, nella fila ECONOMIA subito dopo "Cacciatore"); il primo difende la metà sinistra ed esce dal cancello di sinistra, il secondo la destra dal cancello di destra; da solo, il primo fa tutti e due i lati dal cancello più vicino. Portano 30 unità di carne (`caricoCacciatore`); con tutte e quattro le torrette raccolgono solo la carne (`cacciatoriCombattono`). Fuori dalle mura girano da un angolo all'altro sempre nello stesso verso finché non vedono l'obiettivo: provato con lupi in 10 punti, nessuno incastrato.
+- **Gruppo 5, segheria**: l'edificio è in `src/modelli/segheria.js` (posizione `MAPPA.casa`, fuori dal cancello della corsa). Per l'onda delle mura si può usare `ondaArrivata` in `mura.js`, come per le torri, e per il legno `legnoPali` in `materiali.js`.
 - **Gruppo 4, corsa**: la salita finale attuale (`src/corsa/sfidaFinale.js`) andrà sostituita dallo scontro con l'orso.
 - **Dopo i gruppi**: Fase 4 (suoni) e Fase 5 (guadagni offline), poi le espansioni di `PIANO-ESPANSIONI.md`.

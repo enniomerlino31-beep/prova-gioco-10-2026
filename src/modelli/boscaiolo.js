@@ -35,6 +35,13 @@ const LAMA = 0xb9c3cf;
 const FILO = 0xf1f5fa;
 const NERO = 0x1b1b1b;
 const BIANCO = 0xffffff;
+// armature degli arcieri
+const CUOIO_CHIARO = 0x9a5f2e;
+const CUOIO_MEDIO = 0x7a4521;
+const ACCIAIO = 0xc9d1db;
+const ACCIAIO_SCURO = 0x86909c;
+const ORO = 0xf2b632;
+const PIUMA = 0xd8262e;
 
 // Punti attorno a cui ruotano le parti mobili (anche e spalle)
 export const PERNI = {
@@ -45,9 +52,9 @@ export const PERNI = {
   braccioDx: new THREE.Vector3(0.23, 0.78, 0),
 };
 
-// Elenco dei pezzi. colori: { berretto, berrettoScuro, giacca, senzaAscia } per i lavoratori
-// (giacca = colore che prende il posto della camicia a quadri).
-function pezziBoscaiolo({ berretto = BERRETTO, berrettoScuro = BERRETTO_SCURO, giacca = null, senzaAscia = false }) {
+// Elenco dei pezzi. colori: { berretto, berrettoScuro, giacca, senzaAscia, armatura } per i lavoratori
+// (giacca = colore che prende il posto della camicia a quadri; armatura: vedi pezziArmatura).
+function pezziBoscaiolo({ berretto = BERRETTO, berrettoScuro = BERRETTO_SCURO, giacca = null, senzaAscia = false, armatura = null }) {
   const stoffa = giacca ?? materialeQuadri();
   const pezzi = [
     // --- Corpo: bacino, camicia, cintura con la fibbia, bretelle ---
@@ -61,12 +68,16 @@ function pezziBoscaiolo({ berretto = BERRETTO, berrettoScuro = BERRETTO_SCURO, g
     pezzo('corpo', 'sfera', BARBA, [0, 0.86, -0.07], [0.2, 0.17, 0.16]),
     pezzo('corpo', 'sfera', BARBA, [0, 0.76, -0.12], [0.11, 0.09, 0.08]),
     pezzo('corpo', 'sfera', NASO, [0, 0.985, -0.225], [0.055, 0.048, 0.05]),
-
-    // --- Berretto di lana con il risvolto e il pon-pon ---
-    pezzo('corpo', 'mezzaSfera', berretto, [0, 1.1, 0], [0.245, 0.25, 0.245]),
-    pezzo('corpo', 'cilindro', berrettoScuro, [0, 1.125, 0], [0.25, 0.075, 0.25]),
-    pezzo('corpo', 'sfera', berretto, [0, 1.37, 0.02], [0.075, 0.075, 0.075]),
   ];
+  if (armatura) pezzi.push(...pezziArmatura(armatura));
+  else {
+    // --- Berretto di lana con il risvolto e il pon-pon ---
+    pezzi.push(
+      pezzo('corpo', 'mezzaSfera', berretto, [0, 1.1, 0], [0.245, 0.25, 0.245]),
+      pezzo('corpo', 'cilindro', berrettoScuro, [0, 1.125, 0], [0.25, 0.075, 0.25]),
+      pezzo('corpo', 'sfera', berretto, [0, 1.37, 0.02], [0.075, 0.075, 0.075]),
+    );
+  }
   for (const lato of [-1, 1]) {
     pezzi.push(
       pezzo('corpo', 'scatola', CUOIO, [lato * 0.085, 0.67, -0.158], [0.04, 0.26, 0.02]),
@@ -103,6 +114,49 @@ function pezziBoscaiolo({ berretto = BERRETTO, berrettoScuro = BERRETTO_SCURO, g
   return pezzi;
 }
 
+// Armatura degli arcieri sopra i vestiti (al posto del berretto), con la faretra sulla schiena:
+//  'cuoio':   cappello di cuoio con la piuma, corpetto di cuoio, spallacci e bracciali
+//  'metallo': elmo d'acciaio con il paranaso e la cresta rossa, corazza con il bordo d'oro,
+//             spallacci doppi e bracciali d'acciaio
+function pezziArmatura(armatura) {
+  const metallo = armatura === 'metallo';
+  const chiaro = metallo ? ACCIAIO : CUOIO_CHIARO;
+  const scuro = metallo ? ACCIAIO_SCURO : CUOIO_MEDIO;
+  const pezzi = [
+    // corpetto o corazza sopra la giacca, con la cinghia della faretra di traverso
+    pezzo('corpo', 'capsula', chiaro, [0, 0.645, -0.005], [0.212, 0.135, 0.168]),
+    pezzo('corpo', 'scatola', scuro, [0, 0.66, -0.01], [0.05, 0.36, 0.35], [0, 0, 0.75]),
+    // faretra sulla schiena con le piume delle frecce
+    pezzo('corpo', 'cilindro', CUOIO, [0.07, 0.74, 0.19], [0.065, 0.34, 0.065], [0.15, 0, -0.35]),
+    pezzo('corpo', 'sfera', metallo ? ORO : PIUMA, [0.13, 0.92, 0.22], [0.06, 0.05, 0.06]),
+  ];
+  if (metallo) {
+    pezzi.push(
+      pezzo('corpo', 'mezzaSfera', ACCIAIO, [0, 1.09, 0], [0.255, 0.27, 0.255]),
+      pezzo('corpo', 'cilindro', ACCIAIO_SCURO, [0, 1.1, 0], [0.265, 0.04, 0.265]),
+      pezzo('corpo', 'scatola', ACCIAIO_SCURO, [0, 1.03, -0.245], [0.035, 0.13, 0.025]),
+      pezzo('corpo', 'scatola', PIUMA, [0, 1.37, 0.02], [0.04, 0.1, 0.26]),
+      pezzo('corpo', 'cilindro', ORO, [0, 0.555, -0.005], [0.2, 0.025, 0.16]),
+      pezzo('corpo', 'sfera', ORO, [0, 0.69, -0.17], [0.045, 0.045, 0.02]),
+    );
+  } else {
+    pezzi.push(
+      pezzo('corpo', 'mezzaSfera', CUOIO_CHIARO, [0, 1.1, 0], [0.25, 0.24, 0.25]),
+      pezzo('corpo', 'cilindro', CUOIO_MEDIO, [0, 1.11, 0], [0.3, 0.035, 0.3]),
+      pezzo('corpo', 'sfera', PIUMA, [0.16, 1.27, 0.07], [0.025, 0.13, 0.045], [0.3, 0, -0.5]),
+    );
+  }
+  for (const lato of [-1, 1]) {
+    const braccio = lato < 0 ? 'braccioSx' : 'braccioDx';
+    pezzi.push(
+      pezzo(braccio, 'mezzaSfera', chiaro, [0, -0.02, 0], [0.095, 0.075, 0.095]),
+      pezzo(braccio, 'cilindro', scuro, [0, -0.235, 0], [0.078, 0.09, 0.078]),
+    );
+    if (metallo) pezzi.push(pezzo(braccio, 'mezzaSfera', ACCIAIO_SCURO, [0, -0.06, 0], [0.1, 0.06, 0.1]));
+  }
+  return pezzi;
+}
+
 // Le forme unite, preparate una volta sola per ogni combinazione di colori
 const giaPronte = new Map();
 function partiPer(colori) {
@@ -130,7 +184,8 @@ export function creaBoscaiolo(colori = {}) {
 
 // Un boscaiolo con altri colori, per riconoscere a colpo d'occhio i lavoratori
 // (cacciatore, venditore, arciere). berretto/berrettoScuro: colori del berretto e del risvolto;
-// giacca: colore che prende il posto della camicia a quadri; senzaAscia: senza l'ascia.
-export function creaLavoratore({ berretto, berrettoScuro, giacca = null, senzaAscia = false }) {
-  return creaBoscaiolo({ berretto, berrettoScuro, giacca, senzaAscia });
+// giacca: colore che prende il posto della camicia a quadri; senzaAscia: senza l'ascia;
+// armatura: 'cuoio' o 'metallo' per gli arcieri potenziati (null = solo i vestiti di stoffa).
+export function creaLavoratore({ berretto, berrettoScuro, giacca = null, senzaAscia = false, armatura = null }) {
+  return creaBoscaiolo({ berretto, berrettoScuro, giacca, senzaAscia, armatura });
 }
