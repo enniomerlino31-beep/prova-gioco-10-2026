@@ -1,8 +1,8 @@
 # Piano dei gruppi di modifiche (prima delle Fasi 4 e 5)
 
 > **Stato:** i Gruppi 1 e 2 (con le loro correzioni) sono fatti e salvati (Gruppo 2: commit f279bf9).
-> Il Gruppo 3 è **fatto** (2026-10-25), insieme a tre richieste in più (A pavimento solo in pietra al centro,
-> B nuovo Gruppo 5 scritto qui sotto, C due cacciatori): in attesa della prova dell'utente prima del commit.
+> Il Gruppo 3 è **fatto, provato dall'utente e salvato** (2026-10-25, commit f0f1279), insieme a tre richieste in più
+> (A pavimento solo in pietra al centro, B nuovo Gruppo 5 scritto qui sotto, C due cacciatori).
 > I Gruppi 4 e 5 qui sotto sono **ancora da fare**, uno alla volta, nell'ordine.
 
 Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il gioco lo prova l'utente, niente partite di prova lunghe), aggiornare il README e dire cosa è stato fatto. Commit solo quando lo dice l'utente. Se la sessione sta per finire, fermarsi alla fine di un gruppo e dirlo.
