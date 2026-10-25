@@ -1,34 +1,41 @@
 // =====================================================================
-//  MODELLO DEI SOLDI
-//  Una mazzetta di banconote verdi con la fascetta bianca, e una moneta d'oro.
+//  MODELLO DEI SOLDI: nel gioco i soldi sono sempre MONETE d'oro
+//  Una moneta (con il bordo più scuro e la faccia più chiara) e un
+//  mucchietto di monete che vola quando si paga o si incassa.
 // =====================================================================
 
 import * as THREE from 'three';
 import { tinta, matrice } from './materiali.js';
 
-const scatola = new THREE.BoxGeometry(1, 1, 1);
 const cilindro = new THREE.CylinderGeometry(1, 1, 1, 16);
 
 let partiGiaCreate = null;
 
-// Pezzi della mazzetta (servono anche per disegnarne tante insieme nella pila)
-export function partiMazzetta() {
+// Pezzi di una moneta (servono anche per disegnarne tante insieme nella pila): il bordo d'oro scuro
+// e, appena sopra, la faccia più chiara
+export function partiMoneta() {
   if (partiGiaCreate) return partiGiaCreate;
   partiGiaCreate = [
-    { geometria: scatola, materiale: tinta(0x5cb85c), matrice: matrice([0, 0.04, 0], [0, 0, 0], [0.4, 0.08, 0.2]) },
-    { geometria: scatola, materiale: tinta(0x8fdc7c), matrice: matrice([0, 0.081, 0], [0, 0, 0], [0.34, 0.004, 0.15]) },
-    { geometria: scatola, materiale: tinta(0xf5f0e0), matrice: matrice([0, 0.04, 0], [0, 0, 0], [0.07, 0.085, 0.205]) },
+    { geometria: cilindro, materiale: tinta(0xe0a420), matrice: matrice([0, 0.025, 0], [0, 0, 0], [0.17, 0.05, 0.17]) },
+    { geometria: cilindro, materiale: tinta(0xf6c83b), matrice: matrice([0, 0.04, 0], [0, 0, 0], [0.13, 0.025, 0.13]) },
   ];
   return partiGiaCreate;
 }
 
-export function creaMazzetta() {
+// Un mucchietto di tre monete, un po' storte (quello che vola quando si paga o si incassa)
+export function creaMucchietto() {
   const gruppo = new THREE.Group();
-  for (const parte of partiMazzetta()) {
-    const mesh = new THREE.Mesh(parte.geometria, parte.materiale);
-    mesh.applyMatrix4(parte.matrice);
-    mesh.castShadow = true;
-    gruppo.add(mesh);
+  for (let i = 0; i < 3; i++) {
+    const moneta = new THREE.Group();
+    for (const parte of partiMoneta()) {
+      const mesh = new THREE.Mesh(parte.geometria, parte.materiale);
+      mesh.applyMatrix4(parte.matrice);
+      mesh.castShadow = true;
+      moneta.add(mesh);
+    }
+    moneta.position.set((i - 1) * 0.06, i * 0.055, (i % 2) * 0.05);
+    moneta.rotation.set(0.15 * (i - 1), 0, 0.1 * i);
+    gruppo.add(moneta);
   }
   return gruppo;
 }

@@ -10,29 +10,62 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 
-// Disegno dell'impronta su una tela (la punta del piede è in alto, cioè in avanti)
+// Disegno dell'impronta su una tela, in stile cartoon (la punta del piede è in alto, cioè in avanti):
+// forme tonde e morbide, con un bordo un po' più scuro e un riflesso chiaro in alto, come neve schiacciata
 function disegnaImpronta(tipo) {
   const tela = document.createElement('canvas');
-  tela.width = 64;
-  tela.height = 64;
+  tela.width = 128;
+  tela.height = 128;
   const ctx = tela.getContext('2d');
-  const ombra = 'rgba(112, 138, 176, 0.55)';
-  const ellisse = (x, y, rx, ry, colore) => {
+  // una "macchia" tonda: fondo azzurrino, bordo morbido più scuro, riflesso bianco in alto a sinistra
+  const macchia = (disegna) => {
     ctx.beginPath();
-    ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
-    ctx.fillStyle = colore;
+    disegna();
+    ctx.fillStyle = 'rgba(122, 150, 196, 0.5)';
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = 'rgba(92, 120, 172, 0.55)';
+    ctx.stroke();
+  };
+  const ellisse = (x, y, rx, ry, angolo = 0) => macchia(() => ctx.ellipse(x, y, rx, ry, angolo, 0, Math.PI * 2));
+  const riflesso = (x, y, rx, ry, angolo = 0) => {
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, angolo, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.45)';
     ctx.fill();
   };
   if (tipo === 'stivale') {
-    // suola e tacco, con le righe della suola un po' più chiare
-    ellisse(32, 22, 15, 19, ombra);
-    ellisse(32, 50, 12, 11, ombra);
-    ctx.fillStyle = 'rgba(200, 216, 236, 0.5)';
-    for (const y of [12, 20, 28]) ctx.fillRect(21, y, 22, 2.5);
+    // suola a "fagiolo" (larga davanti, stretta in mezzo), tacco tondo e tre pallini della suola
+    macchia(() => {
+      ctx.moveTo(64, 8);
+      ctx.bezierCurveTo(96, 8, 98, 52, 86, 70);
+      ctx.bezierCurveTo(80, 80, 48, 80, 42, 70);
+      ctx.bezierCurveTo(30, 52, 32, 8, 64, 8);
+    });
+    ellisse(64, 104, 21, 17);
+    for (const [x, y] of [[56, 30], [72, 30], [64, 50]]) {
+      ctx.beginPath();
+      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(214, 228, 246, 0.6)';
+      ctx.fill();
+    }
+    riflesso(52, 20, 8, 4, -0.6);
+    riflesso(56, 97, 7, 3, -0.4);
   } else {
-    // zampa: il cuscinetto grande e quattro dita
-    ellisse(32, 42, 13, 11, ombra);
-    for (const [x, y] of [[17, 22], [27, 15], [37, 15], [47, 22]]) ellisse(x, y, 5.5, 7, ombra);
+    // zampa: cuscinetto grande a forma di nuvoletta e quattro "fagiolini" per le dita
+    macchia(() => {
+      ctx.moveTo(64, 62);
+      ctx.bezierCurveTo(88, 62, 102, 84, 94, 100);
+      ctx.bezierCurveTo(88, 114, 74, 108, 64, 112);
+      ctx.bezierCurveTo(54, 108, 40, 114, 34, 100);
+      ctx.bezierCurveTo(26, 84, 40, 62, 64, 62);
+    });
+    riflesso(52, 74, 8, 4, -0.5);
+    for (const [x, y, angolo] of [[28, 46, -0.35], [50, 28, -0.1], [78, 28, 0.1], [100, 46, 0.35]]) {
+      ellisse(x, y, 11, 14, angolo);
+      riflesso(x - 3, y - 6, 4, 2.5, angolo - 0.5);
+    }
   }
   const texture = new THREE.CanvasTexture(tela);
   texture.colorSpace = THREE.SRGBColorSpace;

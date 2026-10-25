@@ -62,6 +62,7 @@ html, body {
   will-change: transform, opacity;
 }
 .testo-volante.buono { color: #ffe14d; }
+.testo-volante .hud-icon { width: 1em; height: 1em; margin: 0 0.12em 0 0.1em; vertical-align: -0.15em; }
 .testo-volante.cattivo { color: #ff5a4f; }
 
 /* ---------- Barra in alto ---------- */

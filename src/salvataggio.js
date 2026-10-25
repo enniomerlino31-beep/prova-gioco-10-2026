@@ -13,18 +13,24 @@ function statoIniziale() {
   return {
     soldi: 0,                                  // soldi in tasca al giocatore
     catasta: CONFIG.segheria.legnaIniziale,    // legna nella catasta (unità)
-    dispensa: 0,                               // carne nella dispensa (unità)
     schiena: { legna: 0, carne: 0 },           // unità portate sulla schiena del boscaiolo (nessun limite)
-    miglioramenti: {                           // per ogni cerchio: livelli comprati e soldi già messi nel livello attuale
+    miglioramenti: {                           // per ogni catena: livelli comprati (e, per i pavimenti, monete già messe nel cerchio)
       mura: { comprati: 0, pagato: 0 },
       riparazione: { comprati: 0, pagato: 0 },
       torretta: { comprati: 0, pagato: 0 },
       aiutante: { comprati: 0, pagato: 0 },
       cacciatore: { comprati: 0, pagato: 0 },
       venditore: { comprati: 0, pagato: 0 },
+      pavimentoPietra: { comprati: 0, pagato: 0 },
+      parquet: { comprati: 0, pagato: 0 },
     },
-    sportelli: { legna: 0, carne: 0 },         // merce esposta negli sportelli di vendita (unità)
-    soldiSportelli: { legna: 0, carne: 0 },    // soldi lasciati dai clienti accanto a ogni sportello, da raccogliere
+    file: {                                    // le due file di cerchi: monete già messe nel loro prossimo acquisto
+      difesa: { pagato: 0 },
+      economia: { pagato: 0 },
+    },
+    cerchi: 2,                                 // 2 = salvataggio fatto con le due file di cerchi (vedi carica)
+    sportelli: { legna: 0, carne: 0 },         // merce esposta negli sportelli di vendita (unità; la carne della corsa arriva qui)
+    soldiATerra: 0,                            // soldi lasciati dai clienti nel cerchio delle monete tra i due sportelli, da raccogliere
     vendute: { legna: 0, carne: 0 },           // unità vendute in tutto (serviranno per sbloccare le basi)
     guadagnoTotale: 0,                         // tutti i soldi guadagnati da sempre
     corseFatte: 0,
@@ -42,14 +48,22 @@ export function carica() {
     const stato = { ...statoIniziale(), ...salvato };
     // Salvataggi di prima del tutorial: chi ha già fatto almeno una corsa non lo rivede
     if (salvato.tutorial === undefined && (salvato.corseFatte ?? 0) > 0) stato.tutorial = 3;
-    // Salvataggi vecchi: la merce del tavolino e i soldi a terra passano agli sportelli
+    // Salvataggi vecchi: la merce del tavolino passa agli sportelli
     if (stato.tavolino) {
       stato.sportelli.legna += stato.tavolino.legna ?? 0;
       stato.sportelli.carne += stato.tavolino.carne ?? 0;
       delete stato.tavolino;
     }
-    if (stato.soldiATerra) stato.soldiSportelli.legna += stato.soldiATerra;
-    delete stato.soldiATerra;
+    // Salvataggi vecchi: la dispensa non c'è più, la sua carne va sul tavolo dello sportello CARNE
+    if (stato.dispensa !== undefined) {
+      stato.sportelli.carne += stato.dispensa;
+      delete stato.dispensa;
+    }
+    // Salvataggi vecchi: i soldi delle due pile accanto agli sportelli finiscono nell'unico cerchio delle monete
+    if (stato.soldiSportelli) {
+      stato.soldiATerra += (stato.soldiSportelli.legna ?? 0) + (stato.soldiSportelli.carne ?? 0);
+      delete stato.soldiSportelli;
+    }
     // Salvataggi vecchi: la schiena era un elenco di pezzi { tipo, quantita }
     if (Array.isArray(stato.schiena)) {
       const schiena = { legna: 0, carne: 0 };
@@ -57,6 +71,18 @@ export function carica() {
       stato.schiena = schiena;
     }
     stato.miglioramenti = { ...statoIniziale().miglioramenti, ...stato.miglioramenti };
+    stato.file = { ...statoIniziale().file, ...stato.file };
+    // Salvataggi di prima delle due file di cerchi: le monete già messe in un cerchio tornano in tasca
+    // (quei cerchi ora non ci sono più); le torrette sono diventate 4 prima di "Potenzia arcieri":
+    // chi aveva già un potenziamento degli arcieri ha subito anche le due torrette nuove
+    if (salvato.cerchi !== 2) {
+      for (const catena of Object.values(stato.miglioramenti)) {
+        stato.soldi += catena.pagato ?? 0;
+        catena.pagato = 0;
+      }
+      if (stato.miglioramenti.torretta.comprati >= 3) stato.miglioramenti.torretta.comprati += 2;
+      stato.cerchi = 2;
+    }
     return stato;
   } catch {
     return statoIniziale();

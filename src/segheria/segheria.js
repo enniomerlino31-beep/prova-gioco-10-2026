@@ -1,9 +1,9 @@
 // =====================================================================
 //  SEGHERIA: il "regista" della base
-//  Mette insieme ambiente e mura, boscaiolo, catasta, dispensa, sportelli
-//  di vendita (con le loro pile di soldi), clienti, cancelli, cerchi dei
-//  miglioramenti, lavoratori (aiutante, cacciatore, venditori), torrette
-//  con l'arciere e lupi. A ogni fotogramma:
+//  Mette insieme ambiente e mura, boscaiolo, catasta, sportelli
+//  di vendita (con il cerchio delle monete), clienti, cancelli, cerchi dei
+//  miglioramenti, pavimento, lavoratori (aiutante, cacciatore, venditori),
+//  torrette con l'arciere e lupi. A ogni fotogramma:
 //   - muove il boscaiolo con il joystick (le mura e i cancelli chiusi lo bloccano)
 //   - raccoglie/scarica la merce quando il boscaiolo è nella zona giusta
 //   - fa pagare i miglioramenti quando il boscaiolo sta sul loro cerchio
@@ -19,10 +19,12 @@ import { CONFIG } from '../config.js';
 import { carica, salva } from '../salvataggio.js';
 import { registraVendita } from '../economia.js';
 import { Effetti } from '../motore/effetti.js';
-import { creaAmbiente, MAPPA } from './ambiente.js';
+import { creaAmbiente, MAPPA, latoDelleMura } from './ambiente.js';
 import { Giocatore } from './giocatore.js';
 import { Deposito } from './catasta.js';
 import { Sportello } from './sportello.js';
+import { PilaSoldi } from './soldi.js';
+import { Pavimento } from './pavimento.js';
 import { Clienti } from './clienti.js';
 import { Cancello } from './cancello.js';
 import { CerchioMiglioramento } from './miglioramenti.js';
@@ -38,7 +40,10 @@ import { animaGaloppo, animaMorso, COLPO } from '../modelli/animazioni.js';
 import { creaCarne } from '../modelli/carne.js';
 
 const OGNI_QUANTO_SALVARE = 2; // secondi
-const LAVORATORI_BASE = ['aiutante', 'cacciatore', 'venditore']; // i loro potenziamenti compaiono solo quando ci sono tutti
+const LAVORATORI_BASE = ['aiutante', 'cacciatore', 'venditore']; // assunti tutti e tre, compaiono i cerchi dei pavimenti
+// i due cerchi dei pavimenti (nome del cerchio -> tipo di pavimento): se ne compra uno solo
+const PAVIMENTI = { pavimentoPietra: 'pietra', parquet: 'parquet' };
+const ALTRO_PAVIMENTO = { pavimentoPietra: 'parquet', parquet: 'pavimentoPietra' };
 
 // Opzioni dei voli dentro la segheria (più brevi e piccoli di quelli della corsa)
 const VOLO_CORTO = { durata: 0.35, altezza: 1.4, scala: 0.55, sbuffo: false };
@@ -103,14 +108,18 @@ export class Segheria {
     this.giocatore = new Giocatore(this.radice, this.effetti);
     for (const [tipo, quantita] of Object.entries(s.schiena)) if (quantita > 0) this.giocatore.aggiungi(tipo, quantita);
     this.catasta = new Deposito(this.radice, 'legna', MAPPA.catasta, s.catasta);
-    this.dispensa = new Deposito(this.radice, 'carne', MAPPA.dispensa, s.dispensa);
+    // un solo cerchio delle monete, tra i due sportelli: ci pagano i clienti di tutti e due
+    this.soldi = new PilaSoldi(this.radice, MAPPA.monete, s.soldiATerra);
     this.sportelli = {
-      legna: new Sportello(this.radice, 'legna', MAPPA.sportelli.legna, s.sportelli.legna, s.soldiSportelli.legna),
-      carne: new Sportello(this.radice, 'carne', MAPPA.sportelli.carne, s.sportelli.carne, s.soldiSportelli.carne),
+      legna: new Sportello(this.radice, 'legna', MAPPA.sportelli.legna, s.sportelli.legna, this.soldi),
+      carne: new Sportello(this.radice, 'carne', MAPPA.sportelli.carne, s.sportelli.carne, this.soldi),
     };
+    // tre cancelli: quello della corsa in alto (con il cerchio CORSA), quello della foresta a sinistra e uno a destra
+    const cancello = (posizione, opzioni = {}) => new Cancello(this.radice, posizione, { normale: latoDelleMura(posizione), ...opzioni });
     this.cancelli = {
-      corsa: new Cancello(this.radice, MAPPA.cancelli.corsa, { scritta: 'CORSA' }),
-      foresta: new Cancello(this.radice, MAPPA.cancelli.foresta),
+      corsa: cancello(MAPPA.cancelli.corsa, { scritta: 'CORSA' }),
+      foresta: cancello(MAPPA.cancelli.foresta),
+      destra: cancello(MAPPA.cancelli.destra),
     };
     // Cose che il boscaiolo non attraversa mai: palizzata, banconi e depositi degli sportelli
     this.ostacoliFissi = [...ambiente.muri, ...Object.values(this.sportelli).flatMap((sportello) => sportello.ostacoli)];
@@ -144,37 +153,52 @@ export class Segheria {
     this.colpoInArrivo = null; // il colpo d'ascia del boscaiolo arriva sul lupo quando la lama cala
     this.carneCadute = [];
 
-    // Cerchi dei miglioramenti: ognuno è una catena di livelli
+    // Quanti livelli di ogni catena sono stati comprati (mura, torretta, riparazione, aiutante, ..., i pavimenti)
+    this.livelli = {};
+    for (const [nome, catena] of Object.entries(CONFIG.miglioramenti)) {
+      if (Array.isArray(catena)) this.livelli[nome] = s.miglioramenti[nome]?.comprati ?? 0;
+    }
+    // Cerchi dei miglioramenti: le due file (DIFESA ed ECONOMIA), che mostrano solo il loro prossimo acquisto
+    // nel posto giusto per lui (accanto a quello che compra), e i due pavimenti
     this.cerchi = {};
-    for (const nome of Object.keys(MAPPA.miglioramenti)) {
-      const salvato = s.miglioramenti[nome];
-      this.cerchi[nome] = new CerchioMiglioramento(this.radice, MAPPA.miglioramenti[nome], CONFIG.miglioramenti[nome], salvato.comprati, salvato.pagato);
+    const posto = (catena, indice) => {
+      const p = MAPPA.miglioramenti[catena];
+      return Array.isArray(p) ? p[indice] : p;
+    };
+    for (const [fila, passi] of Object.entries(CONFIG.file)) {
+      const livelli = passi.map(([catena, indice]) => ({ ...CONFIG.miglioramenti[catena][indice], catena, indice }));
+      const posti = passi.map(([catena, indice]) => posto(catena, indice));
+      this.cerchi[fila] = new CerchioMiglioramento(this.radice, posti, livelli, this.prossimoPasso(fila), s.file[fila]?.pagato ?? 0, fila.toUpperCase());
+    }
+    for (const nome of Object.keys(PAVIMENTI)) {
+      this.cerchi[nome] = new CerchioMiglioramento(this.radice, MAPPA.miglioramenti[nome], CONFIG.miglioramenti[nome], this.livelli[nome], s.miglioramenti[nome].pagato, 'PAVIMENTO', 2);
     }
     this.torrette = new Torrette(this.radice, this.effetti, MAPPA.torri);
+    this.pavimento = new Pavimento(this.radice, this.effetti);
     this.cacciatore = null;
     this.venditori = [];
     this.attesaScintille = 0;
     this.regia = null; // la telecamera che va a vedere un miglioramento appena comprato (null = segue il boscaiolo)
-    // Il banco del cacciatore (e il cerchio per assumerlo) compare quando arrivano i primi lupi, cioè dopo le
-    // mura di pietra; nei salvataggi con le mura di pietra o il cacciatore già comprati c'è subito
+    // Il banco del cacciatore compare quando si comprano le mura di pietra; nei salvataggi con le mura di pietra
+    // o il cacciatore già comprati c'è subito
     this.banco = new BancoCacciatore(this.radice, MAPPA.bancoCacciatore, this.effetti);
-    this.bancoAperto = this.cerchi.mura.comprati >= 1 || this.cerchi.cacciatore.comprati >= 1;
+    this.bancoAperto = this.livelli.mura >= 1 || this.livelli.cacciatore >= 1;
     if (this.bancoAperto) this.banco.mostra(false);
     this.ripristinaMiglioramenti();
-    this.sbloccaPotenziamenti(true);
+    this.aggiornaVisibilita(true);
     // Tutorial: solo alla prima partita (aggiungendo ?tutorial all'indirizzo si può rivedere,
     // con ?senzatutorial si salta: 3 = tutti e tre i passaggi fatti)
     const indirizzo = new URLSearchParams(window.location.search);
     if (indirizzo.has('tutorial')) s.tutorial = 0;
     if (indirizzo.has('senzatutorial')) s.tutorial = 3;
     this.tutorial = new Tutorial(this.radice, schermate, s.tutorial);
-    // Durante il tutorial si può comprare solo il primo miglioramento delle mura: gli altri cerchi sono spenti (grigi)
-    // (il cerchio delle mura si accende solo al terzo passaggio, vedi aggiorna)
-    for (const [nome, cerchio] of Object.entries(this.cerchi)) cerchio.spegni(!this.tutorial.finito && (nome !== 'mura' || this.tutorial.passo < 2));
+    // Durante il tutorial si può comprare solo il primo acquisto della fila DIFESA (le mura di pietra): gli altri
+    // cerchi sono spenti (grigi); il cerchio DIFESA si accende solo al terzo passaggio, vedi aggiorna
+    for (const [nome, cerchio] of Object.entries(this.cerchi)) cerchio.spegni(!this.tutorial.finito && (nome !== 'difesa' || this.tutorial.passo < 2));
     this.festaDopoLaRegia = false; // finito il tutorial, quando la telecamera torna sul boscaiolo arriva la schermata di festa
     this.inFesta = false;          // la schermata di festa è aperta: il gioco aspetta il pulsante "Gioca"
     // Inizio più veloce: finché non ci sono le mura di pietra i clienti sono di più e comprano più in fretta
-    this.clienti.spinta = this.cerchi.mura.comprati === 0 ? 1 : 0;
+    this.clienti.spinta = this.livelli.mura === 0 ? 1 : 0;
 
     document.addEventListener('keydown', (event) => {
       if (event.code === 'Space' || event.key === 'e' || event.key === 'E') this.attaccaLupi(true);
@@ -187,13 +211,14 @@ export class Segheria {
     });
   }
 
-  // Il bottino della corsa vinta finisce in catasta e dispensa (e viene salvato subito).
+  // Il bottino della corsa vinta finisce nella catasta (la legna) e sul tavolo dello sportello CARNE (la carne),
+  // e viene salvato subito.
   // La prima corsa del tutorial si completa solo vincendo, e porta a casa almeno "legnaPrimaCorsa" legna
   // (se ne serve, si aggiunge un bonus). Restituisce il bonus, da mostrare nella schermata di fine corsa.
   aggiungiBottino(legna, carne) {
     const bonus = this.tutorial.passo === 0 ? Math.max(0, CONFIG.tutorial.legnaPrimaCorsa - legna) : 0;
     this.catasta.aggiungi(legna + bonus);
-    this.dispensa.aggiungi(carne);
+    this.sportelli.carne.aggiungi(carne);
     this.ultimoBottino = { legna: legna + bonus, carne };
     this.completaTutorial('corsa');
     this.salvaOra();
@@ -215,7 +240,8 @@ export class Segheria {
     if (this.ultimoBottino) {
       const { legna, carne } = this.ultimoBottino;
       if (legna > 0) this.effetti.testo(MAPPA.catasta.x, 2.6, MAPPA.catasta.z, `+${legna} legna`, 'buono');
-      if (carne > 0) this.effetti.testo(MAPPA.dispensa.x, 2, MAPPA.dispensa.z, `+${carne} carne`, 'buono');
+      const tavolo = this.sportelli.carne.zona;
+      if (carne > 0) this.effetti.testo(tavolo.x, 2, tavolo.z, `+${carne} carne`, 'buono');
       this.effetti.sbuffo(MAPPA.catasta.x, 1, MAPPA.catasta.z, 0xb07a45, 16, 3);
       this.ultimoBottino = null;
     }
@@ -317,8 +343,8 @@ export class Segheria {
 
   // Quali fronti sono aperti: i lupi deboli dopo le mura di pietra, ogni lato dopo la sua torretta
   frontiAperti() {
-    const torri = this.cerchi.torretta.comprati;
-    return { deboli: this.cerchi.mura.comprati >= 1, sinistra: torri >= 1, destra: torri >= 2 };
+    const torri = this.livelli.torretta;
+    return { deboli: this.livelli.mura >= 1, sinistra: torri >= 1, destra: torri >= 2 };
   }
 
   // Un lupo debole e lento, da un punto qualsiasi della foresta (se non ce ne sono già abbastanza).
@@ -556,20 +582,28 @@ export class Segheria {
 
   // ---------------- MIGLIORAMENTI ----------------
 
-  // I cerchi per potenziare i lavoratori (cacciatore esperto, venditore svelto...) restano nascosti
-  // finché non sono stati assunti tutti i lavoratori base; prima si vedono solo i cerchi per assumerli.
-  // subito: all'avvio, senza l'animazione del cerchio che compare
-  sbloccaPotenziamenti(subito) {
-    const tuttiAssunti = LAVORATORI_BASE.every((nome) => this.cerchi[nome].comprati > 0);
-    for (const nome of LAVORATORI_BASE) {
-      const cerchio = this.cerchi[nome];
-      // il cacciatore si può assumere solo quando c'è il suo banco (cioè dopo l'arrivo dei primi lupi)
-      cerchio.nascondi((cerchio.comprati > 0 && !tuttiAssunti) || (nome === 'cacciatore' && !this.bancoAperto), subito);
-    }
+  // Il prossimo passo da comprare di una fila: il primo il cui livello non è ancora stato comprato
+  // (i passi già fatti, ad esempio nei salvataggi vecchi, si saltano). Fila finita = numero dei passi.
+  prossimoPasso(fila) {
+    const passi = CONFIG.file[fila];
+    const i = passi.findIndex(([catena, indice]) => this.livelli[catena] <= indice);
+    return i < 0 ? passi.length : i;
   }
 
-  // Arrivano i primi lupi: compare il banco del cacciatore con la sua costruzione (se è fuori dallo schermo
-  // la telecamera va a vederlo, come per i miglioramenti) e insieme il cerchio per assumere il cacciatore
+  // Quali cerchi si vedono. La fila ECONOMIA, quando tocca al cacciatore, aspetta che ci sia il suo banco.
+  // I due pavimenti compaiono quando sono stati assunti tutti i lavoratori base (e se ne compra uno solo).
+  // subito: all'avvio, senza l'animazione del cerchio che compare
+  aggiornaVisibilita(subito) {
+    const economia = this.cerchi.economia;
+    economia.nascondi(economia.livello?.catena === 'cacciatore' && !this.bancoAperto, subito);
+    const tuttiAssunti = LAVORATORI_BASE.every((nome) => this.livelli[nome] > 0);
+    const pavimentoComprato = Object.keys(PAVIMENTI).some((nome) => this.livelli[nome] > 0);
+    for (const nome of Object.keys(PAVIMENTI)) this.cerchi[nome].nascondi(!tuttiAssunti || pavimentoComprato, subito);
+  }
+
+  // Compare il banco del cacciatore con la sua costruzione (se è fuori dallo schermo la telecamera va a
+  // vederlo, come per i miglioramenti). Di solito succede con le mura di pietra (vedi tappeDelMiglioramento);
+  // se nel frattempo arrivano i lupi e il banco non c'è ancora, compare in quel momento.
   apriBanco() {
     this.bancoAperto = true;
     const punto = MAPPA.bancoCacciatore;
@@ -590,19 +624,22 @@ export class Segheria {
       const rata = cerchio.prossimaRata(this.stato.soldi, dt);
       if (rata <= 0) continue;
       this.stato.soldi -= rata;
-      const partenza = pos.clone().setY(1.4);
+      const partenza = this.giocatore.cimaSchiena(new THREE.Vector3(), 'monete'); // le monete partono dalla pila sulla schiena
       this.effetti.lancia('soldi', partenza, cerchio, 0, () => {
         if (cerchio.riceviRata(rata)) this.completaMiglioramento(nome);
       }, { durata: 0.35, altezza: 1.2, scala: 0.8, sbuffo: false });
     }
   }
 
-  // Un livello è pagato tutto: il miglioramento compare e il cerchio passa al livello successivo
+  // Un livello è pagato tutto: il miglioramento compare e il cerchio passa al prossimo acquisto
   // Se compare lontano o fuori dallo schermo, la telecamera va a vederlo (vedi aggiornaRegia).
-  completaMiglioramento(nome) {
-    const cerchio = this.cerchi[nome];
+  // nomeCerchio: 'difesa', 'economia' o un pavimento
+  completaMiglioramento(nomeCerchio) {
+    const cerchio = this.cerchi[nomeCerchio];
     const livello = cerchio.livello;
-    cerchio.passaAlSuccessivo();
+    const nome = livello.catena ?? nomeCerchio; // la catena di quel livello (mura, torretta...) o il pavimento
+    this.livelli[nome] += 1;
+    cerchio.passaAlSuccessivo(nomeCerchio in CONFIG.file ? this.prossimoPasso(nomeCerchio) : undefined);
     const { x, z } = cerchio.posizione;
     this.effetti.testo(x, 2.2, z, `${livello.nome}!`, 'buono');
     this.effetti.sbuffo(x, 0.4, z, 0x9be37a, 24, 3.5);
@@ -658,12 +695,32 @@ export class Segheria {
   // sempre = la telecamera ci va anche se il punto si vede (le mura fanno il giro di tutta la base).
   // Quello che non si vede (riparazione, venditori e cacciatore più svelti) funziona subito, senza tappe.
   tappeDelMiglioramento(nome, livello) {
-    const comprati = this.cerchi[nome].comprati;
+    const comprati = this.livelli[nome];
     const tappa = (punto, azione, { zoom = 0.8, sempre = false, sosta = CONFIG.regia.sosta, punti = [punto] } = {}) => (
       { punto: punto.clone(), azione, zoom, sempre, sosta, punti }
     );
     if (nome === 'mura') {
-      return [tappa(new THREE.Vector3(0, 0, 0), () => this.mura.applicaLivello(comprati, true), { zoom: 1.5, sempre: true, sosta: 2.4 })];
+      const tappe = [tappa(new THREE.Vector3(0, 0, 0), () => this.mura.applicaLivello(comprati, true), { zoom: 1.5, sempre: true, sosta: 2.4 })];
+      // con le mura di pietra compare anche il banco del cacciatore
+      if (!this.bancoAperto) {
+        this.bancoAperto = true;
+        tappe.push(tappa(MAPPA.bancoCacciatore, () => this.banco.mostra(true)));
+      }
+      return tappe;
+    }
+    if (nome in PAVIMENTI) {
+      // l'altro pavimento non si può più comprare: il suo cerchio sparisce; la telecamera si alza e guarda
+      // il pavimento nuovo che si allarga dal cerchio fino a coprire tutta la base
+      const altro = this.cerchi[ALTRO_PAVIMENTO[nome]];
+      altro.nascondi(true);
+      if (altro.pagato > 0) {
+        // le monete già messe nell'altro cerchio tornano in tasca
+        this.stato.soldi += altro.pagato;
+        this.effetti.testo(altro.posizione.x, 2, altro.posizione.z, `+${altro.pagato}`, 'buono', 'moneta');
+        altro.pagato = 0;
+      }
+      const punto = this.cerchi[nome].posizione.clone();
+      return [tappa(new THREE.Vector3(0, 0, 0), () => this.pavimento.posa(PAVIMENTI[nome], punto, true), { zoom: 1.5, sempre: true, sosta: 2.6 })];
     }
     if (nome === 'torretta') {
       this.torrette.imposta(comprati);
@@ -708,15 +765,15 @@ export class Segheria {
 
   // Il livello comprato di una catena (null = non ancora comprato)
   livelloComprato(nome) {
-    return CONFIG.miglioramenti[nome][this.cerchi[nome].comprati - 1] ?? null;
+    return CONFIG.miglioramenti[nome][this.livelli[nome] - 1] ?? null;
   }
 
   // All'avvio: ciò che era già stato comprato c'è subito, senza animazioni e senza spostare la telecamera.
   // La riparazione non ha bisogno di niente: si legge il suo livello a ogni fotogramma.
   ripristinaMiglioramenti() {
-    this.mura.applicaLivello(this.cerchi.mura.comprati, false);
-    this.aiutante = this.cerchi.aiutante.comprati > 0 ? this.creaAiutante(false) : null;
-    this.torrette.imposta(this.cerchi.torretta.comprati);
+    this.mura.applicaLivello(this.livelli.mura, false);
+    this.aiutante = this.livelli.aiutante > 0 ? this.creaAiutante(false) : null;
+    this.torrette.imposta(this.livelli.torretta);
     for (let i = 0; i < this.torrette.quanteTorri; i++) {
       this.torrette.mostraTorre(i, false);
       this.torrette.aggiornaAspetto(i, false);
@@ -730,6 +787,9 @@ export class Segheria {
     if (venditore) {
       this.venditori = Object.values(this.sportelli).map((sportello) => this.creaVenditore(sportello, false));
       this.clienti.rapidita = venditore.rapidita;
+    }
+    for (const [nome, tipo] of Object.entries(PAVIMENTI)) {
+      if (this.livelli[nome] > 0) this.pavimento.posa(tipo, this.cerchi[nome].posizione, false);
     }
   }
 
@@ -861,7 +921,7 @@ export class Segheria {
     }
     this.carneCadute = this.carneCadute.filter((drop) => !drop.preso);
 
-    this.sbloccaPotenziamenti(false);
+    this.aggiornaVisibilita(false);
     this.gestisceMiglioramenti(pos, dt);
 
     // --- Raccolta e scarico, un pezzo alla volta (nessun limite di carico) ---
@@ -870,8 +930,6 @@ export class Segheria {
       let fatto = false;
       if (this.catasta.contiene(pos) && this.catasta.quantita > 0) {
         fatto = this.raccogli(this.catasta, 'legna');
-      } else if (this.dispensa.contiene(pos) && this.dispensa.quantita > 0) {
-        fatto = this.raccogli(this.dispensa, 'carne');
       } else {
         // sul punto di deposito di uno sportello scarica solo la merce di quello sportello
         const sportello = Object.values(this.sportelli).find((sp) => sp.vicino(pos) && this.giocatore.ha(sp.tipo));
@@ -881,22 +939,22 @@ export class Segheria {
       else this.trasferimento = null;
     }
 
-    // --- Soldi a terra accanto agli sportelli ---
-    for (const sportello of Object.values(this.sportelli)) {
-      if (sportello.soldi.valore > 0 && sportello.soldi.contiene(pos)) this.raccogliSoldi(sportello.soldi);
-    }
+    // --- Soldi nel cerchio delle monete tra i due sportelli ---
+    if (this.soldi.valore > 0 && this.soldi.contiene(pos)) this.raccogliSoldi(this.soldi);
+    this.giocatore.impostaMonete(this.stato.soldi);
 
     // --- Tutto il resto ---
     for (const sportello of Object.values(this.sportelli)) sportello.aggiorna(dt);
     this.aiutante?.aggiorna(dt);
     this.banco.aggiorna(dt);
+    this.pavimento.aggiorna(dt);
     this.cacciatore?.aggiorna(dt);
     for (const venditore of this.venditori) venditore.aggiorna(dt);
     this.clienti.aggiorna(dt);
     this.effetti.aggiorna(dt);
     if (!this.tutorial.finito) {
-      // il cerchio delle mura si accende (con un saltello) quando arriva il passaggio "Compra le mura di pietra!"
-      this.cerchi.mura.spegni(this.tutorial.passo < 2);
+      // il cerchio DIFESA (le mura di pietra) si accende (con un saltello) quando arriva il passaggio "Compra le mura di pietra!"
+      this.cerchi.difesa.spegni(this.tutorial.passo < 2);
       this.tutorial.aggiorna(dt, this.bersaglioTutorial());
     }
     if (this.regia) this.aggiornaRegia(dt);
@@ -904,10 +962,11 @@ export class Segheria {
     if (this.festaDopoLaRegia && !this.regia) this.apriFesta();
 
     // Inizio più veloce: prima delle mura di pietra i clienti sono di più; dopo tornano piano piano al ritmo normale
-    this.clienti.spinta = this.cerchi.mura.comprati === 0 ? 1 : Math.max(0, this.clienti.spinta - dt / CONFIG.clienti.avvio.ritornoIn);
+    this.clienti.spinta = this.livelli.mura === 0 ? 1 : Math.max(0, this.clienti.spinta - dt / CONFIG.clienti.avvio.ritornoIn);
 
     // --- Cancelli: si aprono quando il boscaiolo si avvicina; da quello della corsa si parte ---
-    this.cancelli.foresta.aggiorna(dt, pos, this.cacciatore ? [this.cacciatore.posizione] : []);
+    this.cancelli.foresta.aggiorna(dt, pos);
+    this.cancelli.destra.aggiorna(dt, pos, this.cacciatore ? [this.cacciatore.posizione] : []); // il cacciatore esce da qui
     if (this.cancelli.corsa.aggiorna(dt, pos)) {
       this.cancelli.corsa.azzera();
       this.alPartenzaCorsa();
@@ -918,7 +977,7 @@ export class Segheria {
     this.schermate.aggiornaSegheria({
       soldi: this.stato.soldi,
       legna: this.catasta.quantita,
-      carne: this.dispensa.quantita,
+      carne: this.sportelli.carne.quantita,
     });
 
     // --- Salvataggio ogni tanto ---
@@ -969,41 +1028,46 @@ export class Segheria {
     return true;
   }
 
-  // Tutti i soldi di una pila volano verso il boscaiolo (divisi in qualche mazzetta)
+  // Tutte le monete del cerchio volano verso il boscaiolo (divise in qualche mucchietto)
   raccogliSoldi(pila) {
     const totale = pila.prendiTutto();
-    const mazzette = Math.min(8, Math.max(1, Math.ceil(totale / CONFIG.economia.soldiPerMazzetta)));
+    const mucchietti = Math.min(8, Math.max(1, Math.ceil(totale / (CONFIG.economia.soldiPerMoneta * 2))));
     let rimasti = totale;
-    for (let i = 0; i < mazzette; i++) {
-      const parte = i === mazzette - 1 ? rimasti : Math.floor(totale / mazzette);
+    for (let i = 0; i < mucchietti; i++) {
+      const parte = i === mucchietti - 1 ? rimasti : Math.floor(totale / mucchietti);
       rimasti -= parte;
       this.inVolo.soldi += parte;
       const partenza = pila.posizione.clone().add(new THREE.Vector3((Math.random() - 0.5) * 0.5, 0.2 + i * 0.05, (Math.random() - 0.5) * 0.4));
-      const verso = (v) => v.copy(this.giocatore.posizione).setY(1.4);
+      const verso = (v) => this.giocatore.cimaSchiena(v, 'monete');
       this.effetti.lancia('soldi', partenza, verso, i * 0.05, () => {
         this.inVolo.soldi -= parte;
         this.stato.soldi += parte;
         this.giocatore.rimbalza(0xffe066);
       }, { durata: 0.35, altezza: 1.2, sbuffo: false });
     }
-    this.effetti.testo(this.giocatore.posizione.x, 2.4, this.giocatore.posizione.z, `+${totale} $`, 'buono');
+    this.effetti.testo(this.giocatore.posizione.x, 2.4, this.giocatore.posizione.z, `+${totale}`, 'buono', 'moneta');
   }
 
   // Scrive i progressi sul dispositivo
   salvaOra() {
     const s = this.stato;
-    // ciò che è in volo (o in mano ai lavoratori) viene salvato "a casa" (catasta, dispensa, tasca) per non perderlo mai
+    // ciò che è in volo (o in mano ai lavoratori) viene salvato "a casa" (catasta, tavolo della carne, tasca) per non perderlo mai
     s.catasta = this.catasta.quantita + this.inVolo.legna + (this.aiutante?.carico ?? 0);
-    s.dispensa = this.dispensa.quantita + this.inVolo.carne + (this.cacciatore?.carico ?? 0);
     s.tutorial = this.tutorial.passo;
     s.soldi = Math.round(s.soldi);
     s.schiena = { ...this.giocatore.carico };
-    s.sportelli = { legna: this.sportelli.legna.quantita, carne: this.sportelli.carne.quantita };
-    s.soldiSportelli = { legna: this.sportelli.legna.soldi.valore + this.inVolo.soldi, carne: this.sportelli.carne.soldi.valore };
+    s.sportelli = {
+      legna: this.sportelli.legna.quantita,
+      carne: this.sportelli.carne.quantita + this.inVolo.carne + (this.cacciatore?.carico ?? 0),
+    };
+    s.soldiATerra = this.soldi.valore + this.inVolo.soldi;
     s.miglioramenti = {};
-    for (const [nome, cerchio] of Object.entries(this.cerchi)) {
-      s.miglioramenti[nome] = { comprati: cerchio.comprati, pagato: cerchio.pagato + cerchio.inArrivo };
-    }
+    for (const [nome, comprati] of Object.entries(this.livelli)) s.miglioramenti[nome] = { comprati, pagato: 0 };
+    // le monete già messe nei cerchi: per le file sono del prossimo acquisto della fila, per i pavimenti del pavimento
+    const pagato = (cerchio) => cerchio.pagato + cerchio.inArrivo;
+    s.file = {};
+    for (const fila of Object.keys(CONFIG.file)) s.file[fila] = { pagato: pagato(this.cerchi[fila]) };
+    for (const nome of Object.keys(PAVIMENTI)) s.miglioramenti[nome].pagato = pagato(this.cerchi[nome]);
     salva(s);
   }
 

@@ -217,6 +217,19 @@ export function disegnaIcona(ctx, tipo, x, y, lato) {
     blocco(3.5, 12.5, 21, 4, 1.5, scuro, scuro, 0.5);
     ellisse(14, 4, 2.8, 2.8, 0, berretto);
     disegnaIcona(ctx, tipo === 'cacciatore' ? 'carne' : 'moneta', 18, 18, 14);
+  } else if (tipo === 'pavimento') {
+    // lastre di pietra grigie con le fughe scure
+    blocco(2, 3, 15, 11, 2, '#a7afb9', '#5d6672', 1.5);
+    blocco(19, 3, 11, 11, 2, '#8e97a3', '#5d6672', 1.5);
+    blocco(2, 16, 9, 13, 2, '#9aa2ad', '#5d6672', 1.5);
+    blocco(13, 16, 17, 13, 2, '#b8c0ca', '#5d6672', 1.5);
+  } else if (tipo === 'parquet') {
+    // assi di legno sfalsate, con le venature
+    const assi = [[2, 3, 18, '#c98a4b'], [22, 3, 8, '#b9773d'], [2, 11, 9, '#d69a5a'], [13, 11, 17, '#c98a4b'],
+      [2, 19, 14, '#b9773d'], [18, 19, 12, '#d69a5a']];
+    for (const [ax, ay, larga, colore] of assi) blocco(ax, ay, larga, 7, 1.2, colore, '#6b4426', 1.2);
+    tratto('M5 6.5h9M16 14.5h10M5 22.5h7M21 22.5h6', '#8a5328', 1);
+    blocco(2, 27, 28, 3, 1, '#a0672f', '#6b4426', 1);
   } else if (tipo === 'ascia') {
     tratto('M8 29L21 6', '#8a5328', 3.6);
     pieno('M16.5 5.5L21.5 8.4Q29 8 28.4 16.6Q24.6 12.6 19.2 12.2Z', '#c9d2dc', '#6f7b88', 1.5);

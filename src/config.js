@@ -230,10 +230,9 @@ export const CONFIG = {
   },
 
   // ---------------- MIGLIORAMENTI DELLA BASE ----------------
-  // Ogni catena ha un cerchio verde a terra. Comprato un livello, nello stesso cerchio compare il successivo.
-  // Ogni livello costa circa il doppio del precedente (le due torrette invece costano uguale).
-  // I potenziamenti dei lavoratori (cacciatore esperto, venditore svelto...) compaiono solo quando
-  // sono stati assunti tutti i lavoratori base: aiutante, cacciatore e venditori.
+  // Le "catene" qui sotto dicono cosa fa ogni livello. I cerchi a terra però sono solo due "file"
+  // (vedi "file" più giù): DIFESA ed ECONOMIA, sempre visibili insieme; ogni fila mostra solo il suo
+  // prossimo acquisto, nell'ordine scritto lì. I due pavimenti hanno un cerchio a testa.
   miglioramenti: {
     // --- Difesa ---
     mura: [
@@ -245,15 +244,18 @@ export const CONFIG = {
       { nome: 'Riparazione veloce', prezzo: 200, icona: 'martello', vitaAlSecondo: 0.8 },
       { nome: 'Riparazione esperta', prezzo: 400, icona: 'martello', vitaAlSecondo: 1.6 },
     ],
-    // Torri di legno sulle mura con un arciere che tira frecce ai lupi vicini. Comprate tutte le torri,
-    // nello stesso cerchio (spostato accanto alla seconda torre) compare "Potenzia arcieri".
+    // Torri di legno sulle mura con un arciere che tira frecce ai lupi: due torri per lato (quattro in tutto),
+    // poi "Potenzia arcieri" per tutte. torri = quante torri ci sono (nell'ordine di MAPPA.torri).
     // danno = punti di vita tolti da ogni freccia (un lupo normale ne ha 15); ricarica = secondi tra una freccia e l'altra;
+    // gittata = fin dove tira (metri);
     // aspetto = come sono fatte torri, archi e frecce (0 legno, 1 base di pietra, 2 rinforzi di metallo e punte che brillano)
     torretta: [
-      { nome: 'Torretta', prezzo: 150, icona: 'torre', torri: 1, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 },        // torre sulle mura di sinistra (5 frecce per lupo)
-      { nome: 'Seconda torretta', prezzo: 150, icona: 'torre', torri: 2, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 }, // torre anche sulle mura di destra
-      { nome: 'Potenzia arcieri', prezzo: 600, icona: 'arco', torri: 2, ricarica: 1.2, gittata: 9, danno: 5, aspetto: 1 },     // 3 frecce per lupo
-      { nome: 'Potenzia arcieri 2', prezzo: 1200, icona: 'arcoOro', torri: 2, ricarica: 0.8, gittata: 10, danno: 8, aspetto: 2 }, // 2 frecce per lupo
+      { nome: 'Torretta sinistra 1', prezzo: 150, icona: 'torre', torri: 1, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 }, // 5 frecce per lupo
+      { nome: 'Torretta destra 1', prezzo: 150, icona: 'torre', torri: 2, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 },
+      { nome: 'Torretta sinistra 2', prezzo: 250, icona: 'torre', torri: 3, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 },
+      { nome: 'Torretta destra 2', prezzo: 250, icona: 'torre', torri: 4, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 },
+      { nome: 'Potenzia arcieri', prezzo: 600, icona: 'arco', torri: 4, ricarica: 1.2, gittata: 9, danno: 5, aspetto: 1 },     // 3 frecce per lupo
+      { nome: 'Potenzia arcieri 2', prezzo: 1200, icona: 'arcoOro', torri: 4, ricarica: 0.8, gittata: 10, danno: 8, aspetto: 2 }, // 2 frecce per lupo
     ],
     // --- Lavoratori ---
     aiutante: [
@@ -268,7 +270,42 @@ export const CONFIG = {
       { nome: 'Venditore svelto', prezzo: 200, icona: 'venditore', rapidita: 2.2 },
       { nome: 'Venditore esperto', prezzo: 400, icona: 'venditore', rapidita: 3 },
     ],
+    // --- Pavimento della base (solo aspetto): se ne compra UNO solo, l'altro cerchio sparisce ---
+    pavimentoPietra: [
+      { nome: 'Pavimento in pietra', etichetta: 'Pietra', prezzo: 300, icona: 'pavimento' }, // etichetta: scritta sopra il cerchio
+    ],
+    parquet: [
+      { nome: 'Parquet', prezzo: 300, icona: 'parquet' },
+    ],
     tempoPagamento: 1.5,     // secondi per pagare un livello intero stando sul cerchio (le monete volano dentro)
+  },
+
+  // ---------------- LE DUE FILE DI CERCHI ----------------
+  // Ogni fila è un solo cerchio a terra che mostra il prossimo acquisto: [catena, livello] (il livello parte da 0).
+  // Comprato un passo, nello stesso cerchio compare il successivo. I due pavimenti compaiono (come terzo
+  // cerchio) solo quando sono stati assunti tutti i lavoratori base: aiutante, venditore e cacciatore.
+  file: {
+    difesa: [
+      ['mura', 0],        // Mura di pietra (è il passaggio del tutorial)
+      ['torretta', 0],    // Torretta sinistra 1
+      ['torretta', 1],    // Torretta destra 1
+      ['torretta', 2],    // Torretta sinistra 2
+      ['torretta', 3],    // Torretta destra 2
+      ['riparazione', 0], // Riparazione 1
+      ['mura', 1],        // Rinforzo in metallo
+      ['riparazione', 1], // Riparazione 2
+      ['torretta', 4],    // Potenzia arcieri 1
+      ['torretta', 5],    // Potenzia arcieri 2
+      ['riparazione', 2], // Riparazione 3
+    ],
+    economia: [
+      ['aiutante', 0],    // Aiutante
+      ['venditore', 0],   // Venditore
+      ['cacciatore', 0],  // Cacciatore (il suo banco compare già dopo le mura di pietra)
+      ['venditore', 1],   // Venditore svelto
+      ['cacciatore', 1],  // Cacciatore esperto
+      ['venditore', 2],   // Venditore esperto
+    ],
   },
 
   // ---------------- IMPRONTE NELLA NEVE ----------------
@@ -300,8 +337,8 @@ export const CONFIG = {
     probabilitaMancia: 0.15,     // con i venditori, probabilità che un cliente lasci una mancia (0.15 = 15%)
     manciaMinima: 1,             // monete della mancia: da questa...
     manciaMassima: 3,            // ...a questa (a caso)
-    soldiPerMazzetta: 10,        // ogni quanti dollari compare una mazzetta in più nella pila a terra
-    mazzetteMassime: 40,         // mazzette disegnate al massimo nella pila
+    soldiPerMoneta: 5,           // nel cerchio delle monete: ogni quante monete guadagnate se ne vede una in più nella pila
+    moneteMassime: 60,           // monete disegnate al massimo nella pila
   },
 
   // ---------------- TELECAMERA DELLA SEGHERIA ----------------

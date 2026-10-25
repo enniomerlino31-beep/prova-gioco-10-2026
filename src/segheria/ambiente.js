@@ -17,45 +17,66 @@ import { MEZZO_INGOMBRO_CANCELLO } from './cancello.js';
 import { creaNeveATerra } from './neveATerra.js';
 
 const COLORE_CIELO = 0xbfe3f7;
-const R_PALO = 0.24;     // raggio alla base di ogni palo della palizzata
-const PASSO_PALI = 0.55; // distanza tra un palo e l'altro
+export const R_PALO = 0.24;    // raggio alla base di ogni palo verticale della palizzata
+const PASSO_PALI = 0.55;       // distanza tra un palo e l'altro: quasi attaccati (come nella foto distanza-pali)
 
 // Dove si trova ogni cosa nella segheria (x = destra/sinistra, z = avanti/indietro; z negativo = lontano)
 // Disposizione: a sinistra la colonna della LEGNA, a destra quella della CARNE, al centro una corsia libera.
-// Dall'alto in basso ogni colonna ha: cerchio del miglioramento, catasta (o dispensa), deposito e sportello.
+// Dall'alto in basso la colonna della legna ha: catasta, deposito e sportello; quella della carne: il banco
+// da lavoro del cacciatore, il deposito (il tavolo dove arriva anche la carne della corsa) e lo sportello.
 const COLONNA = 5.5; // distanza delle due colonne dal centro della base
-// le torrette stanno a cavallo della palizzata: la prima a sinistra tra i due cancelli, la seconda a destra
-const TORRI = [new THREE.Vector3(-11.2, 0, -0.3), new THREE.Vector3(11.2, 0, -0.3)];
-const CERCHIO_TORRE = (torre) => new THREE.Vector3(torre.x - Math.sign(torre.x) * 2, 0, torre.z); // 2 metri dentro la base
+// le torrette stanno a cavallo della palizzata, due per lato: una sopra e una sotto il cancello del lato.
+// L'ordine è quello in cui si comprano: sinistra 1 (in alto), destra 1 (in alto), sinistra 2 (in basso), destra 2 (in basso)
+const TORRI = [
+  new THREE.Vector3(-11.2, 0, -4.2), new THREE.Vector3(11.2, 0, -4.2),
+  new THREE.Vector3(-11.2, 0, 2.8), new THREE.Vector3(11.2, 0, 2.8),
+];
+// Il cerchio di ogni torre, dentro la base: quelle in alto 2 metri dentro, alla stessa altezza; quelle in basso
+// un po' più dentro e più in alto, così in basso nell'angolo resta posto per i pavimenti
+const CERCHIO_TORRE = (i) => {
+  const torre = TORRI[i];
+  const verso = Math.sign(torre.x);
+  return i < 2 ? new THREE.Vector3(torre.x - verso * 2, 0, torre.z) : new THREE.Vector3(torre.x - verso * 2.6, 0, torre.z - 1.2);
+};
+// Un posto di un cerchio con la scritta sotto invece che sopra
+const sotto = (punto) => Object.assign(punto, { scrittaSotto: true });
+const MURA = { sinistra: -11.2, destra: 11.2, fondo: -7.4, fronte: 7.3 }; // le quattro file della palizzata
+const META_LATO = (MURA.fondo + MURA.fronte) / 2; // il centro dei lati sinistro e destro
 export const MAPPA = {
   limiti: { xMin: -19, xMax: 19, zMin: -14.5, zMax: 16 }, // fin dove può andare il boscaiolo (anche fuori dalle mura)
-  mura: { sinistra: -11.2, destra: 11.2, fondo: -7.4, fronte: 7.3 }, // le quattro file della palizzata
+  mura: MURA,
   partenza: new THREE.Vector3(0, 0, 0),                  // dove compare il boscaiolo: in mezzo alla corsia centrale
   catasta: new THREE.Vector3(-COLONNA, 0, -1.6),         // qui arriva la legna dalla corsa
-  dispensa: new THREE.Vector3(COLONNA, 0, -1.6),         // qui arriva la carne dalla corsa
-  // Il banco da lavoro del cacciatore, al centro della base un po' a destra (la corsia centrale resta libera);
+  // Il banco da lavoro del cacciatore, nella colonna di destra (di fronte alla catasta);
   // quando non caccia, il cacciatore sta davanti al banco, girato verso il tavolo
-  bancoCacciatore: new THREE.Vector3(2.6, 0, -3.3),
-  casaCacciatore: new THREE.Vector3(2.6, 0, -2.45),
-  // Cerchi dei miglioramenti, ognuno accanto a dove compare quello che compra (nessuno tocca un altro cerchio o un edificio).
-  // I cerchi dei lavoratori stanno al centro della zona dove quel lavoratore lavora.
-  // Una lista invece di un punto = un posto diverso per ogni livello (il cerchio si sposta dopo l'acquisto).
+  bancoCacciatore: new THREE.Vector3(COLONNA, 0, -1.6),
+  casaCacciatore: new THREE.Vector3(COLONNA, 0, -0.75),
+  // Cerchi dei miglioramenti, ognuno accanto a dove compare quello che compra. Delle due file (DIFESA ed
+  // ECONOMIA) si vede solo il prossimo acquisto, nel suo posto; comprato quello, il cerchio si sposta nel
+  // posto del successivo. Una lista invece di un punto = un posto diverso per ogni livello.
+  // Nessun cerchio (e nessuna scritta dei cerchi) tocca un altro cerchio, un edificio o un'insegna:
+  // "sotto" = la scritta sta sotto il cerchio (di solito sta sopra, ma lì non ci sarebbe posto).
   miglioramenti: {
-    aiutante: new THREE.Vector3(-2.6, 0, -1.6),          // accanto alla catasta, verso la corsia (non sulla strada catasta-sportello)
-    cacciatore: new THREE.Vector3(5.6, 0, -4.6),         // accanto al banco del cacciatore, in alto a destra: non è sulla strada di nessuno
-    // prima torre: accanto alla torre di sinistra; seconda torre e "Potenzia arcieri": accanto alla torre di destra
-    torretta: [CERCHIO_TORRE(TORRI[0]), CERCHIO_TORRE(TORRI[1]), CERCHIO_TORRE(TORRI[1]), CERCHIO_TORRE(TORRI[1])],
-    // i due miglioramenti delle mura stanno al centro, appena dentro il muro in alto, ai due lati del posto
-    // dove (nel gruppo 2) andrà il cerchio CORSA del cancello in alto: mura a destra, riparazione a sinistra
-    mura: new THREE.Vector3(3.2, 0, -5.9),
-    riparazione: new THREE.Vector3(-3.2, 0, -5.9),
-    venditore: new THREE.Vector3(0, 0, 2.7),             // al centro, tra i due sportelli dove lavorano i venditori
+    // in alto, ai due lati del cerchio CORSA: mura a destra, riparazione a sinistra
+    mura: sotto(new THREE.Vector3(3.2, 0, -5.9)),
+    riparazione: sotto(new THREE.Vector3(-3.2, 0, -5.9)),
+    // ogni torretta accanto alla sua torre; "Potenzia arcieri" (livelli 5 e 6) accanto alla torre destra 1
+    torretta: [CERCHIO_TORRE(0), CERCHIO_TORRE(1), CERCHIO_TORRE(2), CERCHIO_TORRE(3), CERCHIO_TORRE(1), CERCHIO_TORRE(1)],
+    aiutante: sotto(new THREE.Vector3(-2.6, 0, -1.6)), // accanto alla catasta, verso la corsia (non sulla strada catasta-sportello)
+    venditore: new THREE.Vector3(0, 0, 2.4),           // al centro, tra i due sportelli dove lavorano i venditori
+    cacciatore: new THREE.Vector3(5.8, 0, -4.5),       // accanto al banco del cacciatore, in alto a destra: non è sulla strada di nessuno
+    // i due pavimenti (si vedono solo quando sono stati assunti tutti i lavoratori base): in basso a sinistra e a destra
+    pavimentoPietra: new THREE.Vector3(-8.6, 0, 5.2),
+    parquet: new THREE.Vector3(8.6, 0, 5.2),
   },
+  // L'unico cerchio delle monete: i clienti dei due sportelli pagano qui, dentro la base tra i due depositi
+  monete: new THREE.Vector3(0, 0, 5.2),
   torri: TORRI,
-  // Due cancelli nella palizzata di sinistra (il punto è il centro del varco, sulla linea delle mura)
+  // Tre cancelli (il punto è il centro del varco, sulla linea delle mura)
   cancelli: {
-    foresta: new THREE.Vector3(-11.2, 0, -3.6),          // per uscire nella foresta
-    corsa: new THREE.Vector3(-11.2, 0, 3.0),             // per partire per una nuova corsa
+    corsa: new THREE.Vector3(0, 0, MURA.fondo),              // in alto al centro, davanti alla segheria: per partire per una corsa
+    foresta: new THREE.Vector3(MURA.sinistra, 0, META_LATO), // al centro del lato sinistro: per uscire nella foresta
+    destra: new THREE.Vector3(MURA.destra, 0, META_LATO),    // al centro del lato destro (lo usa anche il cacciatore)
   },
   // Gli sportelli di vendita sono varchi nella palizzata davanti (in basso nello schermo)
   sportelli: {
@@ -64,8 +85,15 @@ export const MAPPA = {
   },
   // I clienti arrivano dal basso, si mettono in fila davanti al loro sportello e se ne vanno di nuovo in basso
   ingressoClienti: new THREE.Vector3(0, 0, 16),
-  casa: new THREE.Vector3(-1, 0, -12.5),
+  casa: new THREE.Vector3(0, 0, -12.5), // la segheria, fuori dal cancello della corsa
 };
+
+// Da che parte è "fuori" per un punto sulla linea delle mura (es. un cancello): { x, z }
+export function latoDelleMura(punto) {
+  if (Math.abs(punto.z - MURA.fondo) < 0.01) return { x: 0, z: -1 };
+  if (Math.abs(punto.z - MURA.fronte) < 0.01) return { x: 0, z: 1 };
+  return { x: Math.sign(punto.x), z: 0 };
+}
 
 export function creaAmbiente() {
   const scena = new THREE.Scene();
@@ -83,46 +111,24 @@ export function creaAmbiente() {
   sole.shadow.bias = -0.0008;
   scena.add(sole, sole.target);
 
-  // --- Terreno innevato (onde leggere, mucchietti, scintillio: vedi neveATerra.js) e radura di neve battuta ---
+  // --- Terreno innevato, anche dentro la base (onde leggere, mucchietti, scintillio: vedi neveATerra.js) ---
   const neveATerra = creaNeveATerra(scena);
 
-  const radura = new THREE.Mesh(new THREE.CircleGeometry(9.6, 48), tinta(0xd3e0ee));
-  radura.rotation.x = -Math.PI / 2;
-  radura.scale.set(1, 0.75, 1);
-  radura.position.set(0, -0.01, 0.6);
-  radura.receiveShadow = true;
-  scena.add(radura);
-
   // --- Palizzata continua attorno a tutta la base ---
+  // Solo pali verticali grossi, quasi attaccati. Qui ci sono solo i "dati" (dove sta ogni palo, ogni fila):
+  // i pali li disegna mura.js, tutti in un colpo solo.
   // Si interrompe solo dove ci sono gli sportelli di vendita e i cancelli:
   // ogni fila di pali arriva fino ai pali grossi del varco e riprende subito dopo.
   // Ogni fila è anche un "muro" solido: un rettangolo che il boscaiolo non può attraversare.
-  const palizzata = new THREE.Group();
-  const pali = [];
-  const collegamenti = []; // coppie di pali vicini nella stessa fila [indiceA, indiceB] (servono per le assi di metallo)
+  const pali = [];         // { position, userData: { normale } } (normale = da che parte è "fuori": le rocce stanno solo lì)
+  const collegamenti = []; // coppie di pali vicini nella stessa fila [indiceA, indiceB] (servono per le fasce di metallo)
   const muri = [];
-  // normale = da che parte è "fuori" per quel palo (serve per le rocce, che stanno solo all'esterno)
-  const aggiungiPalo = (x, z, normale) => {
-    const paloMesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.17, R_PALO, 1.45, 10),
-      new THREE.MeshStandardMaterial({ color: new THREE.Color().setHSL((0.07 + Math.abs(x) * 0.012 + Math.abs(z) * 0.01) % 1, 0.38, 0.41) })
-    );
-    paloMesh.position.set(x, 0.72, z);
-    paloMesh.castShadow = true;
-    const punta = new THREE.Mesh(new THREE.ConeGeometry(0.17, 0.5, 8), new THREE.MeshStandardMaterial({ color: 0xf3f8ff }));
-    punta.position.set(0, 0.95, 0);
-    punta.castShadow = true;
-    paloMesh.add(punta);
-    paloMesh.userData.normale = normale;
-    palizzata.add(paloMesh);
-    pali.push(paloMesh);
-  };
   // Pali in fila dritta da (x1, z1) a (x2, z2), con un palo a ogni estremità (le file sono sempre dritte in x o in z)
   const filaDiPali = (x1, z1, x2, z2, normale) => {
     const n = Math.max(1, Math.round(Math.hypot(x2 - x1, z2 - z1) / PASSO_PALI));
     for (let i = 0; i <= n; i++) {
       if (i > 0) collegamenti.push([pali.length - 1, pali.length]);
-      aggiungiPalo(x1 + ((x2 - x1) * i) / n, z1 + ((z2 - z1) * i) / n, normale);
+      pali.push({ position: new THREE.Vector3(x1 + ((x2 - x1) * i) / n, 0, z1 + ((z2 - z1) * i) / n), userData: { normale } });
     }
     muri.push({
       x: (x1 + x2) / 2,
@@ -144,20 +150,22 @@ export function creaAmbiente() {
   };
   const M = MAPPA.mura;
   const varchiFronte = Object.values(MAPPA.sportelli).map((p) => ({ centro: p.x, mezzo: MEZZO_INGOMBRO + R_PALO }));
-  const varchiSinistra = Object.values(MAPPA.cancelli).map((p) => ({ centro: p.z, mezzo: MEZZO_INGOMBRO_CANCELLO + R_PALO }));
-  for (const [a, b] of tratti(M.sinistra, M.destra, [])) filaDiPali(a, M.fondo, b, M.fondo, { x: 0, z: -1 });
+  // i cancelli di ogni lato: sul lato in alto il varco è lungo x, su quelli a destra e sinistra lungo z
+  const cancelli = Object.values(MAPPA.cancelli);
+  const varchiCancelli = (lato) => cancelli
+    .filter((p) => { const n = latoDelleMura(p); return n.x === lato.x && n.z === lato.z; })
+    .map((p) => ({ centro: lato.z ? p.x : p.z, mezzo: MEZZO_INGOMBRO_CANCELLO + R_PALO }));
+  for (const [a, b] of tratti(M.sinistra, M.destra, varchiCancelli({ x: 0, z: -1 }))) filaDiPali(a, M.fondo, b, M.fondo, { x: 0, z: -1 });
   for (const [a, b] of tratti(M.sinistra, M.destra, varchiFronte)) filaDiPali(a, M.fronte, b, M.fronte, { x: 0, z: 1 });
   // i due lati partono un passo dopo gli angoli (i pali d'angolo ci sono già)
-  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, varchiSinistra)) filaDiPali(M.sinistra, a, M.sinistra, b, { x: -1, z: 0 });
-  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, [])) filaDiPali(M.destra, a, M.destra, b, { x: 1, z: 0 });
-  palizzata.userData.pali = pali;
-  palizzata.userData.collegamenti = collegamenti;
-  scena.add(palizzata);
+  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, varchiCancelli({ x: -1, z: 0 }))) filaDiPali(M.sinistra, a, M.sinistra, b, { x: -1, z: 0 });
+  for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, varchiCancelli({ x: 1, z: 0 }))) filaDiPali(M.destra, a, M.destra, b, { x: 1, z: 0 });
+  const palizzata = { pali, collegamenti };
 
-  // Sentiero che esce dal cancello della corsa verso la foresta
-  const sentiero = new THREE.Mesh(new THREE.PlaneGeometry(14, 2.6), tinta(0xbfcfe2));
+  // Sentiero che esce dal cancello della corsa e arriva alla segheria
+  const sentiero = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.4), tinta(0xbfcfe2));
   sentiero.rotation.x = -Math.PI / 2;
-  sentiero.position.set(MAPPA.cancelli.corsa.x - 7, -0.005, MAPPA.cancelli.corsa.z);
+  sentiero.position.set(MAPPA.cancelli.corsa.x, -0.005, MAPPA.cancelli.corsa.z - 1.7);
   sentiero.receiveShadow = true;
   scena.add(sentiero);
 
@@ -168,7 +176,6 @@ export function creaAmbiente() {
     const raggio = 21.5 + Math.random() * 36;
     const x = Math.cos(angolo) * raggio;
     const z = Math.sin(angolo) * raggio * 0.95;
-    if (x < -9 && Math.abs(z - MAPPA.cancelli.corsa.z) < 3.5) continue;
     const scala = 1.1 + Math.random() * 1.3;
     posti.push(matrice([x, 0, z], [0, Math.random() * 6, 0], [scala, scala * 1.18, scala]));
   }

@@ -1,11 +1,14 @@
 // =====================================================================
 //  CERCHIO DI UN MIGLIORAMENTO (verde, piatto a terra)
-//  Dentro c'è un'icona grande di cosa si compra e sotto il prezzo con
-//  la moneta. Quando il boscaiolo ci sta sopra, le monete volano dentro
-//  e il bordo si riempie come una barra circolare. A pagamento finito il
-//  cerchio fa un piccolo "salto" e mostra il livello successivo; quando
-//  i livelli sono finiti sparisce.
-//  Ogni cerchio è una "catena" di livelli (vedi CONFIG.miglioramenti).
+//  Dentro c'è un'icona grande di cosa si compra e sotto, con la moneta,
+//  quante monete MANCANO per comprarlo (il numero scende mentre si paga).
+//  Sopra il cerchio, a terra, c'è la scritta con il nome della fila (es.
+//  DIFESA) e di cosa si compra. Quando il boscaiolo ci sta sopra, le monete
+//  volano dentro e il bordo si riempie come una barra circolare. A
+//  pagamento finito il cerchio fa un piccolo "salto" e mostra il livello
+//  successivo; quando i livelli sono finiti sparisce.
+//  Ogni cerchio è una lista di livelli: una "fila" di acquisti (DIFESA,
+//  ECONOMIA, vedi CONFIG.file) oppure una catena (i pavimenti).
 //  Un livello può stare in un posto diverso dal precedente (es. la seconda
 //  torretta è dall'altra parte della base): allora, dopo l'acquisto, il
 //  cerchio si rimpicciolisce, si sposta lì e ricompare.
@@ -18,11 +21,14 @@ import { disegnaIcona } from '../modelli/materiali.js';
 const RAGGIO = 1.2;           // come gli altri cerchi a terra (es. il deposito degli sportelli)
 const LARGHEZZA_BARRA = 0.24; // spessore della barra circolare
 const PASSI_PAGAMENTO = 12;   // in quanti "voli" di monete si paga un livello
+const ALTEZZA_SCRITTA = 0.95; // la scritta a terra sopra il cerchio (metri)
 
 export class CerchioMiglioramento {
-  // posizioni: un punto, oppure un punto per ogni livello (da MAPPA.miglioramenti)
-  // livelli: la catena da CONFIG.miglioramenti; comprati: quanti livelli sono già stati comprati; pagato: soldi già messi nel livello attuale
-  constructor(genitore, posizioni, livelli, comprati, pagato) {
+  // posizioni: un punto, oppure un punto per ogni livello (da MAPPA.miglioramenti; scrittaSotto = scritta sotto il cerchio)
+  // livelli: la lista dei livelli ({ nome, prezzo, icona }); comprati: a quale livello si è arrivati; pagato: monete già messe nel livello attuale
+  // titolo: il nome scritto sopra il cerchio (es. 'DIFESA'), insieme al nome di cosa si compra;
+  // larghezzaScritta: quanto è larga la scritta (metri), così non tocca le scritte e le insegne vicine
+  constructor(genitore, posizioni, livelli, comprati, pagato, titolo = '', larghezzaScritta = 2.5) {
     this.posizioni = Array.isArray(posizioni) ? posizioni : livelli.map(() => posizioni);
     this.posizione = (this.posizioni[comprati] ?? this.posizioni[this.posizioni.length - 1]).clone();
     this.livelli = livelli;
@@ -67,6 +73,18 @@ export class CerchioMiglioramento {
     this.disegno = piatto(new THREE.PlaneGeometry(RAGGIO * 1.5, RAGGIO * 1.5), 0xffffff, 1, 0.015);
     this.disegno.material.map = this.texture;
     this.disegno.renderOrder = 1;
+
+    // La scritta sopra il cerchio (verso il fondo della base): titolo della fila e nome di cosa si compra
+    this.titolo = titolo;
+    this.telaScritta = document.createElement('canvas');
+    this.telaScritta.width = 512;
+    this.telaScritta.height = Math.round((512 * ALTEZZA_SCRITTA) / larghezzaScritta);
+    this.textureScritta = new THREE.CanvasTexture(this.telaScritta);
+    this.textureScritta.colorSpace = THREE.SRGBColorSpace;
+    this.scritta = piatto(new THREE.PlaneGeometry(larghezzaScritta, ALTEZZA_SCRITTA), 0xffffff, 1, 0.015);
+    this.scritta.material.map = this.textureScritta;
+    this.scritta.renderOrder = 1;
+    this.sistemaScritta();
 
     this.ridisegna();
     this.aggiornaBarra();
@@ -134,17 +152,19 @@ export class CerchioMiglioramento {
     this.inArrivo -= rata;
     this.pagato += rata;
     this.aggiornaBarra();
+    this.ridisegna(); // il numero delle monete che mancano scende
     return this.pagato >= this.livello.prezzo;
   }
 
-  // Il livello è comprato: si passa al successivo (o il cerchio sparisce)
-  passaAlSuccessivo() {
-    this.comprati += 1;
+  // Il livello è comprato: si passa al successivo (o il cerchio sparisce).
+  // prossimo: a quale livello passare (di solito quello dopo; una fila può saltare i passi già fatti)
+  passaAlSuccessivo(prossimo = this.comprati + 1) {
+    this.comprati = prossimo;
     this.pagato = 0;
     this.inArrivo = 0;
     this.salto = 1;
     if (this.livello) {
-      const nuova = this.posizioni[this.comprati];
+      const nuova = this.posizioni[this.comprati] ?? this.posizione;
       if (nuova.distanceTo(this.posizione) > 0.01) {
         this.trasloco = 1; // a metà animazione il cerchio cambia posto e disegno (vedi aggiorna)
         this.salto = 0;
@@ -175,7 +195,8 @@ export class CerchioMiglioramento {
       const primaMeta = this.trasloco > 0.5;
       this.trasloco = Math.max(0, this.trasloco - dt * 1.6);
       if (primaMeta && this.trasloco <= 0.5) {
-        this.posizione.copy(this.posizioni[this.comprati]);
+        this.posizione.copy(this.posizioni[this.comprati] ?? this.posizione);
+        this.sistemaScritta();
         this.gruppo.position.copy(this.posizione).setY(0.02);
         this.ridisegna();
         this.aggiornaBarra();
@@ -204,8 +225,9 @@ export class CerchioMiglioramento {
       : new THREE.BufferGeometry();
   }
 
-  // Icona grande in alto, prezzo con la moneta sotto
+  // Icona grande in alto e, sotto, le monete che mancano (con l'icona della moneta); sopra il cerchio la scritta
   ridisegna() {
+    this.ridisegnaScritta();
     const ctx = this.tela.getContext('2d');
     const { width: l, height: a } = this.tela;
     ctx.clearRect(0, 0, l, a);
@@ -216,7 +238,7 @@ export class CerchioMiglioramento {
     ctx.fill();
     disegnaIcona(ctx, this.livello.icona, l / 2 - 52, 40, 104);
 
-    const testo = String(this.livello.prezzo);
+    const testo = String(Math.max(0, Math.ceil(this.livello.prezzo - this.pagato)));
     ctx.font = '62px "Lilita One", "Arial Black", sans-serif';
     ctx.textBaseline = 'middle';
     const latoMoneta = 50;
@@ -229,13 +251,52 @@ export class CerchioMiglioramento {
     ctx.strokeText(testo, inizio + latoMoneta + 8, 203);
     ctx.fillStyle = '#ffffff';
     ctx.fillText(testo, inizio + latoMoneta + 8, 203);
-    if (this.spento) {
-      // cerchio spento: anche l'icona e il prezzo diventano grigi
-      const immagine = ctx.getImageData(0, 0, l, a);
-      const p = immagine.data;
-      for (let i = 0; i < p.length; i += 4) p[i] = p[i + 1] = p[i + 2] = p[i] * 0.3 + p[i + 1] * 0.59 + p[i + 2] * 0.11;
-      ctx.putImageData(immagine, 0, 0);
-    }
+    if (this.spento) grigio(ctx); // cerchio spento: anche l'icona e il prezzo diventano grigi
     this.texture.needsUpdate = true;
   }
+
+  // La scritta sta sopra il cerchio (verso il fondo della base), o sotto se il posto lo chiede (scrittaSotto)
+  sistemaScritta() {
+    const posto = this.posizioni[this.comprati] ?? this.posizioni[this.posizioni.length - 1];
+    this.scritta.position.z = (posto.scrittaSotto ? 1 : -1) * (RAGGIO + ALTEZZA_SCRITTA / 2 + 0.05);
+  }
+
+  // La scritta a terra sopra il cerchio: il titolo piccolo (es. DIFESA) e sotto il nome di cosa si compra
+  ridisegnaScritta() {
+    const ctx = this.telaScritta.getContext('2d');
+    const { width: l, height: a } = this.telaScritta;
+    ctx.clearRect(0, 0, l, a);
+    if (!this.livello) return;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.lineJoin = 'round';
+    const riga = (testo, y, grandezza, colore) => {
+      let dimensione = grandezza;
+      ctx.font = `${dimensione}px "Lilita One", "Arial Black", sans-serif`;
+      const larga = ctx.measureText(testo).width;
+      if (larga > l - 24) { // se non ci sta, si rimpicciolisce
+        dimensione = Math.floor((dimensione * (l - 24)) / larga);
+        ctx.font = `${dimensione}px "Lilita One", "Arial Black", sans-serif`;
+      }
+      ctx.lineWidth = dimensione * 0.2;
+      ctx.strokeStyle = 'rgba(20,60,30,0.9)';
+      ctx.strokeText(testo, l / 2, y);
+      ctx.fillStyle = colore;
+      ctx.fillText(testo, l / 2, y);
+    };
+    // la scritta è più alta che larga se il cerchio è stretto: i caratteri seguono l'altezza della tela
+    if (this.titolo) riga(this.titolo, a * 0.27, Math.round(a * 0.3), '#ffd23f');
+    riga(this.livello.etichetta ?? this.livello.nome, this.titolo ? a * 0.7 : a / 2, Math.round(a * 0.4), '#ffffff');
+    if (this.spento) grigio(ctx);
+    this.textureScritta.needsUpdate = true;
+  }
+}
+
+// Rende grigio tutto quello che è disegnato su una tela (per i cerchi spenti)
+function grigio(ctx) {
+  const { width, height } = ctx.canvas;
+  const immagine = ctx.getImageData(0, 0, width, height);
+  const p = immagine.data;
+  for (let i = 0; i < p.length; i += 4) p[i] = p[i + 1] = p[i + 2] = p[i] * 0.3 + p[i + 1] * 0.59 + p[i + 2] * 0.11;
+  ctx.putImageData(immagine, 0, 0);
 }

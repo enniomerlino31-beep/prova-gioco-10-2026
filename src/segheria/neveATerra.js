@@ -91,7 +91,7 @@ export function creaNeveATerra(scena) {
     const raggio = 13 + Math.random() * 10;
     const x = Math.cos(angolo) * raggio * 1.15;
     const z = Math.sin(angolo) * raggio * 0.85;
-    if (x < -11 && Math.abs(z - 3) < 2.5) continue; // il sentiero che esce dal cancello della corsa
+    if (Math.abs(x) < 4.5 && z < -7) continue; // il sentiero che esce dal cancello della corsa e la segheria
     const largo = 0.35 + Math.random() * 0.8;
     q.setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.random() * Math.PI);
     m.compose(new THREE.Vector3(x, -0.04, z), q, new THREE.Vector3(largo, 0.1 + Math.random() * 0.2, largo * (0.6 + Math.random() * 0.5)));

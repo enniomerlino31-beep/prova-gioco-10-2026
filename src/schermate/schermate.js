@@ -226,10 +226,21 @@ export class Schermate {
   }
 
   // Mostra un testo che sale e svanisce in un punto del mondo 3D
-  testoVolante(x, y, z, testo, tipo = 'buono') {
+  // icona: 'moneta' = dopo il numero c'è l'icona della moneta (tutto quello che è soldi nel gioco è monete);
+  // il resto del testo, se c'è, va dopo l'icona (es. "+2" moneta "mancia")
+  testoVolante(x, y, z, testo, tipo = 'buono', icona = null) {
     const elemento = document.createElement('div');
     elemento.className = `testo-volante ${tipo}`;
-    elemento.textContent = testo;
+    if (icona === 'moneta') {
+      const [numero, ...resto] = testo.split(' ');
+      elemento.append(numero);
+      const moneta = document.createElement('span');
+      moneta.className = 'hud-icon hud-icon--coin';
+      elemento.append(moneta);
+      if (resto.length) elemento.append(resto.join(' '));
+    } else {
+      elemento.textContent = testo;
+    }
     $('testi-mondo').appendChild(elemento);
     this.testi.push({ elemento, posizione: new THREE.Vector3(x, y, z), vita: 0 });
   }

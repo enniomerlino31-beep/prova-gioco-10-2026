@@ -1,8 +1,9 @@
 // =====================================================================
 //  IL BOSCAIOLO DELLA SEGHERIA (quello che controlla il giocatore)
 //  - cammina con il joystick o la tastiera; le mura lo bloccano, esce solo dai cancelli aperti
-//  - porta sulla schiena legna e carne SENZA limiti: due colonne di pezzi
-//    (disegnate fino a un'altezza massima) con sopra il numero vero
+//  - porta sulla schiena legna, carne e monete SENZA limiti: tre pile centrate
+//    sulla schiena, una dietro l'altra (dalla schiena verso fuori: legna,
+//    carne, monete), disegnate fino a un'altezza massima, con il numero vero
 // =====================================================================
 
 import * as THREE from 'three';
@@ -11,11 +12,15 @@ import { creaBoscaiolo } from '../modelli/boscaiolo.js';
 import { animaPersona, animaColpo, COLPO } from '../modelli/animazioni.js';
 import { geometriaTronco, materialiTronco } from '../modelli/carro.js';
 import { creaCarne } from '../modelli/carne.js';
+import { creaMoneta } from '../modelli/soldi.js';
 import { creaEtichetta, liberaEtichetta } from '../modelli/materiali.js';
 import { MAPPA } from './ambiente.js';
 
-const ALTEZZA_PEZZO = 0.2;     // spazio occupato da ogni pezzo nella pila (misura del modello)
-const X_COLONNA = { legna: -0.28, carne: 0.28 }; // le due colonne sulla schiena, una accanto all'altra
+const ALTEZZA_PEZZO = { legna: 0.2, carne: 0.2, monete: 0.075 }; // spazio occupato da ogni pezzo nella pila (misura del modello)
+const ORDINE = ['legna', 'carne', 'monete']; // le pile, dalla schiena verso fuori
+const PASSO_PILE = 0.3;        // distanza tra una pila e quella dietro
+const MONETE_PER_PEZZO = 25;   // ogni quante monete in tasca c'è una moneta in più nella pila
+const MONETE_VISIBILI = 12;    // monete disegnate al massimo nella pila
 const RAGGIO_BOSCAIOLO = 0.35; // ingombro per non attraversare banconi e depositi degli sportelli
 
 export class Giocatore {
@@ -32,43 +37,73 @@ export class Giocatore {
     this.saltoPila = 0;     // saltello della pila quando arriva un pezzo (da 1 a 0)
 
     // Le pile sulla schiena: un gruppo attaccato al boscaiolo (alla sua "molla", così rimbalza con lui), dietro le spalle.
-    // Il carico NON ha limiti: si disegnano al massimo "pezziVisibiliSchiena" pezzi per colonna
-    // e sopra ogni colonna c'è il numero vero (es. "x150").
+    // Il carico NON ha limiti: si disegnano al massimo "pezziVisibiliSchiena" pezzi per pila
+    // e sopra le pile c'è il numero vero (es. "x150"). Le pile stanno al centro della schiena, in fila
+    // verso il retro: se una pila è vuota, quelle dietro scivolano avanti a prendere il suo posto.
     this.schiena = new THREE.Group();
     this.schiena.position.set(0, 0.55, 0.24);
     this.modello.userData.molla.add(this.schiena);
-    this.carico = { legna: 0, carne: 0 }; // unità portate sulla schiena
+    this.carico = { legna: 0, carne: 0 }; // unità portate sulla schiena (le monete sono i soldi in tasca: vedi impostaMonete)
+    this.monete = 0;
     this.colonne = {};
-    for (const tipo of Object.keys(this.carico)) this.creaColonna(tipo);
+    for (const tipo of ORDINE) this.creaColonna(tipo);
     this.ostacoli = [];     // rettangoli { x, z, mezzaX, mezzaZ } che il boscaiolo non può attraversare
   }
 
-  // Prepara i pezzi (nascosti) di una colonna e il posto per la sua etichetta
+  // Prepara i pezzi (nascosti) di una pila e il posto per la sua etichetta
   creaColonna(tipo) {
+    const gruppo = new THREE.Group(); // la pila intera: scivola avanti e indietro lungo la schiena
+    this.schiena.add(gruppo);
     const pezzi = [];
-    for (let i = 0; i < CONFIG.segheria.pezziVisibiliSchiena; i++) {
+    const quanti = tipo === 'monete' ? MONETE_VISIBILI : CONFIG.segheria.pezziVisibiliSchiena;
+    for (let i = 0; i < quanti; i++) {
       let mesh;
       if (tipo === 'carne') {
         mesh = creaCarne();
         mesh.scale.setScalar(0.75);
+      } else if (tipo === 'monete') {
+        mesh = creaMoneta();
+        mesh.scale.set(0.15, 0.05, 0.15);
+        mesh.position.x = (Math.random() - 0.5) * 0.03; // non perfettamente in colonna
       } else {
         mesh = new THREE.Mesh(geometriaTronco, materialiTronco);
         mesh.rotation.z = Math.PI / 2; // tronco di traverso sulla schiena
         mesh.scale.set(0.7, 0.32, 0.7);
         mesh.castShadow = true;
       }
-      mesh.position.set(X_COLONNA[tipo], i * ALTEZZA_PEZZO + 0.06, 0);
+      mesh.position.y = i * ALTEZZA_PEZZO[tipo] + 0.06;
       mesh.rotation.y = (Math.random() - 0.5) * 0.2;
       mesh.visible = false;
-      this.schiena.add(mesh);
+      gruppo.add(mesh);
       pezzi.push(mesh);
     }
-    this.colonne[tipo] = { pezzi, etichetta: null, numero: 0 };
+    this.colonne[tipo] = { gruppo, pezzi, etichetta: null, numero: 0, z: 0 };
   }
 
-  // Pezzi disegnati in una colonna (al massimo "pezziVisibiliSchiena")
+  // Quante unità ci sono in una pila
+  quantita(tipo) {
+    return tipo === 'monete' ? this.monete : this.carico[tipo];
+  }
+
+  // Pezzi disegnati in una pila (al massimo quelli preparati)
   pezziVisibili(tipo) {
-    return Math.min(CONFIG.segheria.pezziVisibiliSchiena, Math.ceil(this.carico[tipo] / CONFIG.segheria.unitaPerPezzo));
+    const perPezzo = tipo === 'monete' ? MONETE_PER_PEZZO : CONFIG.segheria.unitaPerPezzo;
+    return Math.min(this.colonne[tipo].pezzi.length, Math.ceil(this.quantita(tipo) / perPezzo));
+  }
+
+  // Dove sta (lungo la schiena) la pila: le pile non vuote si mettono in fila, nell'ordine legna, carne, monete
+  posizionePila(tipo) {
+    const piene = ORDINE.filter((nome) => this.quantita(nome) > 0);
+    const posto = piene.includes(tipo) ? piene.indexOf(tipo) : piene.filter((nome) => ORDINE.indexOf(nome) < ORDINE.indexOf(tipo)).length;
+    return posto * PASSO_PILE;
+  }
+
+  // I soldi in tasca: si vedono come una pila di monete, l'ultima sulla schiena
+  impostaMonete(soldi) {
+    const monete = Math.max(0, Math.floor(soldi));
+    if (monete === this.monete) return;
+    this.monete = monete;
+    this.aggiornaColonna('monete');
   }
 
   // Aggiunge legna o carne sulla schiena (nessun limite)
@@ -90,12 +125,12 @@ export class Giocatore {
     return tolta;
   }
 
-  // Mostra i pezzi giusti e aggiorna il numero sopra la colonna
+  // Mostra i pezzi giusti e aggiorna il numero sopra la pila
   aggiornaColonna(tipo) {
     const colonna = this.colonne[tipo];
     const visibili = this.pezziVisibili(tipo);
     colonna.pezzi.forEach((mesh, i) => (mesh.visible = i < visibili));
-    const numero = this.carico[tipo];
+    const numero = this.quantita(tipo);
     if (numero === colonna.numero) return;
     colonna.numero = numero;
     if (colonna.etichetta) {
@@ -107,17 +142,28 @@ export class Giocatore {
     colonna.etichetta = creaEtichetta(`x${numero}`, {
       larghezza: 0.62,
       altezza: 0.25,
-      icona: tipo,
+      icona: tipo === 'monete' ? 'moneta' : tipo,
       coloreTesto: '#ffffff',
       coloreBordo: 'rgba(0,0,0,0.75)',
     });
-    colonna.etichetta.position.set(X_COLONNA[tipo], visibili * ALTEZZA_PEZZO + 0.3, 0);
-    this.schiena.add(colonna.etichetta);
+    this.schiena.add(colonna.etichetta); // la mette al suo posto sistemaEtichette, a ogni fotogramma
   }
 
-  // Punto del mondo in cima a una colonna (dove atterrano i pezzi raccolti, e da dove partono quelli scaricati)
+  // Le etichette stanno una sopra l'altra, sopra la pila più alta (dall'alto: legna, carne, monete),
+  // così non si coprono mai, da qualsiasi parte sia girato il boscaiolo
+  sistemaEtichette() {
+    const conEtichetta = ORDINE.filter((tipo) => this.colonne[tipo].etichetta);
+    if (conEtichetta.length === 0) return;
+    const cima = Math.max(...ORDINE.map((tipo) => this.pezziVisibili(tipo) * ALTEZZA_PEZZO[tipo]));
+    const centro = Math.max(...ORDINE.map((tipo) => this.colonne[tipo].z)) / 2;
+    conEtichetta.forEach((tipo, i) => {
+      this.colonne[tipo].etichetta.position.set(0, cima + 0.3 + (conEtichetta.length - 1 - i) * 0.27, centro);
+    });
+  }
+
+  // Punto del mondo in cima a una pila (dove atterrano i pezzi raccolti, e da dove partono quelli scaricati)
   cimaSchiena(risultato = new THREE.Vector3(), tipo = 'legna') {
-    risultato.set(X_COLONNA[tipo] ?? 0, (this.pezziVisibili(tipo) + 0.5) * ALTEZZA_PEZZO + 0.08, 0);
+    risultato.set(0, (this.pezziVisibili(tipo) + 0.5) * ALTEZZA_PEZZO[tipo] + 0.08, this.posizionePila(tipo));
     this.modello.updateMatrixWorld();
     return this.schiena.localToWorld(risultato);
   }
@@ -189,6 +235,13 @@ export class Giocatore {
     this.saltoPila = Math.max(0, this.saltoPila - dt * 5);
     const salto = Math.sin(this.saltoPila * Math.PI);
     this.schiena.scale.set(1 + salto * 0.12, 1 + salto * 0.2, 1 + salto * 0.12);
+    // le pile scivolano dolcemente al loro posto nella fila
+    for (const tipo of ORDINE) {
+      const colonna = this.colonne[tipo];
+      colonna.z += (this.posizionePila(tipo) - colonna.z) * Math.min(1, dt * 10);
+      colonna.gruppo.position.z = colonna.z;
+    }
+    this.sistemaEtichette();
   }
 
   // Inizia il colpo d'ascia verso il lupo che si trova in (x, z)

@@ -1,39 +1,46 @@
 // =====================================================================
-//  PILA DI SOLDI accanto a uno sportello di vendita (dentro la base)
-//  I clienti ci lasciano i soldi; il boscaiolo li raccoglie camminandoci
-//  sopra e le mazzette volano verso di lui.
+//  CERCHIO DELLE MONETE (uno solo, dentro la base tra i due sportelli)
+//  I clienti di tutti e due gli sportelli ci lasciano le monete; il
+//  boscaiolo le raccoglie camminandoci sopra e le monete volano verso di
+//  lui. Le monete a terra sono impilate in sette colonne: più se ne
+//  guadagnano, più le colonne crescono.
 // =====================================================================
 
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
-import { partiMazzetta } from '../modelli/soldi.js';
+import { partiMoneta } from '../modelli/soldi.js';
 import { creaZonaATerra } from './catasta.js';
+
+const ALTEZZA_MONETA = 0.055;
 
 export class PilaSoldi {
   constructor(genitore, posizione, valore) {
     this.posizione = posizione.clone();
-    this.valore = valore; // dollari a terra
+    this.valore = valore; // monete a terra
     this.gruppo = new THREE.Group();
     this.gruppo.position.copy(posizione);
     genitore.add(this.gruppo);
     this.gruppo.add(creaZonaATerra(CONFIG.segheria.raggioRaccolta * 0.75, 0x9be37a));
 
-    // Mazzette in 4 colonne (2x2), una sopra l'altra
-    const massimo = CONFIG.economia.mazzetteMassime;
+    // Sette colonne di monete (una al centro e sei intorno); si riempiono a giro, uno strato alla volta
+    const colonne = [[0, 0]];
+    for (let k = 0; k < 6; k++) colonne.push([Math.cos((k / 6) * Math.PI * 2) * 0.36, Math.sin((k / 6) * Math.PI * 2) * 0.36]);
+    const massimo = CONFIG.economia.moneteMassime;
     this.posti = [];
     for (let i = 0; i < massimo; i++) {
-      const strato = Math.floor(i / 4);
-      const k = i % 4;
-      this.posti.push(new THREE.Vector3(((k % 2) - 0.5) * 0.44, strato * 0.09, (Math.floor(k / 2) - 0.5) * 0.24));
+      const [x, z] = colonne[i % colonne.length];
+      const strato = Math.floor(i / colonne.length);
+      // ogni moneta è un pochino spostata, così le colonne non sembrano perfette
+      this.posti.push(new THREE.Vector3(x + Math.sin(i * 7.1) * 0.025, strato * ALTEZZA_MONETA, z + Math.cos(i * 5.3) * 0.025));
     }
     const m4 = new THREE.Matrix4();
     const finale = new THREE.Matrix4();
-    const uno = new THREE.Vector3(1.2, 1.2, 1.2);
-    this.istanze = partiMazzetta().map((parte) => {
+    const uno = new THREE.Vector3(1, 1, 1);
+    this.istanze = partiMoneta().map((parte) => {
       const mesh = new THREE.InstancedMesh(parte.geometria, parte.materiale, massimo);
       this.posti.forEach((p, i) => {
-        const girato = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, (Math.sin(i * 3.7) * 0.25), 0));
-        mesh.setMatrixAt(i, finale.multiplyMatrices(m4.compose(p, girato, uno), parte.matrice));
+        const storta = new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.sin(i * 3.7) * 0.06, 0, Math.cos(i * 2.9) * 0.06));
+        mesh.setMatrixAt(i, finale.multiplyMatrices(m4.compose(p, storta, uno), parte.matrice));
       });
       mesh.castShadow = true;
       this.gruppo.add(mesh);
@@ -51,7 +58,7 @@ export class PilaSoldi {
     this.aggiornaGrafica();
   }
 
-  // Prende tutti i soldi a terra
+  // Prende tutte le monete a terra
   prendiTutto() {
     const valore = this.valore;
     this.valore = 0;
@@ -59,17 +66,18 @@ export class PilaSoldi {
     return valore;
   }
 
-  // Punto in cima alla pila (dove atterrano i soldi lasciati dai clienti)
+  // Punto in cima alla pila (dove atterrano le monete lasciate dai clienti)
   puntoDiArrivo(tipo, risultato = new THREE.Vector3()) {
-    const indice = Math.min(this.posti.length - 1, this.mazzette);
+    const indice = Math.min(this.posti.length - 1, this.monete);
     return risultato.copy(this.posti[indice]).add(this.posizione).setY(this.posti[indice].y + 0.1);
   }
 
-  get mazzette() {
-    return Math.min(this.posti.length, Math.ceil(this.valore / CONFIG.economia.soldiPerMazzetta));
+  // Quante monete si vedono nella pila
+  get monete() {
+    return Math.min(this.posti.length, Math.ceil(this.valore / CONFIG.economia.soldiPerMoneta));
   }
 
   aggiornaGrafica() {
-    for (const mesh of this.istanze) mesh.count = this.mazzette;
+    for (const mesh of this.istanze) mesh.count = this.monete;
   }
 }

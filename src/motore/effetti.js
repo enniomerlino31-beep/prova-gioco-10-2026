@@ -1,18 +1,18 @@
 // =====================================================================
 //  EFFETTI SPECIALI (usati sia dalla corsa sia dalla segheria)
-//  - oggetti che VOLANO da un punto a un altro (tronchi, carne, soldi)
+//  - oggetti che VOLANO da un punto a un altro (tronchi, carne, monete)
 //    con un arco e una rotazione
 //  - sbuffi di particelle: schegge di legno, neve, polvere
 //  - polvere di neve sotto i piedi e scintille che brillano (raccolta, colpi)
 //  - impronte nella neve (vedi impronte.js): stivali per le persone, zampe per i lupi
-//  - testi volanti ("+12 legna", "-3"), disegnati dalle schermate
+//  - testi volanti ("+12 legna", "-3", "+20" con la moneta), disegnati dalle schermate
 // =====================================================================
 
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { geometriaTronco, materialiTronco } from '../modelli/carro.js';
 import { creaCarne } from '../modelli/carne.js';
-import { creaMazzetta, creaMoneta } from '../modelli/soldi.js';
+import { creaMucchietto, creaMoneta } from '../modelli/soldi.js';
 import { Impronte } from './impronte.js';
 
 const MASSIMO_PARTICELLE = 300;
@@ -55,9 +55,9 @@ export class Effetti {
     this._arrivo = new THREE.Vector3();
   }
 
-  // Testo che sale e svanisce (es. "+12 legna")
-  testo(x, y, z, testo, tipo) {
-    this.schermate.testoVolante(x, y, z, testo, tipo);
+  // Testo che sale e svanisce (es. "+12 legna"); icona: 'moneta' = con l'icona della moneta dopo il numero
+  testo(x, y, z, testo, tipo, icona = null) {
+    this.schermate.testoVolante(x, y, z, testo, tipo, icona);
   }
 
   // Sbuffo di particelle in un punto: colore e quantità a scelta
@@ -129,13 +129,13 @@ export class Effetti {
     const scala = modello.scale.x;
     const lato = Math.sin(modello.userData.anim.fase) > 0 ? 1 : -1;
     const fianco = 0.09 * scala * lato; // il piede sta un po' di lato rispetto al centro
-    this.impronte.aggiungi('stivale', x + Math.cos(angolo) * fianco, z - Math.sin(angolo) * fianco, angolo, 0.2 * scala, 0.32 * scala);
+    this.impronte.aggiungi('stivale', x + Math.cos(angolo) * fianco, z - Math.sin(angolo) * fianco, angolo, 0.24 * scala, 0.36 * scala);
     this.polvere(x, z, polvere, grandezza);
   }
 
   // Un'impronta di zampa di lupo in (x, z), girata come "angolo"; scala = grandezza del lupo
   orma(x, z, angolo, scala) {
-    this.impronte.aggiungi('zampa', x, z, angolo, 0.3 * scala, 0.3 * scala);
+    this.impronte.aggiungi('zampa', x, z, angolo, 0.34 * scala, 0.34 * scala);
   }
 
   // Aggiunge una particella a un elenco; se è pieno toglie la più vecchia
@@ -144,7 +144,7 @@ export class Effetti {
     lista.push(particella);
   }
 
-  // Lancia un oggetto ('legna', 'carne', 'soldi' o 'moneta') dal punto "da" fino alla destinazione.
+  // Lancia un oggetto ('legna', 'carne', 'soldi' = un mucchietto di monete, o 'moneta') dal punto "da" fino alla destinazione.
   // destinazione: una funzione che restituisce il punto di arrivo (può muoversi!)
   //               oppure un oggetto con il metodo puntoDiArrivo(tipo) come il carro.
   // Quando atterra viene chiamata la funzione alArrivo (che aggiunge il carico).
@@ -155,7 +155,7 @@ export class Effetti {
       oggetto = creaCarne();
       oggetto.scale.setScalar(1.3 * (opzioni.scala ?? 1));
     } else if (tipo === 'soldi') {
-      oggetto = creaMazzetta();
+      oggetto = creaMucchietto();
       oggetto.scale.setScalar(1.4 * (opzioni.scala ?? 1));
     } else if (tipo === 'moneta') {
       oggetto = creaMoneta();
@@ -211,7 +211,7 @@ export class Effetti {
         volo.destinazione.rimbalza?.();
         if (volo.sbuffo) {
           // schegge (di legno o di carne) + un po' di polvere di neve
-          const colore = volo.tipo === 'carne' ? 0xc8392f : volo.tipo === 'soldi' ? 0x7bd36a : 0xb07a45;
+          const colore = volo.tipo === 'carne' ? 0xc8392f : volo.tipo === 'soldi' ? 0xffd23f : 0xb07a45;
           this.sbuffo(arrivo.x, arrivo.y, arrivo.z, colore, 6, 2.5);
           this.sbuffo(arrivo.x, arrivo.y, arrivo.z, 0xf4f8ff, 4, 2);
         }

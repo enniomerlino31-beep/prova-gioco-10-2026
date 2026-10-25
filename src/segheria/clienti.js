@@ -179,7 +179,7 @@ export class Clienti {
       this.inVolo.soldi -= incasso;
       pila.aggiungi(incasso);
     }, { durata: 0.55, altezza: 1.8 });
-    this.effetti.testo(testa.x, testa.y + 0.6, testa.z, `+${incasso} $`, 'buono');
+    this.effetti.testo(testa.x, testa.y + 0.6, testa.z, `+${incasso}`, 'buono', 'moneta');
 
     this.alVendita(cliente.vuole, cliente.preso, incasso);
     if (this.sportelli[cliente.vuole].venditore && Math.random() < CONFIG.economia.probabilitaMancia) this.mancia(cliente, testa, pila);
@@ -197,7 +197,7 @@ export class Clienti {
       pila.aggiungi(mancia);
       this.effetti.scintille(pila.posizione.x, 0.4, pila.posizione.z, 0xffe066, 5);
     }, { durata: 0.75, altezza: 2.8, sbuffo: false });
-    this.effetti.testo(testa.x, testa.y + 1.2, testa.z, `+${mancia} mancia`, 'buono');
+    this.effetti.testo(testa.x, testa.y + 1.2, testa.z, `+${mancia} mancia`, 'buono', 'moneta');
   }
 
   // Fa camminare il cliente verso il suo obiettivo. Restituisce true se è arrivato.

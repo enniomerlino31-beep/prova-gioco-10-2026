@@ -1,5 +1,5 @@
 // =====================================================================
-//  CANCELLO (nella palizzata di sinistra)
+//  CANCELLO (nella palizzata: in alto quello della corsa, ai lati gli altri due)
 //  Un varco con due pali grossi e alti ai lati e due ante di legno in
 //  mezzo. Quando il boscaiolo si avvicina (da dentro o da fuori) le ante
 //  si aprono verso l'esterno; quando si allontana si richiudono. Da chiuse
@@ -7,7 +7,8 @@
 //  Il cancello della CORSA ha anche un cerchio a terra: se il boscaiolo ci
 //  resta per "tempoCancello" secondi (il cerchio si riempie), parte una
 //  nuova corsa. Quello della FORESTA serve solo per uscire.
-//  Misure "locali": z lungo le mura, x negativo = fuori dalla base.
+//  Misure "locali": z lungo le mura, x negativo = fuori dalla base
+//  (il cancello poi viene girato verso il suo lato delle mura).
 // =====================================================================
 
 import * as THREE from 'three';
@@ -27,21 +28,30 @@ const ANGOLO_APERTO = 1.65;           // quanto si girano le ante (radianti, cir
 
 export class Cancello {
   // posizione: il centro del varco, sulla linea della palizzata
+  // normale: da che parte è "fuori" ({ x: -1, z: 0 } = lato sinistro, { x: 0, z: -1 } = lato in alto...)
   // scritta: per il cancello della corsa, il testo nel cerchio a terra (senza scritta non c'è il cerchio)
-  constructor(genitore, posizione, { scritta = null } = {}) {
+  constructor(genitore, posizione, { normale = { x: -1, z: 0 }, scritta = null } = {}) {
     this.posizione = posizione.clone();
+    this.normale = normale;
     this.conCerchio = Boolean(scritta);
-    this.centroZona = posizione.clone().add(new THREE.Vector3(ZONA_X, 0, 0));
+    this.centroZona = posizione.clone().add(new THREE.Vector3(-normale.x * ZONA_X, 0, -normale.z * ZONA_X)); // dentro la base
     this.carica = 0;    // da 0 a 1: quanto è pieno il cerchio
     this.apertura = 0;  // da 0 (chiuso) a 1 (ante spalancate)
 
     // Rettangoli che il boscaiolo non può attraversare: i due pali sempre, le ante solo quando sono chiuse
+    const lungoX = normale.z !== 0; // le mura (e quindi il varco) vanno lungo x?
     this.ostacoliPali = [-1, 1].map((lato) => ({
-      x: posizione.x, z: posizione.z + lato * DISTANZA_PALI, mezzaX: RAGGIO_PALO, mezzaZ: RAGGIO_PALO,
+      x: posizione.x + (lungoX ? lato * DISTANZA_PALI : 0),
+      z: posizione.z + (lungoX ? 0 : lato * DISTANZA_PALI),
+      mezzaX: RAGGIO_PALO, mezzaZ: RAGGIO_PALO,
     }));
-    this.ostacoloAnte = { x: posizione.x, z: posizione.z, mezzaX: 0.25, mezzaZ: LARGHEZZA_ANTA };
+    this.ostacoloAnte = {
+      x: posizione.x, z: posizione.z,
+      mezzaX: lungoX ? LARGHEZZA_ANTA : 0.25, mezzaZ: lungoX ? 0.25 : LARGHEZZA_ANTA,
+    };
     this.gruppo = new THREE.Group();
     this.gruppo.position.copy(posizione);
+    this.gruppo.rotation.y = Math.atan2(normale.z, -normale.x); // il "fuori" locale (x negativo) guarda verso normale
     genitore.add(this.gruppo);
 
     const legno = tinta(0x7a461c);
@@ -105,7 +115,8 @@ export class Cancello {
     this.riempimento.scale.setScalar(0.001);
     this.gruppo.add(this.riempimento);
     const cartello = creaScritta(scritta, { larghezza: 1.9, altezza: 0.6, coloreTesto: '#ffffff', coloreBordo: '#1d4f9e' });
-    cartello.rotation.x = -Math.PI / 2;
+    // sdraiato a terra e girato al contrario del cancello: la scritta si legge sempre dritta
+    cartello.rotation.set(-Math.PI / 2, 0, -this.gruppo.rotation.y);
     cartello.position.set(ZONA_X, 0.04, 0);
     cartello.renderOrder = 1;
     this.gruppo.add(cartello);

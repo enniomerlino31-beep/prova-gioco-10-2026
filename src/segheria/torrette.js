@@ -6,9 +6,9 @@
 //  arco, insegue il lupo e quando lo colpisce gli toglie delle tacche di
 //  vita (1 all'inizio: servono 3 frecce, come con l'ascia). Se il lupo
 //  muore prima, la freccia si pianta nella neve.
-//  Livelli: 1 = torretta a sinistra, 2 = anche a destra,
-//  3 e 4 = "Potenzia arcieri": frecce più forti e più rapide, e torri,
-//  archi e frecce più robusti (vedi modelli/torretta.js).
+//  Livelli: 1-4 = le quattro torri (sinistra 1, destra 1, sinistra 2,
+//  destra 2), 5 e 6 = "Potenzia arcieri": frecce più forti e più rapide,
+//  e torri, archi e frecce più robusti (vedi modelli/torretta.js).
 // =====================================================================
 
 import * as THREE from 'three';
