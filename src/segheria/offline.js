@@ -1,0 +1,122 @@
+// =====================================================================
+//  GUADAGNI MENTRE SI È VIA (Fase 5)
+//  Quando si riapre il gioco, la base ha continuato a lavorare:
+//   - il boscaiolo secondario ha portato la sua legna sulla catasta, a ogni giro;
+//   - l'aiutante ha portato la legna dalla catasta allo sportello LEGNA;
+//   - i venditori hanno venduto ai clienti la legna e la carne sui banconi.
+//  I ritmi sono quelli del gioco vero (vedi ritmi): non si vende più in fretta
+//  di come succede giocando. Senza aiutante la legna resta nella catasta;
+//  senza venditori non si vende niente (e la merce resta dov'è). I lupi non fanno danni e i
+//  cacciatori non portano carne nuova (si vende solo quella già sul tavolo).
+//  Sotto "minimoMinuti" di assenza non succede niente; oltre "massimoOre"
+//  non succede più niente (CONFIG.offline).
+// =====================================================================
+
+import { CONFIG } from '../config.js';
+import { registraVendita } from '../economia.js';
+import { MAPPA } from './ambiente.js';
+import { ZONA_Z, SPAZIO_FILA } from './sportello.js';
+import { durataGiro } from './secondario.js';
+
+const VOLO_AIUTANTE = 0.4; // secondi del volo della legna, quando l'aiutante la prende e quando la scarica (aiutante.js)
+
+// Quanti secondi si è stati via: dall'ultimo salvataggio (stato.orologio, in millisecondi) ad adesso, più i
+// minuti finti di ?offline=N. Se l'orologio del telefono è andato indietro (o il numero è strano) vale 0:
+// l'orario salvato resta il più avanti mai visto (vedi salvaOra), così lo stesso tempo non si guadagna due volte.
+export function secondiDiAssenza(stato, adesso, minutiFinti = 0) {
+  const ultimo = Number(stato.orologio);
+  let secondi = Number.isFinite(ultimo) && ultimo > 0 ? (adesso - ultimo) / 1000 : 0;
+  if (!Number.isFinite(secondi) || secondi < 0) secondi = 0;
+  const finti = Number(minutiFinti);
+  if (Number.isFinite(finti) && finti > 0) secondi += finti * 60;
+  return secondi;
+}
+
+// Quanto riescono a fare al secondo i lavoratori e i clienti, con i ritmi del gioco (unità al secondo).
+// venditore: il livello del venditore comprato (con la sua "rapidita")
+export function ritmi(venditore) {
+  const c = CONFIG.clienti;
+  const rapidita = venditore.rapidita;
+  const unitaPerCliente = (c.acquistoMinimo + c.acquistoMassimo) / 2;
+  // i clienti arrivano in media ogni (min+max)/2 secondi, divisi per la rapidità del venditore...
+  const arrivi = rapidita / ((c.intervalloMinimo + c.intervalloMassimo) / 2);
+  // ...e allo sportello ognuno aspetta, prende i suoi pezzi uno alla volta e poi il prossimo avanza di un posto
+  const pezzi = Math.ceil(unitaPerCliente / CONFIG.segheria.unitaPerPezzo);
+  const alBancone = (c.tempoAcquisto + (pezzi - 1) * c.intervalloPezzi) / rapidita + SPAZIO_FILA / c.velocita;
+  const clienti = (parte) => Math.min(arrivi * parte, 1 / alBancone); // clienti al secondo serviti da uno sportello
+  // l'aiutante va avanti e indietro tra la catasta e il deposito dello sportello LEGNA
+  const puntoCatasta = MAPPA.catasta.z + 1;
+  const puntoSportello = MAPPA.sportelli.legna.z + ZONA_Z;
+  const giroAiutante = (2 * Math.abs(puntoSportello - puntoCatasta)) / CONFIG.segheria.velocitaAiutante + 2 * VOLO_AIUTANTE;
+  return {
+    unitaPerCliente,
+    legna: clienti(1 - c.probabilitaCarne) * unitaPerCliente,
+    carne: clienti(c.probabilitaCarne) * unitaPerCliente,
+    aiutante: CONFIG.lavoratori.caricoMassimo / giroAiutante,
+  };
+}
+
+// Fa lavorare la base per "secondi" secondi (già limitati dal chiamante) e cambia lo stato salvato:
+// catasta, banconi, giro del boscaiolo secondario, vendite. Restituisce cosa è successo:
+// { legnaPortata, legnaVenduta, carneVenduta, monete } (le monete NON sono ancora date: vedi segheria.js)
+export function lavoroOffline(stato, secondi) {
+  const m = stato.miglioramenti;
+  const conSecondario = (m.boscaioloSecondario?.comprati ?? 0) > 0;
+  const conAiutante = (m.aiutante?.comprati ?? 0) > 0;
+  const venditore = CONFIG.miglioramenti.venditore[(m.venditore?.comprati ?? 0) - 1] ?? null;
+  const ritmo = venditore ? ritmi(venditore) : null;
+
+  let catasta = stato.catasta;
+  let legnaBanco = stato.sportelli.legna;
+  let carneBanco = stato.sportelli.carne;
+  let mancano = Number.isFinite(stato.secondarioMancano) ? stato.secondarioMancano : durataGiro();
+  let legnaPortata = 0;
+  let legnaVenduta = 0;
+  let carneVenduta = 0;
+  const passo = CONFIG.offline.passo;
+  for (let t = 0; t < secondi; t += passo) {
+    const dt = Math.min(passo, secondi - t);
+    if (conSecondario) {
+      mancano -= dt;
+      while (mancano <= 0) {
+        mancano += durataGiro();
+        catasta += CONFIG.lavoratori.legnaSecondario;
+        legnaPortata += CONFIG.lavoratori.legnaSecondario;
+      }
+    }
+    if (ritmo) {
+      if (conAiutante) {
+        const spostata = Math.min(catasta, ritmo.aiutante * dt);
+        catasta -= spostata;
+        legnaBanco += spostata;
+      }
+      const legna = Math.min(legnaBanco, ritmo.legna * dt);
+      const carne = Math.min(carneBanco, ritmo.carne * dt);
+      legnaBanco -= legna;
+      carneBanco -= carne;
+      legnaVenduta += legna;
+      carneVenduta += carne;
+    }
+  }
+
+  // unità intere: quello che non è venduto resta (prima sul bancone, il resto nella catasta)
+  legnaVenduta = Math.floor(legnaVenduta);
+  carneVenduta = Math.floor(carneVenduta);
+  const legnaTotale = stato.catasta + stato.sportelli.legna + legnaPortata - legnaVenduta;
+  const nuovaCatasta = Math.min(legnaTotale, Math.max(0, Math.round(catasta)));
+  stato.catasta = nuovaCatasta;
+  stato.sportelli.legna = legnaTotale - nuovaCatasta;
+  stato.sportelli.carne = Math.max(0, stato.sportelli.carne - carneVenduta);
+  if (conSecondario) stato.secondarioMancano = mancano;
+
+  // le monete delle vendite, più le mance che i clienti lasciano in media ai venditori
+  const { prezzoLegna, prezzoCarne, probabilitaMancia, manciaMinima, manciaMassima } = CONFIG.economia;
+  const clienti = ritmo ? (legnaVenduta + carneVenduta) / ritmo.unitaPerCliente : 0;
+  const mance = Math.floor(clienti * probabilitaMancia * ((manciaMinima + manciaMassima) / 2));
+  const incassoLegna = legnaVenduta * prezzoLegna;
+  const incassoCarne = carneVenduta * prezzoCarne;
+  if (legnaVenduta > 0) registraVendita(stato, 'legna', legnaVenduta, incassoLegna);
+  if (carneVenduta > 0) registraVendita(stato, 'carne', carneVenduta, incassoCarne);
+  stato.guadagnoTotale += mance;
+  return { legnaPortata, legnaVenduta, carneVenduta, monete: incassoLegna + incassoCarne + mance };
+}

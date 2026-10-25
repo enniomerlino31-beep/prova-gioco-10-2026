@@ -19,9 +19,9 @@ import { partiCarne } from '../modelli/carne.js';
 import { creaZonaATerra } from './catasta.js';
 import { MAPPA } from './ambiente.js';
 
-const ZONA_Z = DEPOSITO_Z - 1.2;  // dove si mette il boscaiolo per scaricare (davanti al deposito, verso l'interno)
+export const ZONA_Z = DEPOSITO_Z - 1.2;  // dove si mette il boscaiolo per scaricare (davanti al deposito, verso l'interno)
 const CLIENTE_Z = BANCO_FUORI + 0.7;
-const SPAZIO_FILA = 1.45;         // distanza tra un cliente e l'altro in fila (i fumetti non si toccano)
+export const SPAZIO_FILA = 1.45;        // distanza tra un cliente e l'altro in fila (i fumetti non si toccano)
 
 export class Sportello {
   // posizione: il punto della palizzata dove si apre lo sportello

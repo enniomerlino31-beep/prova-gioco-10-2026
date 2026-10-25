@@ -80,6 +80,7 @@ function ciclo(adesso) {
     segheria.aggiorna(dt);
   } else if (modo === 'corsa') {
     corsa.aggiorna(dt);
+    segheria.lavoraDuranteLaCorsa(dt); // intanto il boscaiolo secondario continua a portare legna alla base
   } else {
     // sulla schermata iniziale si vede la segheria sullo sfondo
     segheria.ambiente.segui(segheria.giocatore.posizione, dt);

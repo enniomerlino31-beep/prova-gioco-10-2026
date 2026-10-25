@@ -3,15 +3,21 @@
 //  I clienti di tutti e due gli sportelli ci lasciano le monete; il
 //  boscaiolo le raccoglie camminandoci sopra e le monete volano verso di
 //  lui. Le monete a terra sono impilate in sette colonne: più se ne
-//  guadagnano, più le colonne crescono.
+//  guadagnano, più le colonne crescono. Sopra la pila un cartellino con
+//  la moneta e il numero dice quante monete ci sono (vuoto = niente cartellino).
 // =====================================================================
 
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { partiMoneta } from '../modelli/soldi.js';
+import { creaEtichettaVariabile } from '../modelli/materiali.js';
+import { formatta } from '../economia.js';
 import { creaZonaATerra } from './catasta.js';
 
 const ALTEZZA_MONETA = 0.055;
+// Il cartellino galleggia sopra la pila più alta (circa 0,5 m): visto dalla telecamera resta dentro il cerchio
+// delle monete, sotto il cerchio del venditore, senza toccarlo
+const ALTEZZA_CARTELLINO = 1.15;
 
 export class PilaSoldi {
   constructor(genitore, posizione, valore) {
@@ -46,6 +52,11 @@ export class PilaSoldi {
       this.gruppo.add(mesh);
       return mesh;
     });
+    this.cartellino = creaEtichettaVariabile({
+      larghezza: 1.25, altezza: 0.42, icona: 'moneta', sfondo: 'rgba(30,40,30,0.72)', coloreTesto: '#ffe066', coloreBordo: 'rgba(0,0,0,0.8)',
+    });
+    this.cartellino.sprite.position.y = ALTEZZA_CARTELLINO;
+    this.gruppo.add(this.cartellino.sprite);
     this.aggiornaGrafica();
   }
 
@@ -79,5 +90,8 @@ export class PilaSoldi {
 
   aggiornaGrafica() {
     for (const mesh of this.istanze) mesh.count = this.monete;
+    const valore = Math.floor(this.valore);
+    this.cartellino.sprite.visible = valore > 0;
+    if (valore > 0) this.cartellino.imposta(formatta(valore));
   }
 }

@@ -66,10 +66,22 @@ export const MAPPA = {
     venditore: new THREE.Vector3(0, 0, 2.65),          // al centro, tra i due sportelli dove lavorano i venditori
     cacciatore: new THREE.Vector3(5.8, 0, -4.5),       // accanto al banco del cacciatore, in alto a destra: non è sulla strada di nessuno
     secondoCacciatore: new THREE.Vector3(5.8, 0, -4.5), // nello stesso posto: si compra dopo il primo
+    // l'ultimo acquisto (quando compare tutti gli altri cerchi sono spariti): accanto alla catasta dove scarica la
+    // legna, un po' più verso il centro del vecchio cerchio dell'aiutante, così non sfiora il cerchio della catasta
+    boscaioloSecondario: sotto(new THREE.Vector3(-2.2, 0, -1.6)),
     // il pavimento (si vede solo quando sono stati assunti tutti i lavoratori base): al centro della base, tra il
     // cerchio CORSA e il punto dove compare il boscaiolo, con la scritta sotto
     pavimentoPietra: sotto(new THREE.Vector3(0, 0, -3.45)),
   },
+  // La strada del boscaiolo secondario, dalla catasta (dove scarica la legna, accanto al cerchio della
+  // catasta) al cancello della corsa e poi nella foresta, girando attorno alla segheria
+  giroSecondario: [
+    new THREE.Vector3(-COLONNA + 1.5, 0, -2.2), // accanto alla catasta
+    new THREE.Vector3(0, 0, -6.2),              // davanti al cancello della corsa, dentro la base
+    new THREE.Vector3(0, 0, -9.0),              // appena fuori dal cancello, sul sentiero
+    new THREE.Vector3(-5.5, 0, -9.8),           // lungo le mura, a sinistra della segheria
+    new THREE.Vector3(-10, 0, -19.5),           // tra gli abeti, dove sparisce
+  ],
   // L'unico cerchio delle monete: i clienti dei due sportelli pagano qui, dentro la base tra i due depositi
   monete: new THREE.Vector3(0, 0, 5.2),
   torri: TORRI,

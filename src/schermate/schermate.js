@@ -135,25 +135,33 @@ export class Schermate {
   mostraFesta(alGioca) {
     const schermata = $('schermata-festa');
     const coriandoli = $('coriandoli');
-    coriandoli.innerHTML = '';
-    const colori = ['#ffd23f', '#ff6b6b', '#4fc3f7', '#7ee07e', '#ff9a1f', '#c38bff', '#ffffff'];
-    for (let i = 0; i < 60; i++) {
-      const pezzo = document.createElement('div');
-      pezzo.className = 'coriandolo';
-      pezzo.style.left = `${Math.random() * 100}%`;
-      pezzo.style.background = colori[i % colori.length];
-      pezzo.style.animationDuration = `${2.2 + Math.random() * 2}s`;
-      pezzo.style.animationDelay = `${Math.random() * 1.2}s`;
-      pezzo.style.setProperty('--deriva', `${(Math.random() - 0.5) * 160}px`);
-      pezzo.style.setProperty('--giri', `${(Math.random() - 0.5) * 1440}deg`);
-      coriandoli.appendChild(pezzo);
-    }
+    lanciaCoriandoli(coriandoli);
     $('avviso-segheria').classList.add('nascosto');
     schermata.classList.remove('nascosto');
     $('pulsante-festa').onclick = () => {
       schermata.classList.add('nascosto');
       coriandoli.innerHTML = '';
       alGioca();
+    };
+  }
+
+  // "Bentornato!": quanto tempo si è stati via, quanta legna ha portato il boscaiolo secondario e quante monete
+  // si sono guadagnate. guadagno: { secondi, legna, monete }; alRaccogli: quando si preme "Raccogli"
+  mostraBentornato(guadagno, alRaccogli) {
+    const schermata = $('schermata-bentornato');
+    const coriandoli = $('coriandoli-bentornato');
+    lanciaCoriandoli(coriandoli);
+    $('bentornato-tempo').textContent = `Mentre eri via (${durataInParole(guadagno.secondi)}) la tua segheria ha continuato a lavorare.`;
+    const riga = (nome, valore, classe = '') => `<div class="dato ${classe}"><span>${nome}</span><span>${valore}</span></div>`;
+    $('bentornato-dati').innerHTML =
+      (guadagno.legna > 0 ? riga('<span class="hud-icon hud-icon--log hud-icon--mini"></span> Legna del boscaiolo secondario', `+${formatta(guadagno.legna)}`) : '') +
+      riga('<span class="hud-icon hud-icon--coin hud-icon--mini"></span> Monete guadagnate', `+${formatta(guadagno.monete)}`, 'totale');
+    $('avviso-segheria').classList.add('nascosto');
+    schermata.classList.remove('nascosto');
+    $('pulsante-bentornato').onclick = () => {
+      schermata.classList.add('nascosto');
+      coriandoli.innerHTML = '';
+      alRaccogli();
     };
   }
 
@@ -272,4 +280,32 @@ export class Schermate {
       y: (-this._v.y * 0.5 + 0.5) * window.innerHeight,
     };
   }
+}
+
+// Fa cadere i coriandoli colorati nel contenitore (per le schermate di festa)
+function lanciaCoriandoli(contenitore) {
+  contenitore.innerHTML = '';
+  const colori = ['#ffd23f', '#ff6b6b', '#4fc3f7', '#7ee07e', '#ff9a1f', '#c38bff', '#ffffff'];
+  for (let i = 0; i < 60; i++) {
+    const pezzo = document.createElement('div');
+    pezzo.className = 'coriandolo';
+    pezzo.style.left = `${Math.random() * 100}%`;
+    pezzo.style.background = colori[i % colori.length];
+    pezzo.style.animationDuration = `${2.2 + Math.random() * 2}s`;
+    pezzo.style.animationDelay = `${Math.random() * 1.2}s`;
+    pezzo.style.setProperty('--deriva', `${(Math.random() - 0.5) * 160}px`);
+    pezzo.style.setProperty('--giri', `${(Math.random() - 0.5) * 1440}deg`);
+    contenitore.appendChild(pezzo);
+  }
+}
+
+// Un tempo in parole: 4380 secondi → "1 ora e 13 minuti"
+function durataInParole(secondi) {
+  const minutiTotali = Math.max(1, Math.round(secondi / 60));
+  const ore = Math.floor(minutiTotali / 60);
+  const minuti = minutiTotali % 60;
+  const parteOre = ore === 1 ? '1 ora' : `${ore} ore`;
+  const parteMinuti = minuti === 1 ? '1 minuto' : `${minuti} minuti`;
+  if (ore === 0) return parteMinuti;
+  return minuti === 0 ? parteOre : `${parteOre} e ${parteMinuti}`;
 }

@@ -97,19 +97,37 @@ export function materialeQuadri() {
 // Crea un cartello piatto con una scritta (es. "+10" sulle porte).
 // Va "liberato" quando non serve più: per questo lo segniamo con userData.daLiberare.
 export function creaScritta(testo, opzioni = {}) {
-  const {
-    larghezza = 2,          // larghezza del cartello nel mondo (metri)
-    altezza = 1,            // altezza del cartello nel mondo (metri)
-    coloreTesto = '#ffffff',
-    coloreBordo = 'rgba(0,0,0,0.55)',
-    sfondo = null,          // colore di sfondo, oppure null per trasparente
-    icona = null,           // 'legna' o 'carne': disegna l'iconcina prima del testo
-  } = opzioni;
+  const { larghezza = 2, altezza = 1 } = opzioni;
+  const tela = telaPer(larghezza, altezza);
+  disegnaScritta(tela, testo, opzioni);
 
+  const texture = new THREE.CanvasTexture(tela);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const materiale = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
+  materiale.userData.daLiberare = true;
+  const cartello = new THREE.Mesh(new THREE.PlaneGeometry(larghezza, altezza), materiale);
+  cartello.geometry.userData.daLiberare = true;
+  return cartello;
+}
+
+// La tela su cui si disegna una scritta larga "larghezza" e alta "altezza" metri
+function telaPer(larghezza, altezza) {
   const tela = document.createElement('canvas');
   tela.width = 256;
   tela.height = Math.round((256 * altezza) / larghezza);
+  return tela;
+}
+
+// Disegna (da capo) la scritta sulla tela: sfondo, icona e testo con il bordo
+function disegnaScritta(tela, testo, opzioni) {
+  const {
+    coloreTesto = '#ffffff',
+    coloreBordo = 'rgba(0,0,0,0.55)',
+    sfondo = null,          // colore di sfondo, oppure null per trasparente
+    icona = null,           // 'legna', 'carne', 'moneta'...: disegna l'iconcina prima del testo
+  } = opzioni;
   const ctx = tela.getContext('2d');
+  ctx.clearRect(0, 0, tela.width, tela.height);
   if (sfondo) {
     ctx.fillStyle = sfondo;
     ctx.beginPath();
@@ -143,14 +161,6 @@ export function creaScritta(testo, opzioni = {}) {
   ctx.strokeText(testo, xTesto, tela.height / 2 + 4);
   ctx.fillStyle = coloreTesto;
   ctx.fillText(testo, xTesto, tela.height / 2 + 4);
-
-  const texture = new THREE.CanvasTexture(tela);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  const materiale = new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false });
-  materiale.userData.daLiberare = true;
-  const cartello = new THREE.Mesh(new THREE.PlaneGeometry(larghezza, altezza), materiale);
-  cartello.geometry.userData.daLiberare = true;
-  return cartello;
 }
 
 // Come creaScritta, ma la scritta è sempre girata verso la telecamera (uno "sprite").
@@ -168,6 +178,27 @@ export function creaEtichetta(testo, opzioni = {}) {
   return etichetta;
 }
 
+// Come creaEtichetta, ma il testo si può cambiare quando si vuole con imposta(testo): ridisegna sempre
+// la stessa tela, senza creare ogni volta una texture nuova (es. il numero delle monete nel cerchio).
+// Restituisce { sprite, imposta }.
+export function creaEtichettaVariabile(opzioni = {}) {
+  const { larghezza = 1, altezza = 0.4 } = opzioni;
+  const tela = telaPer(larghezza, altezza);
+  const texture = new THREE.CanvasTexture(tela);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, depthTest: false }));
+  sprite.renderOrder = 10;
+  sprite.scale.set(larghezza, altezza, 1);
+  let ultimo = null;
+  const imposta = (testo) => {
+    if (testo === ultimo) return;
+    ultimo = testo;
+    disegnaScritta(tela, testo, opzioni);
+    texture.needsUpdate = true;
+  };
+  return { sprite, imposta };
+}
+
 // Libera la memoria di un'etichetta che non serve più
 export function liberaEtichetta(etichetta) {
   etichetta.material.map.dispose();
@@ -175,7 +206,7 @@ export function liberaEtichetta(etichetta) {
 }
 
 // Disegna un'iconcina ('legna', 'carne', 'moneta', 'pietra', 'metallo', 'ascia', 'torre', 'martello', 'arco',
-// 'arcoOro', 'cacciatore', 'venditore') in un quadrato di lato "lato"
+// 'arcoOro', 'cacciatore', 'venditore', 'secondario') in un quadrato di lato "lato"
 // (legna, carne, moneta e ascia sono uguali alle icone in stile.css). Niente emoji: non tutti i dispositivi le hanno.
 export function disegnaIcona(ctx, tipo, x, y, lato) {
   ctx.save();
@@ -260,17 +291,17 @@ export function disegnaIcona(ctx, tipo, x, y, lato) {
     tratto('M4 16H26', '#6b4426', 2.2);
     pieno('M31 16L25 12.5V19.5Z', oro ? '#ffe066' : '#9aa3ad', oro ? '#e0a010' : '#5d6672', 1);
     pieno('M5 16L2 12.5H6L8.5 16L6 19.5H2Z', oro ? '#f2b632' : '#2f7fd6');
-  } else if (tipo === 'cacciatore' || tipo === 'venditore') {
-    // la faccia del lavoratore con il suo berretto (verde il cacciatore, giallo il venditore)
-    // e in basso a destra cosa fa: la carne che porta o la moneta che incassa
-    const [berretto, scuro] = tipo === 'cacciatore' ? ['#3d7a34', '#2b5a25'] : ['#f2b632', '#c98f1c'];
+  } else if (tipo === 'cacciatore' || tipo === 'venditore' || tipo === 'secondario') {
+    // la faccia del lavoratore con il suo berretto (verde il cacciatore, giallo il venditore, viola il
+    // boscaiolo secondario) e in basso a destra cosa fa: la carne che porta, la moneta che incassa o la legna
+    const [berretto, scuro] = { cacciatore: ['#3d7a34', '#2b5a25'], venditore: ['#f2b632', '#c98f1c'], secondario: ['#8e4fc4', '#6a3596'] }[tipo];
     ellisse(14, 18, 9.5, 9.5, 0, '#f5c49c', '#c98a6a', 1.2);
     ellisse(10.5, 18.5, 1.4, 1.7, 0, '#1b1b1b');
     ellisse(17.5, 18.5, 1.4, 1.7, 0, '#1b1b1b');
     pieno('M4 14.5A10 10 0 0 1 24 14.5Z', berretto, scuro, 1.2);
     blocco(3.5, 12.5, 21, 4, 1.5, scuro, scuro, 0.5);
     ellisse(14, 4, 2.8, 2.8, 0, berretto);
-    disegnaIcona(ctx, tipo === 'cacciatore' ? 'carne' : 'moneta', 18, 18, 14);
+    disegnaIcona(ctx, { cacciatore: 'carne', venditore: 'moneta', secondario: 'legna' }[tipo], 18, 18, 14);
   } else if (tipo === 'pavimento') {
     // lastre di pietra grigie con le fughe scure
     blocco(2, 3, 15, 11, 2, '#a7afb9', '#5d6672', 1.5);

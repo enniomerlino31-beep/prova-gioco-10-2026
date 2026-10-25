@@ -35,11 +35,14 @@ import { Torrette } from './torrette.js';
 import { Tutorial } from './tutorial.js';
 import { Mura } from './mura.js';
 import { BancoCacciatore } from './banco.js';
+import { BoscaioloSecondario, durataGiro } from './secondario.js';
+import { lavoroOffline, secondiDiAssenza } from './offline.js';
 import { creaLupo } from '../modelli/lupo.js';
 import { animaGaloppo, animaMorso, COLPO } from '../modelli/animazioni.js';
 import { creaCarne } from '../modelli/carne.js';
 
 const OGNI_QUANTO_SALVARE = 2; // secondi
+const MONETE_INFINITE = 999999; // con ?moneteinfinite le monete in tasca tornano sempre a questo numero
 const LAVORATORI_BASE = ['aiutante', 'cacciatore', 'venditore']; // assunti tutti e tre, compare il cerchio del pavimento
 // I due cerchi della fila ECONOMIA vanno avanti a coppie: prima "Aiutante" e "Cacciatore", poi "Venditore" e
 // "Secondo cacciatore", poi i potenziamenti (vedi aggiornaVisibilita)
@@ -103,6 +106,17 @@ export class Segheria {
     // Progressi salvati
     this.stato = carica();
     const s = this.stato;
+    // Tutorial: solo alla prima partita (aggiungendo ?tutorial all'indirizzo si può rivedere,
+    // con ?senzatutorial si salta: 3 = tutti e tre i passaggi fatti)
+    const indirizzo = new URLSearchParams(window.location.search);
+    if (indirizzo.has('tutorial')) s.tutorial = 0;
+    if (indirizzo.has('senzatutorial')) s.tutorial = 3;
+    // Per le prove: con ?moneteinfinite le monete in tasca non finiscono mai (vedi aggiorna)
+    this.moneteInfinite = indirizzo.has('moneteinfinite');
+    // Per le prove: con ?tuttocomprato è già comprato tutto tranne il boscaiolo secondario, con 5000 monete in tasca
+    if (indirizzo.has('tuttocomprato')) this.compraTuttoPerProva();
+    // Mentre si era via la base ha lavorato (?offline=N finge N minuti di assenza, per provare)
+    this.lavoroMentreVia(indirizzo.get('offline'));
 
     this.radice = new THREE.Group();
     this.scena.add(this.radice);
@@ -190,11 +204,6 @@ export class Segheria {
     if (this.bancoAperto) this.banco.mostra(false);
     this.ripristinaMiglioramenti();
     this.aggiornaVisibilita(true);
-    // Tutorial: solo alla prima partita (aggiungendo ?tutorial all'indirizzo si può rivedere,
-    // con ?senzatutorial si salta: 3 = tutti e tre i passaggi fatti)
-    const indirizzo = new URLSearchParams(window.location.search);
-    if (indirizzo.has('tutorial')) s.tutorial = 0;
-    if (indirizzo.has('senzatutorial')) s.tutorial = 3;
     this.tutorial = new Tutorial(this.radice, schermate, s.tutorial);
     // Durante il tutorial si può comprare solo il primo acquisto della fila DIFESA (le mura di pietra): gli altri
     // cerchi sono spenti (grigi); il cerchio DIFESA si accende solo al terzo passaggio, vedi aggiorna
@@ -211,8 +220,101 @@ export class Segheria {
     // Salva anche quando la pagina viene chiusa o messa in secondo piano
     window.addEventListener('pagehide', () => this.salvaOra());
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) this.salvaOra();
+      if (document.hidden) {
+        this.salvaOra();
+        return;
+      }
+      // Si torna nella base dopo un po' con la pagina rimasta aperta (es. sul telefono, cambiando app):
+      // si ricarica, così si calcolano i guadagni di quando si era via, come riaprendo il gioco
+      const via = (Date.now() - this.stato.orologio) / 1000;
+      if (this.attiva && this.tutorial.finito && via >= CONFIG.offline.minimoMinuti * 60) window.location.reload();
     });
+  }
+
+  // Per le prove (?tuttocomprato): tutti i miglioramenti comprati tranne il boscaiolo secondario (il suo cerchio
+  // compare subito), le monete già messe nei cerchi azzerate e 5000 monete in tasca. Il tutorial risulta finito.
+  // Poi ?tuttocomprato sparisce dall'indirizzo, così ricaricando la pagina la partita va avanti normalmente.
+  compraTuttoPerProva() {
+    const s = this.stato;
+    for (const [nome, catena] of Object.entries(CONFIG.miglioramenti)) {
+      if (!Array.isArray(catena)) continue;
+      s.miglioramenti[nome] = { comprati: nome === 'boscaioloSecondario' ? 0 : catena.length, pagato: 0 };
+    }
+    for (const fila of Object.keys(CONFIG.file)) s.file[fila] = { pagato: 0 };
+    s.secondarioMancano = null;
+    s.soldi = CONFIG.miglioramenti.boscaioloSecondario[0].prezzo;
+    s.tutorial = 3;
+    const indirizzo = new URL(window.location.href);
+    indirizzo.searchParams.delete('tuttocomprato');
+    window.history.replaceState(null, '', indirizzo);
+    salva(s);
+  }
+
+  // ---------------- MENTRE SI ERA VIA ----------------
+
+  // All'avvio: la base ha lavorato per il tempo in cui si era via (vedi offline.js). Le monete guadagnate non sono
+  // ancora date: aspettano nel salvataggio ("bentornato") finché non si preme "Raccogli" (vedi apriBentornato).
+  // Durante il tutorial e sotto i "minimoMinuti" non succede niente; oltre le "massimoOre" non si conta più.
+  // minutiFinti: da ?offline=N nell'indirizzo, per provare senza aspettare (poi sparisce dall'indirizzo)
+  lavoroMentreVia(minutiFinti) {
+    const s = this.stato;
+    const adesso = Date.now();
+    if (minutiFinti !== null) {
+      const indirizzo = new URL(window.location.href);
+      indirizzo.searchParams.delete('offline');
+      window.history.replaceState(null, '', indirizzo);
+    }
+    const via = secondiDiAssenza(s, adesso, minutiFinti);
+    const massimo = CONFIG.offline.massimoOre * 3600;
+    // l'ora salvata non torna mai indietro (se l'orologio del telefono va indietro non si guadagna due volte
+    // lo stesso tempo), ma non resta nemmeno più avanti di "massimoOre" rispetto a adesso
+    s.orologio = Math.min(Math.max(Number(s.orologio) || 0, adesso), adesso + massimo * 1000);
+    if (s.tutorial < 3 || via < CONFIG.offline.minimoMinuti * 60) return;
+    const secondi = Math.min(via, massimo);
+    const fatto = lavoroOffline(s, secondi);
+    if (fatto.legnaPortata > 0 || fatto.monete > 0) {
+      // se c'erano già guadagni non raccolti (la pagina è stata chiusa prima di "Raccogli"), si sommano
+      const prima = s.bentornato ?? { secondi: 0, legna: 0, monete: 0 };
+      s.bentornato = { secondi: prima.secondi + secondi, legna: prima.legna + fatto.legnaPortata, monete: prima.monete + fatto.monete };
+    }
+    salva(s); // subito: ricaricando la pagina lo stesso tempo non deve contare di nuovo
+  }
+
+  // La schermata "Bentornato!": premendo "Raccogli" le monete guadagnate volano nel cerchio delle monete
+  apriBentornato() {
+    const guadagno = this.stato.bentornato;
+    this.joystick.spegni();
+    this.schermate.mostraBentornato(guadagno, () => {
+      this.joystick.attivo = true;
+      this.stato.bentornato = null;
+      this.versaMonete(guadagno.monete);
+      this.salvaOra();
+    });
+  }
+
+  // Le monete cadono dall'alto nel cerchio delle monete, in qualche mucchietto
+  versaMonete(totale) {
+    if (totale <= 0) return;
+    const pila = this.soldi;
+    const mucchietti = Math.min(10, Math.max(1, Math.ceil(totale / 50)));
+    let rimasti = totale;
+    for (let i = 0; i < mucchietti; i++) {
+      const parte = i === mucchietti - 1 ? rimasti : Math.floor(totale / mucchietti);
+      rimasti -= parte;
+      this.inVolo.soldi += parte;
+      const partenza = pila.posizione.clone().add(new THREE.Vector3((Math.random() - 0.5) * 3, 5, (Math.random() - 0.5) * 2));
+      this.effetti.lancia('soldi', partenza, pila, 0.2 + i * 0.12, () => {
+        this.inVolo.soldi -= parte;
+        pila.aggiungi(parte);
+        this.effetti.scintille(pila.posizione.x, 0.4, pila.posizione.z, 0xffe066, 5);
+      }, { durata: 0.6, altezza: 0.6 });
+    }
+    this.effetti.testo(pila.posizione.x, 2.4, pila.posizione.z, `+${totale}`, 'buono', 'moneta');
+  }
+
+  // Durante una corsa la base non si vede, ma il boscaiolo secondario continua i suoi giri
+  lavoraDuranteLaCorsa(dt) {
+    this.secondario?.avanza(dt, false);
   }
 
   // Il bottino della corsa vinta finisce nella catasta (la legna) e sul tavolo dello sportello CARNE (la carne),
@@ -249,6 +351,8 @@ export class Segheria {
       this.effetti.sbuffo(MAPPA.catasta.x, 1, MAPPA.catasta.z, 0xb07a45, 16, 3);
       this.ultimoBottino = null;
     }
+    // Guadagni di quando si era via, da raccogliere (mai durante il tutorial)
+    if (this.stato.bentornato && this.tutorial.finito) this.apriBentornato();
   }
 
   // Si esce dalla segheria (parte una corsa)
@@ -605,6 +709,13 @@ export class Segheria {
       const coppiaPronta = CERCHI_ECONOMIA.every((altra) => this.cerchi[altra].comprati >= passo);
       this.cerchi[fila].nascondi(!this.bancoAperto || !coppiaPronta, subito);
     }
+    // il boscaiolo secondario (anche lui della fila ECONOMIA) è l'ultimo acquisto: compare quando tutte le altre
+    // file sono finite (potenziamenti compresi) ed è stato comprato il pavimento
+    const altreFileFinite = Object.keys(CONFIG.file)
+      .filter((fila) => fila !== 'secondario')
+      .every((fila) => this.cerchi[fila].comprati >= CONFIG.file[fila].length);
+    const pavimentoComprato = Object.keys(PAVIMENTI).every((nome) => this.livelli[nome] > 0);
+    this.cerchi.secondario.nascondi(!altreFileFinite || !pavimentoComprato, subito);
     const tuttiAssunti = LAVORATORI_BASE.every((nome) => this.livelli[nome] > 0);
     for (const nome of Object.keys(PAVIMENTI)) this.cerchi[nome].nascondi(!tuttiAssunti || this.livelli[nome] > 0, subito);
   }
@@ -757,6 +868,11 @@ export class Segheria {
       // il secondo cacciatore lavora allo stesso banco, con la bravura del primo
       return [tappa(MAPPA.casaCacciatore, () => this.cacciatori.push(new Cacciatore(this, this.livelloComprato('cacciatore'), 1)))];
     }
+    if (nome === 'boscaioloSecondario') {
+      // compare accanto alla catasta e parte subito per il suo primo giro
+      if (this.secondario) return [];
+      return [tappa(MAPPA.giroSecondario[0], () => (this.secondario = this.creaSecondario(durataGiro(), true)))];
+    }
     if (nome === 'venditore') {
       this.clienti.rapidita = livello.rapidita;
       if (this.venditori.length > 0) return [];
@@ -784,6 +900,7 @@ export class Segheria {
   ripristinaMiglioramenti() {
     this.mura.applicaLivello(this.livelli.mura, false);
     this.aiutante = this.livelli.aiutante > 0 ? this.creaAiutante(false) : null;
+    this.secondario = this.livelli.boscaioloSecondario > 0 ? this.creaSecondario(this.stato.secondarioMancano, false) : null;
     this.torrette.imposta(this.livelli.torretta);
     for (let i = 0; i < this.torrette.quanteTorri; i++) {
       this.torrette.mostraTorre(i, false);
@@ -896,6 +1013,11 @@ export class Segheria {
     return aiutante;
   }
 
+  // mancano: secondi al suo ritorno alla catasta con la legna
+  creaSecondario(mancano, conAnimazione) {
+    return new BoscaioloSecondario(this.radice, this.catasta, this.effetti, this.inVolo, mancano, conAnimazione);
+  }
+
   // ---------------- OGNI FOTOGRAMMA ----------------
 
   aggiorna(dt) {
@@ -937,6 +1059,7 @@ export class Segheria {
     this.carneCadute = this.carneCadute.filter((drop) => !drop.preso);
 
     this.aggiornaVisibilita(false);
+    if (this.moneteInfinite) this.stato.soldi = Math.max(this.stato.soldi, MONETE_INFINITE);
     this.gestisceMiglioramenti(pos, dt);
 
     // --- Raccolta e scarico, un pezzo alla volta (nessun limite di carico) ---
@@ -961,6 +1084,7 @@ export class Segheria {
     // --- Tutto il resto ---
     for (const sportello of Object.values(this.sportelli)) sportello.aggiorna(dt);
     this.aiutante?.aggiorna(dt);
+    this.secondario?.aggiorna(dt);
     this.banco.aggiorna(dt);
     this.pavimento.aggiorna(dt);
     for (const cacciatore of this.cacciatori) cacciatore.aggiorna(dt);
@@ -984,7 +1108,8 @@ export class Segheria {
     const cacciatori = this.cacciatori.map((cacciatore) => cacciatore.posizione);
     this.cancelli.foresta.aggiorna(dt, pos, cacciatori);
     this.cancelli.destra.aggiorna(dt, pos, cacciatori);
-    if (this.cancelli.corsa.aggiorna(dt, pos)) {
+    // quello della corsa si apre anche per il boscaiolo secondario (ma la corsa la fa partire solo il giocatore)
+    if (this.cancelli.corsa.aggiorna(dt, pos, this.secondario?.visibile ? [this.secondario.posizione] : [])) {
       this.cancelli.corsa.azzera();
       this.alPartenzaCorsa();
       return;
@@ -1085,6 +1210,9 @@ export class Segheria {
     s.file = {};
     for (const fila of Object.keys(CONFIG.file)) s.file[fila] = { pagato: pagato(this.cerchi[fila]) };
     for (const nome of Object.keys(PAVIMENTI)) s.miglioramenti[nome].pagato = pagato(this.cerchi[nome]);
+    s.secondarioMancano = this.secondario ? this.secondario.mancano : null;
+    // l'ora del salvataggio, per i guadagni di quando si è via: non torna mai indietro (vedi lavoroMentreVia)
+    s.orologio = Math.max(Number(s.orologio) || 0, Date.now());
     salva(s);
   }
 

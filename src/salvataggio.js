@@ -23,13 +23,19 @@ function statoIniziale() {
       secondoCacciatore: { comprati: 0, pagato: 0 },
       venditore: { comprati: 0, pagato: 0 },
       pavimentoPietra: { comprati: 0, pagato: 0 },
+      boscaioloSecondario: { comprati: 0, pagato: 0 },
     },
     file: {                                    // le file di cerchi: monete già messe nel loro prossimo acquisto
       difesa: { pagato: 0 },
       economia: { pagato: 0 },
       caccia: { pagato: 0 },
+      secondario: { pagato: 0 },
     },
-    cerchi: 3,                                 // 2 = con le due file di cerchi, 3 = con i due cerchi ECONOMIA (vedi carica)
+    secondarioMancano: null,                   // secondi al ritorno del boscaiolo secondario con la legna (null = non c'è)
+    orologio: 0,                               // l'ora dell'ultimo salvataggio (millisecondi), per i guadagni mentre si è via
+    bentornato: null,                          // guadagni di quando si era via, non ancora raccolti: { secondi, legna, monete }
+    cerchi: 4,                                 // 2 = con le due file di cerchi, 3 = con i due cerchi ECONOMIA,
+                                               // 4 = con il boscaiolo secondario come ultimo acquisto (vedi carica)
     sportelli: { legna: 0, carne: 0 },         // merce esposta negli sportelli di vendita (unità; la carne della corsa arriva qui)
     soldiATerra: 0,                            // soldi lasciati dai clienti nel cerchio delle monete tra i due sportelli, da raccogliere
     vendute: { legna: 0, carne: 0 },           // unità vendute in tutto (serviranno per sbloccare le basi)
@@ -107,7 +113,13 @@ export function carica() {
     if (!salvato.cerchi || salvato.cerchi < 3) {
       stato.soldi += stato.file.economia.pagato ?? 0;
       stato.file.economia.pagato = 0;
-      stato.cerchi = 3;
+    }
+    // Salvataggi di prima che il boscaiolo secondario diventasse l'ultimo acquisto (e costasse 5000): le monete
+    // già messe nel suo cerchio tornano in tasca; se era già comprato resta comprato
+    if (!salvato.cerchi || salvato.cerchi < 4) {
+      stato.soldi += stato.file.secondario.pagato ?? 0;
+      stato.file.secondario.pagato = 0;
+      stato.cerchi = 4;
     }
     return stato;
   } catch {

@@ -6,8 +6,11 @@
 > Fatto anche il **nuovo ordine della fila ECONOMIA** (2026-10-25, corretto dopo la prima prova dell'utente), **provato
 > e approvato dall'utente e salvato** (commit b32a24b): due cerchi che vanno avanti a coppie, prima "Aiutante" + "Cacciatore", poi
 > "Venditore" + "Secondo cacciatore", poi i potenziamenti; tolte le scritte DIFESA ed ECONOMIA (vedi le decisioni qui sotto).
-> **Adesso si fanno i Gruppi A e B** (Fasi 5 e 4, scritti qui sotto), uno alla volta: finito il Gruppo A ci si
-> ferma e si aspetta la prova dell'utente. I Gruppi 4 e 5 sono **rimandati a più avanti** (dopo A e B).
+> **Adesso si fanno i Gruppi A, B e C** (scritti qui sotto), uno alla volta, in quest'ordine. Il **Gruppo A è fatto,
+> provato e approvato dall'utente e salvato** (2026-10-25), con la modifica chiesta dopo la prova (boscaiolo
+> secondario a 5000 monete come ultimo acquisto, `?tuttocomprato`), anche lei provata e approvata.
+> Ora il Gruppo B (suoni), poi il Gruppo C (lupi, mura e lupo gigante).
+> I Gruppi 4 e 5 sono **rimandati a più avanti** (dopo A, B e C).
 
 Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il gioco lo prova l'utente, niente partite di prova lunghe), aggiornare il README e dire cosa è stato fatto. Commit solo quando lo dice l'utente. Se la sessione sta per finire, fermarsi alla fine di un gruppo e dirlo.
 
@@ -39,6 +42,8 @@ A3. Guadagni offline (Fase 5): quando chiudo il gioco e lo riapro, la base ha co
 - Aggiungi un modo per provarlo senza aspettare: per esempio ?offline=60 nell'indirizzo per fingere di essere stato via 60 minuti. Scrivilo nel README tra i comandi.
 - Dimmi i numeri: quante monete all'ora si guadagnano offline con i vari lavoratori. Se superano le 1.000 monete all'ora, fermati e chiedimelo prima di andare avanti.
 
+**Decisione dell'utente (2026-10-25), dopo i conti:** con 250 pezzi ogni 5 minuti offline si guadagnavano circa 6.000 monete all'ora (la legna che arriva si vende tutta: i clienti ne chiedono circa 4,7 pezzi al secondo e l'aiutante ne porta circa 4,8). L'utente ha scelto **"meno legna sempre"**: il boscaiolo secondario porta **40 pezzi ogni 5 minuti**, sia mentre si gioca sia offline (circa 960 monete all'ora + qualche mancia).
+
 ## GRUPPO B: SUONI (Fase 4, dopo il Gruppo A)
 
 Suoni fatti dal codice (con il Web Audio del browser), senza file audio, così il gioco resta leggero.
@@ -59,6 +64,37 @@ Regole per tutti e due i gruppi A e B:
 - Niente commit: aspettare la prova dell'utente.
 - Se la sessione sta per finire, fermarsi e dire a che punto si è.
 - Alla fine di ogni gruppo scrivere in poche righe cosa è stato fatto, le decisioni prese da soli e cosa controllare nella prova.
+
+## GRUPPO C: LUPI, MURA E LUPO GIGANTE (dopo il Gruppo B; per ora solo scritto qui, non iniziato)
+
+C1. Lupi più deboli e mura più resistenti:
+- Le mura hanno il doppio della vita a ogni livello: legno 360, pietra 800, metallo 1500. Aggiorna anche la riparazione e la barra della vita.
+- Il morso dei lupi alle mura fa metà danno di adesso, anche quello del lupo gigante.
+- Il numero di colpi d'ascia e di frecce per uccidere i lupi resta uguale.
+- Metti tutti i numeri in config.js.
+
+C2. Se le mura vengono distrutte, la partita è persa:
+- Prima di cambiare, dimmi cosa succede oggi quando la vita delle mura arriva a 0.
+- Quando la vita delle mura arriva a 0, compare una schermata "Le mura sono cadute!" con un pulsante "Ricomincia".
+- Premuto il pulsante si perde tutto: monete, legna, carne, miglioramenti, lavoratori, boscaiolo secondario e monete messe nei cerchi. Si riparte con la base come all'inizio del gioco.
+- Il tutorial NON si rifà: risulta già finito. Restano salvate anche le impostazioni (per esempio l'audio spento).
+- Quando le mura scendono sotto il 25% della vita, compare l'avviso "Le mura stanno cedendo! Riparale!" al centro dello schermo, al massimo una volta ogni 30 secondi.
+- Mentre sono via dal gioco le mura non perdono vita.
+- Aggiungi i suoni cartoon per l'allarme delle mura e per le mura cadute, nello stesso stile del Gruppo B.
+
+C3. Arrivo del lupo gigante:
+- Quando arriva il lupo gigante, la telecamera va dolcemente su di lui (come quando si compra un miglioramento lontano), lo mostra per circa 2-3 secondi mentre compare la scritta "Arriva il lupo gigante!", e poi torna dolcemente sul boscaiolo. Intanto il boscaiolo resta fermo.
+- Se il lupo è già ben visibile sullo schermo, la telecamera non si muove.
+- Se in quel momento la telecamera sta già mostrando un acquisto, aspetta che abbia finito.
+
+C4. Lupo gigante più bello e più cattivo:
+- Più dettagliato e minaccioso, ma sempre nello stesso stile cartoon degli altri personaggi: pelo più folto e arruffato (soprattutto su collo e schiena), occhi rossi che brillano, zanne grandi, muso arrabbiato, qualche cicatrice, artigli visibili.
+- Quando arriva, si ferma un attimo e fa un'animazione di ululato con la testa alzata verso il cielo, con un ululato profondo e minaccioso (sempre cartoon).
+- Camminata più pesante e minacciosa di quella dei lupi normali.
+- Deve restare leggero per il telefono.
+- Alla fine usa Chrome DevTools per simulare un telefono lento e controllare che il gioco non scatti quando arriva il lupo gigante insieme ad altri lupi.
+
+Stesse regole degli altri gruppi: verifica veloce, README e PIANO-GRUPPI.md aggiornati, niente commit prima della prova dell'utente, fermarsi se la sessione sta per finire. Finito il gruppo, fermarsi e dire cosa è cambiato e cosa controllare.
 
 ---
 
@@ -161,6 +197,12 @@ Regole per tutti e due i gruppi A e B:
 - **Fila ECONOMIA in due cerchi (fatto, provato e approvato)**: `CONFIG.file.economia` (aiutante, venditore, venditore svelto, venditore esperto) e `CONFIG.file.caccia` (cacciatore, secondo cacciatore, cacciatore esperto). **Vanno a coppie** (richiesta dell'utente dopo la prima prova; prima andavano ognuno per conto suo ed era sbagliato): tutti e due nascosti finché non c'è il banco del cacciatore (mura di pietra), poi "Aiutante" + "Cacciatore"; un cerchio al passo N si vede solo se anche l'altro ha comprato i passi prima di N, fino a `PASSI_INSIEME` = 2 (dopo: i potenziamenti con tutti e quattro i lavoratori, come prima). Regola in `aggiornaVisibilita` (`segheria.js`). Un cerchio nascosto mentre cambia posto ricompare già nel posto nuovo (`cambiaPosto` in `miglioramenti.js`). Il pavimento aspetta ancora aiutante, venditore e cacciatore (`LAVORATORI_BASE`). Posti: aiutante a sinistra, venditore al centro in basso, cacciatori in alto a destra, quindi non si toccano. Salvataggi vecchi (`cerchi` < 3): le monete del cerchio ECONOMIA tornano in tasca.
 - **Scritte dei cerchi**: tolti i titoli DIFESA ed ECONOMIA; sopra (o sotto) il cerchio resta il nome dell'acquisto, dentro l'icona e il prezzo. Il cerchio del pavimento tiene il titolo PAVIMENTO.
 - **C, cacciatori (fatto)**: due cacciatori (catena `secondoCacciatore`, 300 monete, nel cerchio dei cacciatori della fila ECONOMIA, insieme al "Venditore" dopo "Aiutante" e "Cacciatore"); il primo difende la metà sinistra ed esce dal cancello di sinistra, il secondo la destra dal cancello di destra; da solo, il primo fa tutti e due i lati dal cancello più vicino. Portano 30 unità di carne (`caricoCacciatore`); con tutte e quattro le torrette raccolgono solo la carne (`cacciatoriCombattono`). Fuori dalle mura girano da un angolo all'altro sempre nello stesso verso finché non vedono l'obiettivo: provato con lupi in 10 punti, nessuno incastrato.
+- **Gruppo A, dopo la prova dell'utente (provato e approvato)**: l'utente ha approvato il Gruppo A e le decisioni prese da soli, e tiene 40 pezzi di legna. Poi: il boscaiolo secondario costa **5000 monete** ed è **l'ultimo acquisto**: il suo cerchio compare solo quando tutte le altre file di `CONFIG.file` sono finite e il pavimento è comprato (`aggiornaVisibilita`); posto spostato a x -2,2 (a -2,6 restavano solo 20 cm dal cerchio della catasta; quando compare è l'unico cerchio dei miglioramenti, quindi non tocca altri cerchi). Salvataggi: `cerchi` 4 in `salvataggio.js` restituisce le monete messe nel suo cerchio; chi l'aveva comprato lo tiene. `?tuttocomprato` (`compraTuttoPerProva`): tutto comprato tranne lui, 5000 monete in tasca, tutorial finito, poi sparisce dall'indirizzo. Provato con Chrome DevTools: si vede solo il suo cerchio, un salvataggio vecchio con 200 monete nel cerchio le riporta in tasca, console senza errori.
+- **Gruppo C, da sapere prima di iniziare**: oggi le mura hanno `CONFIG.segheria.hpMura` (legno) e `hpMura` in `CONFIG.miglioramenti.mura` (pietra, metallo); il danno dei morsi è `dannoMura` (e `CONFIG.lupoGigante.dannoMura` come moltiplicatore). Per C2 controllare in `mura.js` e `segheria.js` cosa succede quando la vita arriva a 0 e dirlo all'utente prima di cambiarlo.
+- **Gruppo A, fatto**:
+  - A1: cartellino (sprite) con la moneta e il numero sopra la pila del cerchio delle monete, a 1,15 m di altezza (`soldi.js`); **quando il cerchio è vuoto sparisce** (scelta presa da soli). Da 10.000 in su il numero è corto ("12,5K", `formatta`).
+  - A2: catena `boscaioloSecondario` nella fila `CONFIG.file.secondario`, un terzo cerchio ECONOMIA (prima costava 500 monete e compariva con i potenziamenti, a x -2,6: poi cambiato, vedi la nota qui sopra). `src/segheria/secondario.js`: berretto viola, slitta con la corda, tronchi visibili solo al ritorno; strada `MAPPA.giroSecondario` (catasta → cancello della corsa → lungo le mura a sinistra della segheria → tra gli abeti). Tutto dipende da `mancano` (secondi al ritorno alla catasta): il giro dura esattamente `minutiSecondario`, il ritorno a piedi è dentro il conto. Conto alla rovescia accanto al cancello della corsa (x +3,6, alto 2,4 m): sopra il cancello toccava la barra delle mura. Durante le corse `lavoraDuranteLaCorsa` (chiamato da `main.js`).
+  - A3: `src/segheria/offline.js` (`secondiDiAssenza`, `ritmi`, `lavoroOffline`) chiamato da `lavoroMentreVia` in `segheria.js` appena caricato il salvataggio; i risultati stanno in `stato.bentornato` finché non si preme "Raccogli" (`apriBentornato`, `versaMonete`). Decisioni prese da soli: le vendite offline richiedono un venditore (senza, la merce resta dov'è); la carne si vende solo se è già sul tavolo, **i cacciatori offline non portano carne nuova** (servirebbe simulare i lupi: non è semplice); `stato.orologio` non torna mai indietro (al massimo 24 ore avanti) e viene salvato subito dopo il calcolo, così ricaricare non dà monete due volte; sul telefono, tornando nella base dopo 2 minuti con la pagina aperta, la pagina si ricarica per calcolare i guadagni. Numeri: con il boscaiolo secondario circa 975 monete all'ora; senza, 0 all'ora (si vende solo la merce già presente). Provato con `?offline=60`: 12 giri = 480 legna, 1.278 monete (con 100 legna e 20 carne già presenti), ricaricando la pagina non raddoppia, durante il tutorial non compare.
 - **Gruppo 5, segheria**: l'edificio è in `src/modelli/segheria.js` (posizione `MAPPA.casa`, fuori dal cancello della corsa). Per l'onda delle mura si può usare `ondaArrivata` in `mura.js`, come per le torri, e per il legno `legnoPali` in `materiali.js`.
 - **Gruppo 4, corsa**: la salita finale attuale (`src/corsa/sfidaFinale.js`) andrà sostituita dallo scontro con l'orso.
 - **Dopo i gruppi**: Fase 4 (suoni) e Fase 5 (guadagni offline), poi le espansioni di `PIANO-ESPANSIONI.md`.

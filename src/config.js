@@ -277,6 +277,11 @@ export const CONFIG = {
       { nome: 'Venditore svelto', prezzo: 200, icona: 'venditore', rapidita: 2.2 },
       { nome: 'Venditore esperto', prezzo: 400, icona: 'venditore', rapidita: 3 },
     ],
+    // fa le corse da solo e porta la legna alla catasta (quanta e ogni quanto: vedi "lavoratori" più giù);
+    // è l'ultimo acquisto: il suo cerchio compare solo quando è stato comprato tutto il resto
+    boscaioloSecondario: [
+      { nome: 'Boscaiolo secondario', prezzo: 5000, icona: 'secondario' },
+    ],
     // --- Pavimento della base (solo aspetto) ---
     pavimentoPietra: [
       { nome: 'Pavimento in pietra', etichetta: 'Pietra', prezzo: 300, icona: 'pavimento' }, // etichetta: scritta sopra il cerchio
@@ -290,6 +295,8 @@ export const CONFIG = {
   // (aiutante e venditore) e "caccia" (i due cacciatori), che compaiono insieme con le mura di pietra e vanno
   // avanti a coppie: prima Aiutante e Cacciatore, comprati tutti e due Venditore e Secondo cacciatore, poi i
   // potenziamenti (quando sono stati assunti tutti e quattro). Vedi aggiornaVisibilita in segheria.js.
+  // Il cerchio "secondario" (anche lui della fila ECONOMIA) è l'ultimo: compare solo quando sono finite tutte le
+  // altre file (DIFESA ed ECONOMIA, potenziamenti compresi) ed è stato comprato il pavimento.
   // Il pavimento compare (con il suo cerchio) solo quando sono stati assunti aiutante, venditore e cacciatore.
   file: {
     difesa: [
@@ -316,6 +323,9 @@ export const CONFIG = {
       ['secondoCacciatore', 0], // Secondo cacciatore
       ['cacciatore', 1],  // Cacciatore esperto
     ],
+    secondario: [
+      ['boscaioloSecondario', 0], // Boscaiolo secondario
+    ],
   },
 
   // ---------------- IMPRONTE NELLA NEVE ----------------
@@ -331,6 +341,21 @@ export const CONFIG = {
     raggioColpoCacciatore: 1.2, // da quanto vicino il cacciatore colpisce un lupo (metri)
     caricoMassimo: 20,       // unità di legna che l'aiutante porta al massimo a ogni viaggio
     caricoCacciatore: 30,    // unità di carne che ogni cacciatore porta al massimo a ogni viaggio
+    // Boscaiolo secondario: ogni "minutiSecondario" minuti torna dalla foresta con "legnaSecondario" unità di legna
+    // (anche durante le corse e quando il gioco è chiuso). Con 40 unità ogni 5 minuti, vendute tutte,
+    // fanno circa 960 monete all'ora.
+    minutiSecondario: 5,
+    legnaSecondario: 40,
+    velocitaSecondario: 3.2, // metri al secondo, mentre va e torna dalla foresta con la slitta
+  },
+
+  // ---------------- GUADAGNI MENTRE SI È VIA ----------------
+  // Quando si riapre il gioco, la base ha continuato a lavorare: il boscaiolo secondario ha portato la legna
+  // e aiutante e venditori l'hanno venduta (non più in fretta di come succede giocando). I lupi non fanno danni.
+  offline: {
+    minimoMinuti: 2,         // sotto questi minuti di assenza non succede niente
+    massimoOre: 24,          // oltre queste ore non succede più niente (né legna né vendite)
+    passo: 10,               // il calcolo va avanti a passi di questi secondi
   },
 
   // ---------------- TELECAMERA SUI MIGLIORAMENTI ----------------
