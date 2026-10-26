@@ -7,6 +7,7 @@
 
 import { CONFIG } from '../config.js';
 import { creaPorta } from '../modelli/porta.js';
+import { suoni } from '../motore/suoni.js';
 
 // Cosa fa ogni tipo di porta al numero di boscaioli
 export function applicaOperazione(numero, operazione) {
@@ -68,6 +69,8 @@ export class Porte {
             `${differenza >= 0 ? '+' : ''}${differenza}`,
             differenza >= 0 ? 'buono' : 'cattivo'
           );
+          suoni.suona(differenza >= 0 ? 'portaBuona' : 'portaCattiva');
+          if (differenza >= 0) suoni.suona('grido', { ritardo: 0.15 }); // incitamento allegro dei boscaioli
         }
       }
 

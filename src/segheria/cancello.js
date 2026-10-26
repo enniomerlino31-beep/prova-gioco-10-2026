@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { tinta, creaScritta } from '../modelli/materiali.js';
 import { creaZonaATerra } from './catasta.js';
+import { suoni } from '../motore/suoni.js';
 
 const DISTANZA_PALI = 1.5;            // distanza di ogni palo dal centro del varco
 const RAGGIO_PALO = 0.38;
@@ -147,6 +148,9 @@ export class Cancello {
       (p) => Math.hypot(p.x - this.posizione.x, p.z - this.posizione.z) < DISTANZA_APERTURA
     );
     const passo = dt * 2.5;
+    // le ante cominciano ad aprirsi (o a richiudersi dopo essere state aperte)
+    if (vicino && this.apertura <= 0.01) suoni.suona('cancelloApre');
+    if (!vicino && this.apertura >= 0.99) suoni.suona('cancelloChiude');
     this.apertura += THREE.MathUtils.clamp((vicino ? 1 : 0) - this.apertura, -passo, passo);
     const morbido = THREE.MathUtils.smoothstep(this.apertura, 0, 1);
     for (const anta of this.ante) anta.perno.rotation.y = anta.lato * morbido * ANGOLO_APERTO;

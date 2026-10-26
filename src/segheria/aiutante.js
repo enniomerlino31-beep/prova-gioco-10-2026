@@ -14,6 +14,7 @@ import { CONFIG } from '../config.js';
 import { creaLavoratore } from '../modelli/boscaiolo.js';
 import { animaPersona } from '../modelli/animazioni.js';
 import { geometriaTronco, materialiTronco } from '../modelli/carro.js';
+import { suoni } from '../motore/suoni.js';
 
 const VOLO = { durata: 0.4, altezza: 1.3, scala: 0.55, sbuffo: false };
 
@@ -56,6 +57,7 @@ export class Aiutante {
 
   aggiorna(dt) {
     // compare con un piccolo salto
+    if (this.comparsa === 0) suoni.suona('comparsa'); // appena comprato: un suono breve mentre spunta
     this.comparsa = Math.min(1, this.comparsa + dt * 2);
     const c = this.comparsa;
     const scala = CONFIG.segheria.dimensioneBoscaiolo * 0.9 * (c < 1 ? c + Math.sin(c * Math.PI) * 0.35 : 1);

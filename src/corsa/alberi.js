@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { creaAbete } from '../modelli/albero.js';
 import { tinta } from '../modelli/materiali.js';
+import { suoni } from '../motore/suoni.js';
 
 const geometriaBarra = new THREE.PlaneGeometry(1.6, 0.18);
 
@@ -18,6 +19,7 @@ export class Alberi {
     this.genitore = genitore;
     this.effetti = effetti;
     this.alberi = [];
+    this.attesaColpo = 0; // secondi al prossimo colpo d'ascia sentito mentre si taglia
   }
 
   aggiungi(distanza, x) {
@@ -73,6 +75,12 @@ export class Alberi {
     // --- Taglio degli alberi toccati dalla squadra ---
     if (toccati.length > 0 && squadra.numero > 0) {
       const cfg = CONFIG.alberi;
+      // colpi d'ascia sul legno: a ritmo più fitto con più boscaioli (il limite di suoni insieme sta in suoni.js)
+      this.attesaColpo -= dt;
+      if (this.attesaColpo <= 0) {
+        suoni.suona('taglio', { volume: 0.7 + Math.random() * 0.3 });
+        this.attesaColpo = Math.max(CONFIG.audio.colpiTaglio, 1 / Math.sqrt(squadra.numero)) * (0.85 + Math.random() * 0.3);
+      }
       // colpi al secondo: tanti boscaioli = tanti colpi (ma c'è un tempo minimo)
       const colpiAlSecondo = Math.min(squadra.numero * cfg.forzaAscia, cfg.resistenza / cfg.tempoMinimoTaglio);
       for (const a of toccati) {
@@ -116,6 +124,8 @@ export class Alberi {
   // Fa cadere l'albero; se è stato tagliato dalla squadra, i tronchi VOLANO sul carro
   abbatti(albero, carro, tagliato) {
     albero.stato = 'cade';
+    suoni.suona('albero');
+    suoni.suona('grido', { ritardo: 0.2 }); // "Hey!" dei boscaioli
     albero.barra.visible = false;
     albero.modello.rotation.z = 0;
     this.effetti.sbuffo(albero.x, 0.6, -albero.distanza, 0xb07a45, 10, 3); // schegge alla base

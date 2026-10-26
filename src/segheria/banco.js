@@ -8,6 +8,7 @@
 // =====================================================================
 
 import { creaBancoCacciatore } from '../modelli/banco.js';
+import { suoni } from '../motore/suoni.js';
 
 const ORDINE = ['tavolo', 'corda', 'coltello', 'frecce', 'pelle', 'lanterna']; // come compaiono, uno dopo l'altro
 const PAUSA = 0.15;   // secondi tra un attrezzo e il successivo
@@ -47,6 +48,7 @@ export class BancoCacciatore {
     if (conAnimazione) {
       this.effetti.sbuffo(this.posizione.x, 0.4, this.posizione.z, 0xf4f8ff, 14, 3);
       this.effetti.sbuffo(this.posizione.x, 0.6, this.posizione.z, 0xb07a45, 8, 2.5);
+      suoni.suona('comparsa');
     }
     this.aggiorna(0);
   }

@@ -16,6 +16,7 @@ import { Schermate } from './schermate/schermate.js';
 import { Corsa } from './corsa/corsa.js';
 import { Segheria } from './segheria/segheria.js';
 import { cancella } from './salvataggio.js';
+import { suoni, ascoltaTocchi } from './motore/suoni.js';
 
 // Con ?reset nell'indirizzo si ricomincia da zero: il salvataggio viene cancellato prima di caricare la base.
 // Poi ?reset viene tolto dall'indirizzo, così ricaricando la pagina non si cancella di nuovo tutto.
@@ -25,6 +26,49 @@ if (indirizzo.searchParams.has('reset')) {
   indirizzo.searchParams.delete('reset');
   window.history.replaceState(null, '', indirizzo);
 }
+
+// Suoni e musica: si scaricano subito (la musica un po' dopo), si sbloccano al primo tocco (il telefono lo vuole).
+ascoltaTocchi();
+suoni.carica();
+suoni.musica('base');
+
+// Impostazioni: l'ingranaggio apre un piccolo menu con gli interruttori di effetti e musica (restano salvati).
+// Mentre il menu è aperto il gioco è in pausa (gli effetti tacciono, la musica va avanti).
+const menuImpostazioni = document.getElementById('menu-impostazioni');
+const interruttoreEffetti = document.getElementById('interruttore-effetti');
+const interruttoreMusica = document.getElementById('interruttore-musica');
+let inPausa = false;
+function mostraInterruttori() {
+  interruttoreEffetti.setAttribute('aria-checked', String(suoni.conEffetti));
+  interruttoreMusica.setAttribute('aria-checked', String(suoni.conMusica));
+}
+function impostaMenu(aperto) {
+  inPausa = aperto;
+  menuImpostazioni.classList.toggle('nascosto', !aperto);
+  suoni.mettiInPausa(aperto);
+  if (aperto) mostraInterruttori();
+}
+document.getElementById('pulsante-impostazioni').addEventListener('click', () => impostaMenu(true));
+document.getElementById('pulsante-chiudi-impostazioni').addEventListener('click', () => impostaMenu(false));
+// toccando fuori dal riquadro, o premendo Esc, il menu si chiude
+menuImpostazioni.addEventListener('click', (evento) => {
+  if (evento.target === menuImpostazioni) impostaMenu(false);
+});
+window.addEventListener('keydown', (evento) => {
+  if (evento.key === 'Escape') impostaMenu(!inPausa);
+});
+interruttoreEffetti.addEventListener('click', () => {
+  suoni.impostaEffetti(!suoni.conEffetti);
+  mostraInterruttori();
+});
+interruttoreMusica.addEventListener('click', () => {
+  suoni.impostaMusica(!suoni.conMusica);
+  mostraInterruttori();
+});
+// Tutti i pulsanti dei menu (Gioca, Alla segheria, Raccogli, ingranaggio...) fanno un piccolo clic
+document.addEventListener('click', (evento) => {
+  if (evento.target.closest?.('.pulsante, .pulsante-impostazioni, .interruttore')) suoni.suona('clic');
+});
 
 const contenitore = document.getElementById('gioco');
 const mondo = creaMondo(contenitore); // il mondo della corsa (e il "pittore" condiviso)
@@ -42,6 +86,7 @@ function avviaCorsa() {
   corsa = new Corsa(mondo, controlli, schermate, fineCorsa);
   schermate.impostaTelecamera(mondo.telecamera);
   schermate.mostraCorsa();
+  suoni.musica('corsa');
   modo = 'corsa';
 }
 
@@ -49,6 +94,7 @@ function avviaCorsa() {
 // (la prima corsa del tutorial può avere un bonus di legna, che si vede nel riepilogo)
 function fineCorsa(risultato) {
   if (risultato.vinto) risultato.bonusLegna = segheria.aggiungiBottino(risultato.legnaFinale, risultato.carneFinale);
+  suoni.suona(risultato.vinto ? 'vittoria' : 'sconfitta');
   schermate.mostraFine(risultato);
 }
 
@@ -60,7 +106,14 @@ function vaiAllaSegheria() {
   }
   schermate.impostaTelecamera(segheria.telecamera);
   segheria.entra();
+  suoni.musica('base');
   modo = 'segheria';
+  // Con ?corsa nell'indirizzo, la prima volta che si entra nella base parte subito una corsa (per provarla senza camminare)
+  if (indirizzo.searchParams.has('corsa')) {
+    indirizzo.searchParams.delete('corsa');
+    window.history.replaceState(null, '', indirizzo);
+    avviaCorsa();
+  }
 }
 
 schermate.quandoGioca(vaiAllaSegheria);
@@ -71,24 +124,47 @@ document.fonts.load('40px "Lilita One"').catch(() => {});
 
 // --- Il ciclo del gioco ---
 let ultimoIstante = performance.now();
+// Un errore in un pezzo del gioco non deve fermare tutto il resto (né i suoni): lo si scrive nella console, una volta sola
+let ultimoErrore = '';
+function segnala(errore) {
+  const testo = String(errore?.stack ?? errore);
+  if (testo === ultimoErrore) return;
+  ultimoErrore = testo;
+  console.error(errore);
+}
+
 function ciclo(adesso) {
+  requestAnimationFrame(ciclo); // si prenota subito il prossimo fotogramma: il ciclo non si ferma mai
   // dt = secondi passati dall'ultimo fotogramma (al massimo 0,05 per evitare salti se il telefono rallenta)
   const dt = Math.min(0.05, (adesso - ultimoIstante) / 1000);
   ultimoIstante = adesso;
 
-  if (modo === 'segheria') {
-    segheria.aggiorna(dt);
-  } else if (modo === 'corsa') {
-    corsa.aggiorna(dt);
-    segheria.lavoraDuranteLaCorsa(dt); // intanto il boscaiolo secondario continua a portare legna alla base
-  } else {
-    // sulla schermata iniziale si vede la segheria sullo sfondo
-    segheria.ambiente.segui(segheria.giocatore.posizione, dt);
+  try {
+    if (inPausa) {
+      // menu aperto: niente si muove (si ridisegna solo la scena ferma)
+    } else if (modo === 'segheria') {
+      segheria.aggiorna(dt);
+    } else if (modo === 'corsa') {
+      corsa.aggiorna(dt);
+      segheria.lavoraDuranteLaCorsa(dt); // intanto il boscaiolo secondario continua a portare legna alla base
+    } else {
+      // sulla schermata iniziale si vede la segheria sullo sfondo
+      segheria.ambiente.segui(segheria.giocatore.posizione, dt);
+    }
+    if (!inPausa) schermate.aggiorna(dt);
+  } catch (errore) {
+    segnala(errore);
   }
-  schermate.aggiorna(dt);
-  if (modo === 'corsa') mondo.disegna();
-  else segheria.disegna();
-
-  requestAnimationFrame(ciclo);
+  try {
+    suoni.aggiorna(); // ripetizioni dei suoni continui e cambio di musica (anche se il resto del gioco avesse un problema)
+  } catch (errore) {
+    segnala(errore);
+  }
+  try {
+    if (modo === 'corsa') mondo.disegna();
+    else segheria.disegna();
+  } catch (errore) {
+    segnala(errore);
+  }
 }
 requestAnimationFrame(ciclo);

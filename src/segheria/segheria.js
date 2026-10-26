@@ -37,6 +37,7 @@ import { Mura } from './mura.js';
 import { BancoCacciatore } from './banco.js';
 import { BoscaioloSecondario, durataGiro } from './secondario.js';
 import { lavoroOffline, secondiDiAssenza } from './offline.js';
+import { suoni } from '../motore/suoni.js';
 import { creaLupo } from '../modelli/lupo.js';
 import { animaGaloppo, animaMorso, COLPO } from '../modelli/animazioni.js';
 import { creaCarne } from '../modelli/carne.js';
@@ -124,6 +125,8 @@ export class Segheria {
 
     this.giocatore = new Giocatore(this.radice, this.effetti);
     for (const [tipo, quantita] of Object.entries(s.schiena)) if (quantita > 0) this.giocatore.aggiungi(tipo, quantita);
+    // a ogni passo del boscaiolo: morbido sulla neve, diverso sul pavimento di pietra (gli altri non fanno rumore)
+    this.giocatore.alPasso = () => suoni.suona(this.pavimento.copre(this.giocatore.posizione) ? 'passoPietra' : 'passoNeve');
     this.catasta = new Deposito(this.radice, 'legna', MAPPA.catasta, s.catasta);
     // un solo cerchio delle monete, tra i due sportelli: ci pagano i clienti di tutti e due
     this.soldi = new PilaSoldi(this.radice, MAPPA.monete, s.soldiATerra);
@@ -306,6 +309,7 @@ export class Segheria {
       this.effetti.lancia('soldi', partenza, pila, 0.2 + i * 0.12, () => {
         this.inVolo.soldi -= parte;
         pila.aggiungi(parte);
+        suoni.suona('monete');
         this.effetti.scintille(pila.posizione.x, 0.4, pila.posizione.z, 0xffe066, 5);
       }, { durata: 0.6, altezza: 0.6 });
     }
@@ -492,6 +496,7 @@ export class Segheria {
     this.sveglia(this.lupoGigante, partenza.x, partenza.z, { fronte: 'gigante' });
     this.effetti.sbuffo(partenza.x, 0.5, partenza.z, 0xf4f8ff, 20, 4);
     this.schermate.mostraAvviso('Arriva il lupo gigante!', CONFIG.lupoGigante.tempoAvviso);
+    suoni.suona('ululato');
   }
 
   // Un palo a caso tra i più vicini al lupo: il lupo ci va davanti, dal lato esterno delle mura
@@ -571,6 +576,7 @@ export class Segheria {
         if (lupo.prossimoMorso <= 0) {
           lupo.prossimoMorso = 1.1 + Math.random() * 0.6;
           this.mura.colpisci(lupo.x, lupo.z, lupo.gigante ? 1.6 : 1);
+          suoni.suona(lupo.gigante ? 'morsoGigante' : 'morso');
         }
       }
 
@@ -638,15 +644,17 @@ export class Segheria {
     this.colpoInArrivo.tempo -= dt;
     if (this.colpoInArrivo.tempo > 0) return;
     const { lupo, generazione } = this.colpoInArrivo;
-    if (lupo.vivo && lupo.generazione === generazione) this.colpisciLupo(lupo, lupo.dannoAscia);
+    if (lupo.vivo && lupo.generazione === generazione) this.colpisciLupo(lupo, lupo.dannoAscia, 'ascia');
     this.colpoInArrivo = null;
   }
 
   // Un colpo a un lupo (ascia del boscaiolo, freccia di un arciere o ascia del cacciatore):
-  // lampeggia e perde "danno" tacche di vita; a zero muore e lascia la carne a terra
-  colpisciLupo(lupo, danno = 1) {
+  // lampeggia e perde "danno" tacche di vita; a zero muore e lascia la carne a terra.
+  // arma: 'ascia' o 'freccia' (ognuna con il suo suono quando colpisce)
+  colpisciLupo(lupo, danno = 1, arma = 'freccia') {
     if (!lupo.vivo) return;
     lupo.hp -= danno;
+    if (arma === 'ascia') suoni.suona('ascia');
     lupo.flash = lupo.gigante ? 0.2 : 0.5; // il gigante è pesante: salta poco
     lupo.lampo = 0.42;
     lupo.gruppo.position.x += 0.14;
@@ -660,6 +668,7 @@ export class Segheria {
     lupo.barra.aggiorna(lupo);
 
     if (lupo.hp <= 0) {
+      suoni.suona('lupoMuore');
       lupo.vivo = false;
       lupo.gruppo.visible = false;
       lupo.barra.gruppo.visible = false;
@@ -743,6 +752,8 @@ export class Segheria {
       const rata = cerchio.prossimaRata(this.stato.soldi, dt);
       if (rata <= 0) continue;
       this.stato.soldi -= rata;
+      // le monete che entrano nel cerchio
+      suoni.suona('pagamento');
       const partenza = this.giocatore.cimaSchiena(new THREE.Vector3(), 'monete'); // le monete partono dalla pila sulla schiena
       this.effetti.lancia('soldi', partenza, cerchio, 0, () => {
         if (cerchio.riceviRata(rata)) this.completaMiglioramento(nome);
@@ -762,6 +773,7 @@ export class Segheria {
     const { x, z } = cerchio.posizione;
     this.effetti.testo(x, 2.2, z, `${livello.nome}!`, 'buono');
     this.effetti.sbuffo(x, 0.4, z, 0x9be37a, 24, 3.5);
+    suoni.suona('acquisto');
     const tappe = this.tappeDelMiglioramento(nome, livello);
     const daMostrare = tappe.filter((tappa) => tappa.sempre || !tappa.punti.every((punto) => this.visibile(punto)));
     for (const tappa of tappe) if (!daMostrare.includes(tappa)) tappa.azione();
@@ -1052,6 +1064,7 @@ export class Segheria {
         drop.preso = true;
         this.radice.remove(drop.mesh);
         this.giocatore.aggiungi('carne', drop.quantita);
+        suoni.suona('carneSchiena');
         this.giocatore.rimbalza(0xff9a8a, this.giocatore.cimaSchiena(new THREE.Vector3(), 'carne'));
         this.effetti.testo(drop.x, 1.8, drop.z, `+${drop.quantita} carne`, 'buono');
       }
@@ -1150,6 +1163,7 @@ export class Segheria {
     this.effetti.lancia(tipo, partenza, (v) => this.giocatore.cimaSchiena(v, tipo), 0, () => {
       this.inVolo[tipo] -= quantita;
       this.giocatore.aggiungi(tipo, quantita);
+      suoni.suona(tipo === 'carne' ? 'carneSchiena' : 'legnaSchiena');
       this.giocatore.rimbalza(tipo === 'carne' ? 0xff9a8a : 0xffd27a, this.giocatore.cimaSchiena(new THREE.Vector3(), tipo));
     }, VOLO_CORTO);
     return true;
@@ -1166,6 +1180,7 @@ export class Segheria {
     this.effetti.lancia(tipo, partenza, sportello, 0, () => {
       this.inVolo[tipo] -= quantita;
       sportello.aggiungi(quantita);
+      suoni.suona(tipo === 'carne' ? 'carneDeposito' : 'legnaDeposito');
     }, VOLO_CORTO);
     return true;
   }
@@ -1173,6 +1188,7 @@ export class Segheria {
   // Tutte le monete del cerchio volano verso il boscaiolo (divise in qualche mucchietto)
   raccogliSoldi(pila) {
     const totale = pila.prendiTutto();
+    suoni.suona('monete');
     const mucchietti = Math.min(8, Math.max(1, Math.ceil(totale / (CONFIG.economia.soldiPerMoneta * 2))));
     let rimasti = totale;
     for (let i = 0; i < mucchietti; i++) {

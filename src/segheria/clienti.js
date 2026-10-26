@@ -15,6 +15,7 @@ import { animaPersona } from '../modelli/animazioni.js';
 import { creaScritta } from '../modelli/materiali.js';
 import { prezzo } from '../economia.js';
 import { MAPPA } from './ambiente.js';
+import { suoni } from '../motore/suoni.js';
 
 const DIMENSIONE = 1.5; // grandezza dei clienti (come il boscaiolo)
 
@@ -182,6 +183,7 @@ export class Clienti {
     this.effetti.testo(testa.x, testa.y + 0.6, testa.z, `+${incasso}`, 'buono', 'moneta');
 
     this.alVendita(cliente.vuole, cliente.preso, incasso);
+    suoni.suona('vendita');
     if (this.sportelli[cliente.vuole].venditore && Math.random() < CONFIG.economia.probabilitaMancia) this.mancia(cliente, testa, pila);
     cliente.stato = 'esce';
     cliente.fumetto.visible = false;
@@ -189,6 +191,7 @@ export class Clienti {
 
   // Con il venditore, a volte il cliente lascia una mancia: una monetina in più salta fuori e vola nella pila
   mancia(cliente, testa, pila) {
+    suoni.suona('mancia');
     const { manciaMinima, manciaMassima } = CONFIG.economia;
     const mancia = manciaMinima + Math.floor(Math.random() * (manciaMassima - manciaMinima + 1));
     this.inVolo.soldi += mancia;

@@ -27,6 +27,8 @@ import {
   creaTorretta, creaArco, creaFreccia, ALTEZZA_PIATTAFORMA, COLORI_BANDIERA,
 } from '../modelli/torretta.js';
 import { MAPPA } from './ambiente.js';
+import { suoni } from '../motore/suoni.js';
+import { SUONO_MATERIALE } from './mura.js';
 
 const SCALA_ARCIERE = 1.3;
 const ALTEZZA_TIRO = ALTEZZA_PIATTAFORMA + 1.0; // da qui parte la freccia (le mani dell'arciere)
@@ -108,7 +110,16 @@ export class Torrette {
     torre.comparsa = conAnimazione ? 0 : 1;
     this.cambiaMateriale(torre, this.mura.livello, false);
     this.aggiornaAspetto(i, false);
-    if (conAnimazione) this.effetti.sbuffo(torre.posizione.x, 0.3, torre.posizione.z, 0xb07a45, 18, 3);
+    if (conAnimazione) {
+      this.effetti.sbuffo(torre.posizione.x, 0.3, torre.posizione.z, 0xb07a45, 18, 3);
+      this.suonoMateriale(torre.materiale);
+    }
+  }
+
+  // Due colpi del materiale (legno, pietra o metallo) mentre la torre si costruisce o cambia
+  suonoMateriale(materiale) {
+    suoni.suona(SUONO_MATERIALE[materiale]);
+    suoni.suona(SUONO_MATERIALE[materiale], { ritardo: 0.35, volume: 0.8 });
   }
 
   // Le parti nuove di un gruppo (es. la pietra) spuntano dal nulla, una dopo l'altra
@@ -142,6 +153,7 @@ export class Torrette {
       const { x, z } = torre.posizione;
       this.effetti.sbuffo(x, 0.4, z, livello >= 2 ? 0x8b939e : 0x9aa2ad, 20, 3.5);
       if (livello >= 2) this.effetti.scintille(x, 1.4, z, 0xfff3b0, 8, 2);
+      this.suonoMateriale(livello);
     }
   }
 
@@ -161,6 +173,7 @@ export class Torrette {
       const { x, z } = torre.posizione;
       this.effetti.sbuffo(x, ALTEZZA_PIATTAFORMA + 0.8, z, aspetto >= 2 ? 0xffd23f : 0x9fc8ff, 18, 3);
       if (aspetto >= 2) this.effetti.scintille(x, ALTEZZA_PIATTAFORMA + 1.4, z, 0xffe066, 12, 2.5);
+      suoni.suona('armatura'); // cuoio e metallo dell'armatura nuova (con tante torri insieme se ne sente uno)
     }
   }
 

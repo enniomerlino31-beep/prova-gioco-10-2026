@@ -20,6 +20,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { partiBoscaiolo, PERNI } from '../modelli/boscaiolo.js';
+import { suoni } from '../motore/suoni.js';
 
 const PAUSA_PRIMA_DI_RICOMPATTARE = 0.7; // secondi senza urti prima di richiudere i buchi
 
@@ -29,6 +30,10 @@ export class Squadra {
     this.x = 0;          // posizione a destra/sinistra (metri)
     this.distanza = 0;   // metri percorsi dalla partenza
     this.y = 0;          // altezza (serve nella salita finale)
+    this.velocitaX = 0;  // velocità a destra/sinistra (metri al secondo): serve per l'inclinazione e l'onda
+    this.storico = [];   // dove era la squadra negli ultimi istanti { t, x, v }: ogni fila la segue con il suo ritardo
+    this.orologio = 0;
+    this.xPrecedente = 0;
     this.azione = 'ferma'; // 'corre', 'taglia' oppure 'ferma'
     this.tempoDallUltimoUrto = 99;
 
@@ -123,10 +128,37 @@ export class Squadra {
     }
   }
 
+  // Sposta la squadra verso il punto voluto con un movimento morbido: accelera e frena dolcemente, ma segue il dito
+  // senza scivolare (molla smorzata: arriva al punto senza oltrepassarlo). velocitaMassima = metri al secondo.
+  muoviVersoBersaglio(bersaglio, velocitaMassima, dt) {
+    const omega = CONFIG.squadra.rispostaLaterale;
+    const passi = Math.max(1, Math.ceil(dt / (1 / 60))); // a passi piccoli, così resta stabile anche con pochi fotogrammi al secondo
+    const h = dt / passi;
+    for (let n = 0; n < passi; n++) {
+      const accelerazione = omega * omega * (bersaglio - this.x) - 2 * omega * this.velocitaX;
+      this.velocitaX = THREE.MathUtils.clamp(this.velocitaX + accelerazione * h, -velocitaMassima, velocitaMassima);
+      this.x += this.velocitaX * h;
+    }
+  }
+
+  // Dov'era la squadra (e quanto veloce andava) "ritardo" secondi fa
+  nelPassato(ritardo) {
+    const t = this.orologio - ritardo;
+    const s = this.storico;
+    if (s.length === 0 || t <= s[0].t) return s[0] ?? { x: this.x, v: this.velocitaX };
+    for (let k = s.length - 1; k > 0; k--) {
+      if (s[k - 1].t <= t) {
+        const u = (t - s[k - 1].t) / Math.max(1e-6, s[k].t - s[k - 1].t);
+        return { x: s[k - 1].x + (s[k].x - s[k - 1].x) * u, v: s[k - 1].v + (s[k].v - s[k - 1].v) * u };
+      }
+    }
+    return s[0];
+  }
+
   // Posizione nel mondo dell'omino numero i: { x, distanza }
   posizioneOmino(i) {
     const o = this.omini[i];
-    return { x: this.x + o.x, distanza: this.distanza - o.z };
+    return { x: this.x + o.x + (o.onda || 0), distanza: this.distanza - o.z };
   }
 
   // Quali omini (ancora in piedi) toccano un oggetto rotondo in quel punto?
@@ -159,6 +191,7 @@ export class Squadra {
     const posizioni = indici.map((i) => this.posizioneOmino(i));
     for (const i of indici) this.omini[i].vivo = false;
     this.numero -= persi;
+    if (persi > 0) suoni.suona('perso');
     this.tempoDallUltimoUrto = 0;
     this.sincronizza();
     return { persi, posizioni };
@@ -184,6 +217,17 @@ export class Squadra {
   aggiorna(dt, tempo) {
     this.radice.position.set(this.x, this.y, -this.distanza);
 
+    // Si ricorda dove è stata la squadra negli ultimi istanti (serve per l'onda)
+    this.orologio += dt;
+    const velocitaVista = dt > 0 ? (this.x - this.xPrecedente) / dt : 0; // quanto si è mossa davvero in questo fotogramma
+    this.xPrecedente = this.x;
+    this.storico.push({ t: this.orologio, x: this.x, v: velocitaVista });
+    const durataStorico = CONFIG.squadra.ritardoOnda * 40 + 0.2;
+    while (this.storico.length > 2 && this.storico[1].t < this.orologio - durataStorico) this.storico.shift();
+    const correndo = this.azione === 'corre';
+    const filePosti = this.colonne; // quanti omini per fila (la fila 0 è davanti)
+    const effettoFila = []; // per ogni fila: di quanto resta indietro (onda) e di quanto si inclina
+
     // Quando la squadra è di nuovo al sicuro, si richiudono i buchi lasciati dagli omini caduti
     this.tempoDallUltimoUrto += dt;
     if (this.tempoDallUltimoUrto > PAUSA_PRIMA_DI_RICOMPATTARE) {
@@ -208,12 +252,25 @@ export class Squadra {
       }
       o.fase += dt * velocitaPasso;
 
+      // Onda e inclinazione: ogni fila ripete il movimento della squadra con un piccolo ritardo, quindi chi sta dietro
+      // resta un po' indietro quando si sterza e poi raggiunge gli altri; ci si inclina verso dove si va
+      const fila = Math.floor(i / filePosti);
+      let effetto = effettoFila[fila];
+      if (!effetto) {
+        const passato = correndo ? this.nelPassato(fila * CONFIG.squadra.ritardoOnda) : { x: this.x, v: 0 };
+        effetto = effettoFila[fila] = {
+          onda: THREE.MathUtils.clamp(passato.x - this.x, -CONFIG.squadra.ondaMassima, CONFIG.squadra.ondaMassima),
+          rollio: -THREE.MathUtils.clamp(passato.v * CONFIG.squadra.inclinazioneLaterale, -CONFIG.squadra.inclinazioneMassima, CONFIG.squadra.inclinazioneMassima),
+        };
+      }
+      o.onda = effetto.onda;
+
       const passo = Math.sin(o.fase);
       const saltello = this.azione === 'corre' && o.vivo ? Math.abs(passo) * 0.06 : 0;
 
       // Matrice dell'omino intero (posizione nella folla + dimensione); quando corre si piega un po' in avanti
-      this._v.set(o.x, saltello, o.z);
-      this._q.setFromEuler(this._e.set(this.azione === 'corre' ? -0.14 : 0, 0, 0));
+      this._v.set(o.x + o.onda, saltello, o.z);
+      this._q.setFromEuler(this._e.set(correndo ? -0.14 : 0, 0, effetto.rollio));
       this._s.setScalar(o.scala * dimensione);
       this._mOmino.compose(this._v, this._q, this._s);
 

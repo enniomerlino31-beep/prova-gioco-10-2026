@@ -15,6 +15,7 @@ import { Lupi } from './lupi.js';
 import { Effetti } from '../motore/effetti.js';
 import { SfidaFinale } from './sfidaFinale.js';
 import { generaLivello } from './generatoreLivello.js';
+import { suoni } from '../motore/suoni.js';
 
 // Distanza dal centro della folla al retro del carro con pochi boscaioli: oltre questa la telecamera si allarga
 const CODA_NORMALE = 5.5;
@@ -53,7 +54,13 @@ export class Corsa {
       if (cosa.tipo === 'lupo') this.lupi.aggiungi(cosa.distanza, cosa.x, cosa.corre);
     }
 
+    // Suoni continui della corsa: i passi della squadra sulla neve (pochi o tanti boscaioli) e il carro
+    this.suonoPassi = suoni.ciclo('corsaNeve');
+    this.suonoPassiTanti = suoni.ciclo('corsaNeveTanti');
+    this.suonoCarro = suoni.ciclo('carro');
+
     this.stato = 'corsa'; // 'corsa' → 'salita' → 'finita'
+    this.prossimoGrido = CONFIG.audio.gridaCorsa[0]; // quando grideranno la prossima volta (secondi dall'inizio)
     this.bersaglioX = 0;   // dove il giocatore vuole portare la squadra
     this.tempo = 0;
     this.velocita = 0;
@@ -78,9 +85,7 @@ export class Corsa {
       this.bersaglioX = THREE.MathUtils.clamp(this.bersaglioX + this.controlli.leggiSpostamento(dt), -limite, limite);
       // con il carro carico la squadra si sposta più lentamente (ma perde al massimo "perditaAgilitaMassima")
       const velocitaLaterale = CONFIG.squadra.velocitaLaterale * (1 - CONFIG.carro.perditaAgilitaMassima * fatica);
-      const differenza = this.bersaglioX - squadra.x;
-      const passoMassimo = velocitaLaterale * dt;
-      squadra.x += THREE.MathUtils.clamp(differenza, -passoMassimo, passoMassimo);
+      squadra.muoviVersoBersaglio(this.bersaglioX, velocitaLaterale, dt);
 
       // --- 2. Avanzamento (ci si ferma se si sta tagliando un albero) ---
       const toccati = this.alberi.alberiToccati(squadra);
@@ -137,6 +142,8 @@ export class Corsa {
       }
     }
 
+    this.aggiornaSuoni();
+
     // --- Grafica: omini, effetti, telecamera, interfaccia ---
     squadra.aggiorna(dt, this.tempo);
     this.effetti.aggiorna(dt);
@@ -155,8 +162,28 @@ export class Corsa {
     });
   }
 
+  // Un solo suono di passi di gruppo: più pieno con tanti boscaioli (sfuma nel suono dei "tanti"), più leggero con
+  // pochi; tace quando la squadra è ferma (a tagliare un albero) o la corsa è finita. Il carro si sente quando avanza.
+  // Sulla salita finale i passi sono quelli sui gradini (vedi sfidaFinale.js).
+  aggiornaSuoni() {
+    const squadra = this.squadra;
+    const corre = this.stato === 'corsa' && squadra.azione === 'corre' && this.velocita > 0;
+    const pieno = THREE.MathUtils.clamp((squadra.numero - 6) / 40, 0, 1);  // 0 con pochi boscaioli, 1 con 46 o più
+    const forza = corre ? THREE.MathUtils.clamp(0.45 + squadra.numero / 30, 0.45, 1) : 0;
+    this.suonoPassi.volume(forza * (1 - pieno * 0.7));
+    this.suonoPassiTanti.volume(forza * pieno);
+    const spinto = this.stato === 'salita' && squadra.azione === 'corre';
+    this.suonoCarro.volume(corre ? 0.7 : spinto ? 0.45 : 0);
+    // ogni tanto, mentre corrono, i boscaioli gridano per incitarsi (mai troppo spesso: vedi CONFIG.audio)
+    if (corre && this.tempo >= this.prossimoGrido) {
+      suoni.suona('grido');
+      this.prossimoGrido = this.tempo + CONFIG.audio.gridaCorsa[0] + Math.random() * (CONFIG.audio.gridaCorsa[1] - CONFIG.audio.gridaCorsa[0]);
+    }
+  }
+
   // Butta via tutti gli oggetti di questa corsa (quando se ne inizia un'altra)
   distruggi() {
+    for (const ciclo of [this.suonoPassi, this.suonoPassiTanti, this.suonoCarro]) ciclo.ferma(0.4);
     this.mondo.scena.remove(this.radice);
     this.radice.traverse((oggetto) => {
       if (oggetto.isInstancedMesh) oggetto.dispose();

@@ -15,6 +15,7 @@ import { creaLavoratore } from '../modelli/boscaiolo.js';
 import { animaPersona } from '../modelli/animazioni.js';
 import { tinta } from '../modelli/materiali.js';
 import { DEPOSITO_Z, DEPOSITO_MEZZA_Z, BANCO_DENTRO } from '../modelli/sportello.js';
+import { suoni } from '../motore/suoni.js';
 
 // in mezzo tra il deposito e il bancone (così la tettoia non lo copre)
 const Z_VENDITORE = (DEPOSITO_Z + DEPOSITO_MEZZA_Z + BANCO_DENTRO) / 2 - 0.15;
@@ -56,6 +57,7 @@ export class Venditore {
   }
 
   aggiorna(dt) {
+    if (this.comparsa === 0) suoni.suona('comparsa'); // appena comprato: un suono breve mentre spunta
     this.comparsa = Math.min(1, this.comparsa + dt * 2);
     const c = this.comparsa;
     this.modello.scale.setScalar(Math.max(0.001, CONFIG.segheria.dimensioneBoscaiolo * 0.9 * (c < 1 ? c + Math.sin(c * Math.PI) * 0.35 : 1)));

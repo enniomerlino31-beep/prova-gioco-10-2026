@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { MAPPA, R_PALO } from './ambiente.js';
+import { suoni } from '../motore/suoni.js';
 
 const DURATA = 2.2;  // secondi perché il pavimento copra tutta la base
 const ALTEZZA = 0.008; // appena sopra la neve (e sopra le impronte: sul pavimento non restano)
@@ -85,6 +86,14 @@ export class Pavimento {
     // il raggio che serve per coprire tutto, partendo da qualsiasi punto della base
     this.raggioMassimo = Math.hypot(this.larghezza, this.profondita) + 1;
     this.uniformi = { centro: { value: this.centro }, raggio: { value: 0 } };
+    this.attesaLastra = 0;
+  }
+
+  // Il punto è sul pavimento? (dentro le mura e già raggiunto dal pavimento che si allarga; serve per i passi)
+  copre(punto) {
+    if (!this.tipo) return false;
+    const dentro = Math.abs(punto.x - this.mesh.position.x) < this.larghezza / 2 && Math.abs(punto.z - this.mesh.position.z) < this.profondita / 2;
+    return dentro && Math.hypot(punto.x - this.centro.x, punto.z - this.centro.y) <= this.raggio;
   }
 
   // Mette il pavimento ("pietra"). punto: da dove si allarga; conAnimazione: false = subito tutto (all'avvio)
@@ -122,6 +131,12 @@ export class Pavimento {
     if (!this.tipo || this.raggio >= this.raggioMassimo) return;
     this.raggio = Math.min(this.raggioMassimo, this.raggio + (this.raggioMassimo / DURATA) * dt);
     this.uniformi.raggio.value = this.raggio >= this.raggioMassimo ? 1000 : this.raggio;
+    // mentre si allarga, ogni tanto si sente una lastra di pietra appoggiata
+    this.attesaLastra -= dt;
+    if (this.attesaLastra <= 0) {
+      this.attesaLastra = 0.32 + Math.random() * 0.12;
+      suoni.suona('lastra');
+    }
     // un po' di polvere lungo il bordo che avanza (solo dentro la base)
     this.attesaPolvere -= dt;
     if (this.attesaPolvere > 0) return;

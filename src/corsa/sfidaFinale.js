@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { creaScritta, tinta } from '../modelli/materiali.js';
 import { creaSegheria } from '../modelli/segheria.js';
+import { suoni } from '../motore/suoni.js';
 
 // Colori dei gradini, dal basso verso l'alto (allegri, come nei giochi mobile)
 const COLORI_GRADINI = [0x8fd3ff, 0x9be37a, 0xffe066, 0xffb35c, 0xff8a7a, 0xe39bff];
@@ -103,6 +104,7 @@ export class SfidaFinale {
           const costo = this.costoGradino(this.gradiniRaggiunti, carro);
           if (squadra.numero >= costo) {
             squadra.imposta(squadra.numero - costo);
+            if (costo > 0) suoni.suona('restaIndietro'); // qualcuno resta indietro, stanco, su questo gradino
             this.gradiniRaggiunti++;
             this.effetti.testo(squadra.x, squadra.y + 2.4, -squadra.distanza, `x${this.moltiplicatore}`, 'buono');
             const scritta = this.scritte[this.gradiniRaggiunti - 1];
@@ -112,7 +114,15 @@ export class SfidaFinale {
             this.stato = 'fermo';
           }
         }
-        if (this.stato === 'sale') squadra.distanza += cfg.velocita * dt;
+        if (this.stato === 'sale') {
+          squadra.distanza += cfg.velocita * dt;
+          // i passi della squadra sui gradini, mentre sale
+          this.attesaPasso = (this.attesaPasso ?? 0) - dt;
+          if (this.attesaPasso <= 0) {
+            this.attesaPasso = 0.3;
+            suoni.suona('gradino');
+          }
+        }
       }
     } else if (this.stato === 'fermo' || this.stato === 'arrivato') {
       squadra.azione = 'ferma';

@@ -19,6 +19,7 @@ import { animaPersona } from '../modelli/animazioni.js';
 import { geometriaTronco, materialiTronco } from '../modelli/carro.js';
 import { tinta, creaEtichettaVariabile } from '../modelli/materiali.js';
 import { MAPPA } from './ambiente.js';
+import { suoni } from '../motore/suoni.js';
 
 const SCALA = CONFIG.segheria.dimensioneBoscaiolo * 0.9; // grande come l'aiutante
 const SOSTA = 1.2;        // secondi fermo alla catasta mentre la legna vola dalla slitta
@@ -132,6 +133,7 @@ export class BoscaioloSecondario {
       this.catasta.aggiungi(legna);
       return;
     }
+    suoni.suona('tronchiCatasta'); // i tronchi scaricati sulla catasta
     this.modello.updateMatrixWorld();
     const partenza = this.slitta.localToWorld(new THREE.Vector3(0, 0.45, 0.4));
     for (let i = 0; i < VOLI_SCARICO; i++) {
@@ -148,6 +150,7 @@ export class BoscaioloSecondario {
 
   aggiorna(dt) {
     this.avanza(dt, true);
+    if (this.comparsa === 0) suoni.suona('comparsa'); // appena comprato: un suono breve mentre spunta
     this.comparsa = Math.min(1, this.comparsa + dt * 2);
 
     // Dove si trova adesso, in metri di strada dalla catasta (null = è nella foresta, non si vede)
@@ -160,6 +163,9 @@ export class BoscaioloSecondario {
       distanza = this.mancano * this.velocita;
       torna = true;
     }
+    // ricompare dalla foresta con la slitta carica: si sente la slitta che scivola sulla neve
+    if (torna && !this.tornava) suoni.suona('slitta');
+    this.tornava = torna;
     this.visibile = distanza !== null;
     this.modello.visible = this.visibile;
     this.cartellino.imposta(this.testoConto());

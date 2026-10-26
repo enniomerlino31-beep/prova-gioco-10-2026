@@ -29,9 +29,12 @@ import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { R_PALO } from './ambiente.js';
 import { legnoPali } from '../modelli/materiali.js';
+import { suoni } from '../motore/suoni.js';
 
 const DURATA_ONDA = 1.8;   // secondi perché l'onda faccia il giro delle mura
 const DURATA_COMPARSA = 0.4; // secondi perché ogni pezzo "spunti" fuori
+// il suono delle costruzioni per ogni materiale delle mura (0 legno, 1 pietra, 2 metallo); lo usano anche le torri
+export const SUONO_MATERIALE = ['costruisciLegno', 'costruisciPietra', 'costruisciMetallo'];
 const SU = new THREE.Vector3(0, 1, 0);
 const DANNI = { crepe: 0.7, scheggiati: 0.4, rotti: 0.15 }; // sotto queste parti di vita compaiono i danni
 const RISALITA = 0.25;     // dopo una riparazione i danni spariscono piano: la vita "che si vede" risale di 1/4 al secondo
@@ -351,6 +354,12 @@ export class Mura {
     this.tempo += dt;
     if (this.onda !== null) {
       this.onda += dt;
+      // mentre l'onda fa il giro della base, ogni tanto un colpo del materiale nuovo (non un rumore continuo)
+      this.attesaColpo = (this.attesaColpo ?? 0) - dt;
+      if (this.attesaColpo <= 0 && this.onda < DURATA_ONDA) {
+        this.attesaColpo = 0.3 + Math.random() * 0.1;
+        suoni.suona(SUONO_MATERIALE[this.livello]);
+      }
       if (this.onda > DURATA_ONDA + DURATA_COMPARSA) this.onda = null;
       this.aggiornaPezzi();
     }

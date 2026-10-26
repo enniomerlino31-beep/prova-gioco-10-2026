@@ -9,7 +9,10 @@
 > **Adesso si fanno i Gruppi A, B e C** (scritti qui sotto), uno alla volta, in quest'ordine. Il **Gruppo A è fatto,
 > provato e approvato dall'utente e salvato** (2026-10-25, commit 363bb2c), con la modifica chiesta dopo la prova (boscaiolo
 > secondario a 5000 monete come ultimo acquisto, `?tuttocomprato`), anche lei provata e approvata.
-> Ora il Gruppo B (suoni), poi il Gruppo C (lupi, mura e lupo gigante).
+> **Gruppo B (suoni veri, musica, impostazioni, grida, movimento, colpi d'ascia): fatto, provato e approvato dall'utente e salvato (2026-10-26).** Prossimo: Gruppo C.
+> Il **Gruppo B (suoni)** è stato provato dall'utente e **va rifatto** (2026-10-25): i suoni fatti dal codice sono
+> fastidiosi e vanno sostituiti con **file audio veri CC0**, più la musica (vedi "GRUPPO B, SECONDA VERSIONE" qui sotto).
+> La prima versione NON va committata. Il pulsante dell'audio si tiene. Poi il Gruppo C (lupi, mura e lupo gigante).
 > I Gruppi 4 e 5 sono **rimandati a più avanti** (dopo A, B e C).
 
 Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il gioco lo prova l'utente, niente partite di prova lunghe), aggiornare il README e dire cosa è stato fatto. Commit solo quando lo dice l'utente. Se la sessione sta per finire, fermarsi alla fine di un gruppo e dirlo.
@@ -47,7 +50,7 @@ A3. Guadagni offline (Fase 5): quando chiudo il gioco e lo riapro, la base ha co
 ## GRUPPO B: SUONI (Fase 4, dopo il Gruppo A)
 
 Suoni fatti dal codice (con il Web Audio del browser), senza file audio, così il gioco resta leggero.
-Stile CARTOON: suoni buffi, rotondi e allegri come nei cartoni animati e nei giochi per telefono (boing, pop, plin, swoosh). Niente suoni realistici o cupi, niente versi di lupo veri: anche il lupo deve sembrare un cartone animato.
+STILE (corretto dall'utente il 2026-10-26): suoni **morbidi, rilassanti e realistici**, non elettronici e non buffi. (La prima versione chiedeva suoni "buffi": è superata.)
 - Base: colpo d'ascia sul lupo, lupo che muore, morso alle mura, arrivo del lupo gigante (ululato buffo), freccia della torretta, monete raccolte, vendita allo sportello, mancia, pagamento in un cerchio, acquisto completato, cancello che si apre, ritorno del boscaiolo secondario con la legna.
 - Corsa: passaggio da una porta buona e da una porta cattiva, albero abbattuto, boscaiolo perso, vittoria e sconfitta.
 - Tutorial e "Bentornato!": suono di festa.
@@ -64,6 +67,103 @@ Regole per tutti e due i gruppi A e B:
 - Niente commit: aspettare la prova dell'utente.
 - Se la sessione sta per finire, fermarsi e dire a che punto si è.
 - Alla fine di ogni gruppo scrivere in poche righe cosa è stato fatto, le decisioni prese da soli e cosa controllare nella prova.
+
+## GRUPPO B, SECONDA VERSIONE: SUONI VERI E MUSICA (in corso)
+
+Ho provato i suoni: sono fastidiosi. Per "cartoon" intendevo suoni morbidi, rilassanti e realistici, non suoni elettronici o buffi. NON fare il commit di questa versione: i suoni costruiti dal codice vanno sostituiti con file audio veri. Il pulsante dell'audio invece va bene e lo teniamo.
+
+COME TROVARE I SUONI
+- Cerca e scarica suoni gratuiti con licenza CC0 (liberi da diritti, usabili anche in un gioco da vendere), per esempio da Kenney.nl, OpenGameArt (solo CC0) o Freesound (solo CC0). Non usare suoni con altre licenze.
+- Stile: realistico ma morbido e rilassante. Volumi bassi, niente suoni acuti, secchi o stridenti. Il gioco deve essere piacevole da ascoltare anche dopo 30 minuti.
+- Se non riesci a scaricare i file, o non trovi suoni adatti per qualcosa, fermati e dimmelo prima di inventare altre soluzioni.
+
+ELENCO DEI SUONI (sostituisci tutti quelli attuali e aggiungi quelli nuovi)
+
+Base:
+- passi del mio boscaiolo: morbidi sulla neve, diversi sul pavimento in pietra. Gli altri personaggi non fanno rumore di passi;
+- colpo d'ascia sul lupo, lupo che muore, morso alle mura, arrivo del lupo gigante (ululato profondo);
+- freccia scoccata dalla torretta (suono della corda dell'arco e del sibilo della freccia) e freccia che colpisce;
+- monete raccolte, vendita allo sportello, mancia, pagamento in un cerchio, acquisto completato;
+- legna o carne che arriva sulla schiena, deposito allo sportello;
+- cancello di legno che si apre e si chiude;
+- ritorno del boscaiolo secondario con la slitta (slitta sulla neve e tronchi scaricati sulla catasta).
+
+Costruzioni, con un suono legato al materiale:
+- mura di legno: colpi di martello e legno;
+- mura di pietra: pietre appoggiate e sfregate;
+- rinforzo in metallo: colpi di metallo, ferro e bulloni;
+- il suono accompagna l'onda che fa il giro della base, senza diventare un rumore continuo fastidioso (per esempio colpi ogni tanto mentre l'onda avanza);
+- torrette: quando si costruiscono o cambiano materiale insieme alle mura, stesso tipo di suono del loro materiale; quando si potenziano gli arcieri, un suono di armatura e metallo;
+- pavimento in pietra: lastre di pietra appoggiate mentre il pavimento si allarga;
+- banco del cacciatore e altri lavoratori che compaiono: un suono breve di comparsa.
+
+Corsa:
+- corsa dei boscaioli: un unico suono di passi di gruppo sulla neve che si ripete, più pieno quando la squadra è grande e più leggero quando è piccola (non un passo per ogni boscaiolo);
+- carro che avanza (ruote di legno sulla neve, leggero);
+- porta buona e porta cattiva;
+- albero abbattuto, boscaiolo perso (rocce e lupi);
+- scalata della scalinata finale: passi sui gradini mentre la squadra sale, e un suono quando un boscaiolo resta indietro su un gradino;
+- vittoria e sconfitta.
+
+Menu e feste:
+- pulsanti dei menu, comparsa di un nuovo cerchio di miglioramento;
+- festa a fine tutorial e al "Bentornato!".
+
+Aggiungi anche ogni altro suono utile che trovi nel gioco e fammi l'elenco completo di tutti i suoni con la loro fonte.
+
+MUSICA DI SOTTOFONDO (sempre CC0)
+- Una per la base: calma e rilassante, per esempio chitarra acustica o pianoforte, atmosfera di montagna innevata.
+- Una per la corsa: un po' più energica ma sempre morbida.
+- Si ripetono senza stacchi, passano dolcemente dall'una all'altra e hanno un volume più basso degli effetti.
+
+VOLUME E PULSANTI
+- Tieni il limite di suoni uguali che partono insieme e il compressore, così con tanti lupi, frecce e monete non diventa rumore.
+- Due pulsanti sempre visibili, salvati come quello di adesso: uno per la musica e uno per gli effetti.
+
+LEGGEREZZA
+- Comprimi i file (mp3 o ogg). Tutti i suoni insieme devono stare sotto i 3 MB.
+- La musica si carica dopo l'avvio del gioco, così l'apertura resta veloce.
+- Metti i file in public/suoni/ e crea un file CREDITI-SUONI.md con, per ogni suono, da dove viene e la licenza.
+
+Regole come prima: aggiorna README e PIANO-GRUPPI.md, verifica veloce con Chrome DevTools (nessun errore in console), niente commit prima della prova dell'utente, fermati se la sessione sta per finire.
+Alla fine: quanto pesano in tutto i suoni, le decisioni prese da soli e cosa controllare.
+
+### GRUPPO B, ULTIMA RICHIESTA (2026-10-26, da provare)
+
+1) **Suoni che si interrompono durante il taglio degli alberi**: NON sono riuscito a riprodurlo. Provato con Chrome DevTools (squadra da 4, 8, 40 e 100 boscaioli, anche con CPU 6 volte più lenta, alberi tagliati uno dopo l'altro, con un misuratore di livello sull'uscita della musica e su quella degli effetti): la musica non si ferma mai, l'audio resta "running", nessun errore in console. Quello che si ferma per costruzione durante il taglio sono i passi, il carro e le grida "ogni tanto" (partono solo mentre la squadra corre): prima non c'era nessun altro effetto, quindi restava solo la musica. Per sicurezza ho reso l'audio più robusto contro le tre cause possibili: (a) un errore in un punto del gioco ora non ferma più il ciclo (prima un errore in `corsa.aggiorna` avrebbe fermato anche `suoni.aggiorna`, quindi la musica sarebbe finita dopo circa 1 secondo); (b) un fotogramma molto lento (telefono) non lascia più buchi: le ripetizioni sono preparate 3 secondi prima (`ANTICIPO` in `suoni.js`) e se si resta indietro riparte da adesso; (c) se il browser mette in pausa l'audio (telefono), ogni secondo si prova a farlo ripartire. Se capita ancora, servono: telefono o computer, browser, e se anche il gioco si ferma. 2) **Colpi d'ascia sul legno** durante il taglio (Kenney impactPlank_medium_002-004, CC0): ritmo `max(0,2 s, 1/radice(boscaioli))`, al massimo 2 insieme, volume di ogni colpo un po' a caso. Decisione: ho usato suoni di Kenney (già usati per altri effetti) invece di un nuovo autore. Suoni in tutto 1,3 MB (71 file).
+
+### GRUPPO B, TERZA PROVA (2026-10-26)
+
+L'utente: il cambio tra le musiche era brusco e piaceva solo la musica "con le chitarre". Fatto: **una sola musica per tutto il gioco**, "A Ukulele Tune" di shaunhillyard (Freesound 830500, CC0; file `public/suoni/musica.mp3`, 22 s, tagliato il silenzio all'inizio e alla fine), usata sia nella base sia nella corsa (`MUSICHE` in `suoni.js` punta allo stesso file e il cambio di musica avviene solo se il FILE cambia, quindi nessun riavvio); il loop usa una dissolvenza di 1 s (`SFUMATURA_MUSICA`) a potenza costante (seno/coseno). Tolti BirdFish Happy Loop (marimba), Aurora Ride (nessuno strumento indicato) e Upbeat_Loop CMaj 135 (sintetizzatore e batteria) dal gioco e dai crediti; Etirwer (chitarra classica) era già stato tolto prima. **Scelta del brano**: nessuno dei quattro brani della prova aveva "chitarra" nella descrizione; l'unico con uno strumento a corde è l'ukulele (che è una piccola chitarra), quindi ho scelto quello. Se l'utente intendeva un'altra musica (per esempio Etirwer, chitarra classica, scaricabile da https://opengameart.org/content/etirwer), basta dirlo. Suoni in tutto 1,3 MB (68 file).
+
+### GRUPPO B, SECONDA PROVA (2026-10-26)
+
+Richieste: 1) volumi più bassi (circa la metà), con la musica sempre sotto gli effetti e i numeri in `config.js` (`CONFIG.audio`: effetti 0,5, musica 0,15, la musica al massimo il 40% degli effetti); 2) musiche più vivaci e allegre, CC0 (base: BirdFish Happy Loop + A Ukulele Tune; corsa: Upbeat Game Loop - Aurora Ride + Upbeat_Loop_CMaj 135 bpm; **non ascoltate da me**, scelte da titolo, tonalità maggiore e descrizione); 3) ingranaggio con menu delle impostazioni al posto dei due pulsanti audio (gioco in pausa, interruttori grandi, Esc o tocco fuori per chiudere); 4) grida dei boscaioli nella corsa (6 file CC0: Hey, Yeah, Woo-hoo; porta buona, albero abbattuto e ogni 5-9 s, mai più di una ogni 3,5 s; **non ascoltate da me**); 5) movimento della squadra più fluido (molla smorzata, inclinazione, onda tra le file; numeri in `CONFIG.squadra`). Decisioni prese da soli: nessun grido per le porte cattive; nessun "Ooh!" (non ho trovato un file CC0 adatto); aggiunto `?corsa` per provare subito la corsa. Verifica: console senza errori nuovi (solo il 404 di favicon.ico), menu provato in formato telefono, corsa con CPU 4 volte più lenta a 60 fotogrammi al secondo (con una sola squadra di 1 boscaiolo: la squadra grande non l'ho provata). Suoni in tutto 2,0 MB.
+
+### GRUPPO B, SECONDA VERSIONE, MODIFICHE DOPO LA PRIMA PROVA (2026-10-26)
+
+Richieste dell'utente: 1) tolto del tutto il suono delle frecce; 2) cancello più morbido, breve e basso (fatto: "toc" sordo); 3) musica allegra, serena e chill (fatto: Etirwer per la base, Happy Clappy Loop per la corsa, CC0); 4) suoni troppo lontani e ovattati; 5) qualità bassa. **Causa del "lontano"**: nel codice non c'è nessun riverbero e nessun calo di volume con la distanza; la colpa era dei file, filtrati due volte con un passa-basso a 3000-5000 Hz (acuti tagliati = ovattato), compressi a 48 kbps mono e con volume basso (media -18 dB, poi moltiplicata per 0,3-0,4 e per 0,8, sotto un compressore con soglia -22 dB e rapporto 6). Ora: nessun filtro, 96 kbps, media -16 dB, volumi alzati circa del 70%, compressore leggero (soglia -14, rapporto 3), variazione del tono ridotta a ±4%. Decisioni prese da soli: tolti sia il suono di partenza sia quello d'impatto delle frecce; la musica della corsa è scelta solo dai dati (tonalità maggiore, ma con poca certezza), **nessuna musica ascoltata da me**. Pesano 2,2 MB (63 file). Limite di qualità: ululato, guaito, slitta, carro e passi di gruppo vengono da anteprime Freesound (mp3 già compressi).
+
+### GRUPPO B, SECONDA VERSIONE: FINITO IL 2026-10-26 (da provare dall'utente)
+
+Ripresa la sessione: tutti i file passano il controllo di sintassi; provato con Chrome DevTools (nessun errore, solo il 404 di favicon.ico che c'era già): i 64 mp3 si caricano, le musiche dopo l'avvio, i due pulsanti spengono/riaccendono e restano salvati. Scritto `CREDITI-SUONI.md` e riscritto il README. Pesano 1,7 MB in tutto. **Non ascoltati da me** (scelti a orecchio): lupo-muore, jingle di porte/acquisto/vittoria/sconfitta/festa, ululato: l'utente dica se qualcuno è fastidioso. Poi commit e Gruppo C.
+
+#### Stato della sessione interrotta (2026-10-25) (sessione interrotta per il limite di utilizzo)
+
+**Fatto (scritto nel codice, compila senza errori, NON provato nel browser, NON committato):**
+- Trovati e scaricati suoni CC0 veri: pacchetti Kenney.nl (RPG Audio, Impact Sounds, Interface Sounds, UI Audio, Casino Audio, Music Jingles, tutti "Creative Commons CC0") e anteprime CC0 da Freesound (ululato 500646 betchkal, guaito 452202 kyles, arco 384918 Ali_6868, freccia che colpisce 205938 Twisted_Euphoria, slitta 450847 kyles, corsa nella neve 712022 AudioPapkin, carro 721122 SoundsLikeYukon, musica base 859607 blankie.rest, musica corsa 731511 kanaizo). Scaricati nello scratchpad della sessione (si possono riscaricare dagli stessi link).
+- 64 file mp3 mono già pronti in `public/suoni/` (tagliati, acuti smussati, volume pareggiato): in tutto circa **1,7 MB** (limite 3 MB). Lo script che li crea è `crea-suoni.mjs` nello scratchpad (non nel progetto): usa ffmpeg-static; se serve rifarli, riscrivere lo script dall'elenco in `src/motore/suoni.js`.
+- `src/motore/suoni.js` riscritto: effetti da file (più varianti a caso, tono leggermente variabile, `pausa` e `insieme` per ogni effetto, compressore), suoni continui (`suoni.ciclo`) e musica (`suoni.musica`) con dissolvenze, musiche caricate 2,5 s dopo l'avvio, due uscite separate (effetti e musica), impostazioni `musica` ed `effetti` salvate in `segheria-assediata-impostazioni`.
+- Due pulsanti in `index.html`, `stile.css`, `main.js` (altoparlante = effetti, nota = musica); clic sui pulsanti dei menu; musica base nella base e musica corsa nella corsa.
+- Agganci nel codice: passi del boscaiolo (neve/pietra, `alPasso` + `pavimento.copre`), ascia, lupo che muore, morso (normale e gigante), ululato, frecce (tiro e colpo), monete, vendita, mancia, pagamento, acquisto, legna/carne sulla schiena e sugli sportelli, cancelli (apre e chiude), slitta e tronchi del boscaiolo secondario, costruzioni per materiale (onda delle mura in `mura.js`, torri in `torrette.js`, armatura, lastre del pavimento), comparsa di lavoratori e banco, nuovo cerchio, corsa (passi di gruppo che diventano più pieni con tanti boscaioli, carro, porte, albero, boscaiolo perso, gradini, "resta indietro", vittoria, sconfitta), feste.
+
+**Manca (da fare alla prossima sessione, in quest'ordine):**
+1. Provare nel browser con Chrome DevTools (nessun errore in console, i file mp3 si caricano, i suoni partono dopo il primo clic, i due pulsanti spengono e riaccendono e restano salvati; in particolare controllare che `suoni.musica('base')` non dia problemi e che i cicli della corsa non lascino suoni accesi dopo la fine della corsa). Il server di prova era acceso su http://localhost:5173.
+2. Controllare l'ascolto: i suoni devono risultare morbidi (se qualcuno è ancora secco o acuto, cambiare file o abbassare `passaBasso`/volume nello script e rifarlo). Alcuni suoni sono stati scelti a orecchio dai nomi e dalle misure, non ascoltati: soprattutto `lupo-muore` (guaito di cane), `porta-buona`/`porta-cattiva`/`acquisto`/`vittoria`/`sconfitta`/`festa` (jingle Kenney) e `ululato`. Se non vanno, dirlo all'utente.
+3. Scrivere `CREDITI-SUONI.md` (per ogni suono: da dove viene e licenza CC0) con l'elenco completo delle fonti (l'utente lo chiede) e linkarlo nel README.
+4. Aggiornare il README (la sezione "Suoni cartoon" descrive ancora la versione vecchia fatta dal codice: va riscritta con suoni veri, musica, due pulsanti e peso totale) e la nota "decisioni prese da soli" nel piano.
+5. Possibili dimenticanze da verificare: suono "pulsanti dei menu" (fatto con un unico clic), cancello che si chiude (fatto solo quando si allontana chi lo apre), suoni dei cacciatori/aiutante (solo quello di comparsa).
+6. Dopo la prova dell'utente: commit (con l'attribuzione richiesta) e poi Gruppo C.
 
 ## GRUPPO C: LUPI, MURA E LUPO GIGANTE (dopo il Gruppo B; per ora solo scritto qui, non iniziato)
 
@@ -198,6 +298,7 @@ Stesse regole degli altri gruppi: verifica veloce, README e PIANO-GRUPPI.md aggi
 - **Scritte dei cerchi**: tolti i titoli DIFESA ed ECONOMIA; sopra (o sotto) il cerchio resta il nome dell'acquisto, dentro l'icona e il prezzo. Il cerchio del pavimento tiene il titolo PAVIMENTO.
 - **C, cacciatori (fatto)**: due cacciatori (catena `secondoCacciatore`, 300 monete, nel cerchio dei cacciatori della fila ECONOMIA, insieme al "Venditore" dopo "Aiutante" e "Cacciatore"); il primo difende la metà sinistra ed esce dal cancello di sinistra, il secondo la destra dal cancello di destra; da solo, il primo fa tutti e due i lati dal cancello più vicino. Portano 30 unità di carne (`caricoCacciatore`); con tutte e quattro le torrette raccolgono solo la carne (`cacciatoriCombattono`). Fuori dalle mura girano da un angolo all'altro sempre nello stesso verso finché non vedono l'obiettivo: provato con lupi in 10 punti, nessuno incastrato.
 - **Gruppo A, dopo la prova dell'utente (provato e approvato)**: l'utente ha approvato il Gruppo A e le decisioni prese da soli, e tiene 40 pezzi di legna. Poi: il boscaiolo secondario costa **5000 monete** ed è **l'ultimo acquisto**: il suo cerchio compare solo quando tutte le altre file di `CONFIG.file` sono finite e il pavimento è comprato (`aggiornaVisibilita`); posto spostato a x -2,2 (a -2,6 restavano solo 20 cm dal cerchio della catasta; quando compare è l'unico cerchio dei miglioramenti, quindi non tocca altri cerchi). Salvataggi: `cerchi` 4 in `salvataggio.js` restituisce le monete messe nel suo cerchio; chi l'aveva comprato lo tiene. `?tuttocomprato` (`compraTuttoPerProva`): tutto comprato tranne lui, 5000 monete in tasca, tutorial finito, poi sparisce dall'indirizzo. Provato con Chrome DevTools: si vede solo il suo cerchio, un salvataggio vecchio con 200 monete nel cerchio le riporta in tasca, console senza errori.
+- **Gruppo B, fatto (da provare)**: `src/motore/suoni.js` con un oggetto `suoni` (`suona(nome, opzioni)`, `imposta(acceso)`, `sblocca()`); ogni suono è una ricetta in `RICETTE` fatta con due mattoncini, `tono` (nota che scivola, con vibrato e filtro) e `rumore` (rumore bianco filtrato), con `pausa` (secondi minimi tra due uguali) e `insieme` (quanti uguali al massimo), più un limite di 14 suoni in tutto e un compressore. Per il Gruppo C (allarme e mura cadute) basta aggiungere due ricette e chiamare `suoni.suona`. L'impostazione dell'audio è salvata in `segheria-assediata-impostazioni`, separata dalla partita: `?reset` (e la futura "Ricomincia" del Gruppo C) non la cancellano. Decisioni prese da soli: le frecce che colpiscono non hanno un suono loro (c'è lo swoosh quando partono, e il suono del lupo che muore); il "boscaiolo perso" suona per rocce e lupi della corsa, non per i boscaioli che restano indietro sui gradini della salita; il suono del boscaiolo secondario parte quando scarica la legna sulla catasta; il pulsante dell'audio sta in alto a sinistra sotto le monete (a destra ci sono legna e carne). Provato con Chrome DevTools: il primo clic sblocca l'audio e partono i suoni (festa del "Bentornato!", frecce, morsi...), il pulsante spegne e riaccende con un clic e resta spento ricaricando, nessun errore nuovo nella console (c'è solo il 404 di `favicon.ico`, che c'era già: il gioco non ha un'icona per la scheda).
 - **Gruppo C, da sapere prima di iniziare**: oggi le mura hanno `CONFIG.segheria.hpMura` (legno) e `hpMura` in `CONFIG.miglioramenti.mura` (pietra, metallo); il danno dei morsi è `dannoMura` (e `CONFIG.lupoGigante.dannoMura` come moltiplicatore). Per C2 controllare in `mura.js` e `segheria.js` cosa succede quando la vita arriva a 0 e dirlo all'utente prima di cambiarlo.
 - **Gruppo A, fatto**:
   - A1: cartellino (sprite) con la moneta e il numero sopra la pila del cerchio delle monete, a 1,15 m di altezza (`soldi.js`); **quando il cerchio è vuoto sparisce** (scelta presa da soli). Da 10.000 in su il numero è corto ("12,5K", `formatta`).

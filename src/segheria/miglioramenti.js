@@ -17,6 +17,7 @@
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
 import { disegnaIcona } from '../modelli/materiali.js';
+import { suoni } from '../motore/suoni.js';
 
 const RAGGIO = 1.2;           // come gli altri cerchi a terra (es. il deposito degli sportelli)
 const LARGHEZZA_BARRA = 0.24; // spessore della barra circolare
@@ -125,6 +126,7 @@ export class CerchioMiglioramento {
     } else if (!si && this.livello) {
       this.gruppo.visible = true;
       this.salto = 1;
+      suoni.suona('nuovoCerchio'); // compare un nuovo cerchio da comprare
     }
   }
 

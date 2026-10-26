@@ -217,11 +217,13 @@ export class Giocatore {
   }
 
   // Passo con rimbalzo (vedi animazioni.js); con la pila le braccia stanno un po' avanti.
-  // A ogni passo si alza un po' di neve; durante il colpo d'ascia si muovono braccia e corpo.
+  // A ogni passo si alza un po' di neve (e si sente il passo: alPasso, vedi segheria.js);
+  // durante il colpo d'ascia si muovono braccia e corpo.
   anima(dt, forza) {
     const carica = this.carico.legna + this.carico.carne > 0 ? 0.5 : 0;
     if (animaPersona(this.modello, dt, forza, { velocita: 12, carica })) {
       this.effetti?.passo(this.modello, { polvere: 3, grandezza: 1.3 });
+      if (forza > 0.1) this.alPasso?.();
     }
     if (this.colpo !== null) {
       this.colpo += dt / COLPO.durata;

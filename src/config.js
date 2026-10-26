@@ -24,12 +24,28 @@ export const CONFIG = {
     distanzaTraOmini: 0.55,     // spazio tra un omino e l'altro nella formazione (metri)
     larghezzaMassimaFolla: 3.3, // la formazione non diventa mai più larga di così: se gli omini sono tanti si allunga all'indietro (metri)
     raggioCollisioneOmino: 0.2, // "ingombro" di ogni omino per gli urti: un po' più piccolo di quello che si vede (metri)
+    // Movimento a destra/sinistra nella corsa: dolce ma sempre pronto al dito
+    rispostaLaterale: 24,       // quanto in fretta la squadra segue il dito (più alto = più preciso e immediato, più basso = più morbido); 24 = ci mette circa 0,1 secondi
+    inclinazioneLaterale: 0.022, // quanto si inclinano nella direzione in cui vanno (radianti per ogni metro al secondo di velocità)
+    inclinazioneMassima: 0.3,   // inclinazione massima (radianti, 0.3 = circa 17 gradi)
+    ritardoOnda: 0.035,         // secondi di ritardo in più per ogni fila: il gruppo segue il primo come un'onda (0 = tutti rigidi insieme)
+    ondaMassima: 0.55,          // di quanto, al massimo, una fila può restare indietro rispetto alla squadra (metri)
   },
 
   // ---------------- CONTROLLI ----------------
   controlli: {
     sensibilitaDito: 1.4,       // quanto si sposta la squadra trascinando il dito (1 = larghezza schermo = larghezza pista)
     velocitaTastiera: 12,       // velocità dello spostamento con le frecce/A-D (metri al secondo)
+  },
+
+  // ---------------- AUDIO ----------------
+  audio: {
+    volumeEffetti: 0.5,         // volume generale degli effetti (0-1); ogni effetto ha poi il suo, in motore/suoni.js
+    volumeMusica: 0.15,         // volume generale della musica (0-1)
+    musicaSottoEffetti: 0.4,    // la musica non supera mai questa parte del volume degli effetti (così sta sempre sotto)
+    pausaGrida: 3.5,            // secondi minimi tra due grida dei boscaioli nella corsa
+    colpiTaglio: 0.2,           // secondi minimi tra due colpi d'ascia sentiti mentre si taglia un albero (tanti boscaioli = colpi più fitti, ma mai sotto questo)
+    gridaCorsa: [5, 9],         // ogni quanti secondi (da-a, a caso) i boscaioli gridano mentre corrono
   },
 
   // ---------------- CARRO E CARICO ----------------

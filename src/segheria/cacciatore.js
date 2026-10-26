@@ -29,6 +29,7 @@ import { creaLavoratore } from '../modelli/boscaiolo.js';
 import { animaPersona, animaColpo, COLPO } from '../modelli/animazioni.js';
 import { creaCarne } from '../modelli/carne.js';
 import { MAPPA } from './ambiente.js';
+import { suoni } from '../motore/suoni.js';
 
 const VOLO = { durata: 0.45, altezza: 1.4, scala: 0.55, sbuffo: false };
 const MARGINE_GIRO = 1.3;   // a che distanza dalle mura gira attorno agli angoli (metri)
@@ -106,6 +107,7 @@ export class Cacciatore {
 
   aggiorna(dt) {
     // compare con un piccolo salto
+    if (this.comparsa === 0) suoni.suona('comparsa'); // appena comprato: un suono breve mentre spunta
     this.comparsa = Math.min(1, this.comparsa + dt * 2);
     const c = this.comparsa;
     this.modello.scale.setScalar(Math.max(0.001, CONFIG.segheria.dimensioneBoscaiolo * 0.9 * (c < 1 ? c + Math.sin(c * Math.PI) * 0.35 : 1)));
@@ -314,7 +316,7 @@ export class Cacciatore {
     this.colpo += dt / Math.min(COLPO.durata, this.livello.ricarica * 0.8);
     if (prima < COLPO.impatto && this.colpo >= COLPO.impatto && this.bersaglio) {
       const { lupo, generazione } = this.bersaglio;
-      if (lupo.vivo && lupo.generazione === generazione) this.base.colpisciLupo(lupo, lupo.dannoAscia);
+      if (lupo.vivo && lupo.generazione === generazione) this.base.colpisciLupo(lupo, lupo.dannoAscia, 'ascia');
       this.bersaglio = null;
     }
     if (this.colpo >= 1) this.colpo = null;

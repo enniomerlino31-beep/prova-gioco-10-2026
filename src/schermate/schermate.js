@@ -8,6 +8,7 @@
 
 import * as THREE from 'three';
 import { formatta } from '../economia.js';
+import { suoni } from '../motore/suoni.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -136,6 +137,7 @@ export class Schermate {
     const schermata = $('schermata-festa');
     const coriandoli = $('coriandoli');
     lanciaCoriandoli(coriandoli);
+    suoni.suona('festa');
     $('avviso-segheria').classList.add('nascosto');
     schermata.classList.remove('nascosto');
     $('pulsante-festa').onclick = () => {
@@ -151,6 +153,7 @@ export class Schermate {
     const schermata = $('schermata-bentornato');
     const coriandoli = $('coriandoli-bentornato');
     lanciaCoriandoli(coriandoli);
+    suoni.suona('festa');
     $('bentornato-tempo').textContent = `Mentre eri via (${durataInParole(guadagno.secondi)}) la tua segheria ha continuato a lavorare.`;
     const riga = (nome, valore, classe = '') => `<div class="dato ${classe}"><span>${nome}</span><span>${valore}</span></div>`;
     $('bentornato-dati').innerHTML =

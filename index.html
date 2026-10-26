@@ -104,6 +104,22 @@
     </div>
   </div>
 
+  <!-- Impostazioni: l'ingranaggio è sempre visibile (anche sopra le schermate) e apre un piccolo menu con gli interruttori
+       di effetti sonori e musica (restano salvati). Mentre il menu è aperto il gioco è in pausa -->
+  <button id="pulsante-impostazioni" class="pulsante-impostazioni" type="button" aria-label="Impostazioni"></button>
+  <div id="menu-impostazioni" class="schermata menu-impostazioni nascosto" role="dialog" aria-modal="true" aria-labelledby="titolo-impostazioni">
+    <div class="riquadro">
+      <h2 id="titolo-impostazioni">Impostazioni</h2>
+      <button id="interruttore-effetti" class="interruttore" type="button" role="switch" aria-checked="true">
+        <span class="interruttore-nome">Effetti sonori</span><span class="interruttore-guida"><span class="interruttore-pomello"></span></span>
+      </button>
+      <button id="interruttore-musica" class="interruttore" type="button" role="switch" aria-checked="true">
+        <span class="interruttore-nome">Musica</span><span class="interruttore-guida"><span class="interruttore-pomello"></span></span>
+      </button>
+      <button id="pulsante-chiudi-impostazioni" class="pulsante" type="button">Chiudi</button>
+    </div>
+  </div>
+
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
