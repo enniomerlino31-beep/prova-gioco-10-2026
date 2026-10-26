@@ -10,7 +10,7 @@
 > provato e approvato dall'utente e salvato** (2026-10-25, commit 363bb2c), con la modifica chiesta dopo la prova (boscaiolo
 > secondario a 5000 monete come ultimo acquisto, `?tuttocomprato`), anche lei provata e approvata.
 > **Gruppo B (suoni veri, musica, impostazioni, grida, movimento, colpi d'ascia): fatto, provato e approvato dall'utente e salvato (2026-10-26, commit 1ffc4ab).** Prossimo: Gruppo C.
-> **Gruppo C fatto il 2026-10-26 e in attesa della prova dell'utente (vedi "GRUPPO C: COSA È STATO FATTO").**
+> **Gruppo C fatto, provato e approvato dall'utente e salvato (2026-10-26, commit 2bc4372). Prossimi: Gruppo 4 (corsa e orso) e Gruppo 5 (segheria).**
 > Il **Gruppo B (suoni)** è stato provato dall'utente e **va rifatto** (2026-10-25): i suoni fatti dal codice sono
 > fastidiosi e vanno sostituiti con **file audio veri CC0**, più la musica (vedi "GRUPPO B, SECONDA VERSIONE" qui sotto).
 > La prima versione NON va committata. Il pulsante dell'audio si tiene. Poi il Gruppo C (lupi, mura e lupo gigante).
@@ -166,7 +166,7 @@ Ripresa la sessione: tutti i file passano il controllo di sintassi; provato con 
 5. Possibili dimenticanze da verificare: suono "pulsanti dei menu" (fatto con un unico clic), cancello che si chiude (fatto solo quando si allontana chi lo apre), suoni dei cacciatori/aiutante (solo quello di comparsa).
 6. Dopo la prova dell'utente: commit (con l'attribuzione richiesta) e poi Gruppo C.
 
-## GRUPPO C: LUPI, MURA E LUPO GIGANTE (fatto il 2026-10-26, da provare dall'utente)
+## GRUPPO C: LUPI, MURA E LUPO GIGANTE (fatto, provato e approvato dall'utente, salvato il 2026-10-26: commit 2bc4372)
 
 C1. Lupi più deboli e mura più resistenti:
 - Le mura hanno il doppio della vita a ogni livello: legno 360, pietra 800, metallo 1500. Aggiorna anche la riparazione e la barra della vita.

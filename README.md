@@ -75,7 +75,7 @@ Il gioco unisce una corsa infinita con una base di gestione: la squadra corre in
 - I Gruppi 1, 2 e 3 di `PIANO-GRUPPI.md` sono fatti, provati e salvati (Gruppo 2: commit f279bf9; Gruppo 3 con le richieste A, B, C: commit f0f1279).
 - Gruppo A di `PIANO-GRUPPI.md` (cartellino delle monete, boscaiolo secondario e guadagni offline = Fase 5): fatto, provato e approvato dall’utente, insieme alla modifica dopo la prova (boscaiolo secondario a 5000 monete come ultimo acquisto, `?tuttocomprato`): commit 363bb2c.
 - Gruppo B (suoni veri CC0, musica, menu delle impostazioni, grida, movimento della squadra e colpi d’ascia = Fase 4): fatto, **provato e approvato dall’utente** (2026-10-26); commit 1ffc4ab. Poi: Gruppo C.
-- Gruppo C (lupi più deboli, mura più resistenti, mura che cedono e cadono con “Ricomincia”, arrivo con la telecamera e nuovo aspetto del lupo gigante, 400 punti di vita al gigante con la barra grande): fatto, **in attesa della prova dell’utente** (non ancora salvato con un commit).
+- Gruppo C (lupi più deboli, mura più resistenti, mura che cedono e cadono con “Ricomincia”, arrivo con la telecamera e nuovo aspetto del lupo gigante, 400 punti di vita al gigante con la barra grande): fatto, **provato e approvato dall’utente** e salvato (commit 2bc4372), compresi la riparazione delle mura con il cerchio verde e le modifiche al lupo gigante.
 - Ancora da fare, descritti in `PIANO-GRUPPI.md`: Gruppo 4 (corsa alla lunghezza originale e orso gigante a fine corsa) e Gruppo 5 (edificio della segheria in stile cartoon, che migliora insieme alle mura).
 - Dopo verranno le espansioni della base (zona clienti con falò, affumicatoio, canile, casa dei lavoratori, grande magazzino), descritte in `PIANO-ESPANSIONI.md` e non ancora realizzate.
 
@@ -218,3 +218,4 @@ $1
 $1
 $1
 - 2026-10-26 — Gruppo C, terza prova: il cerchio verde per riparare le mura è esattamente al centro della base e grande il doppio (raggio 3 m), compare “esplodendo” con rimbalzo, pulsa e brilla, la telecamera lo mostra per 2 secondi se non si vede, aspetta se c’è già un’altra inquadratura, e i cerchi che si sovrappongono si rimpiccioliscono finché c’è (`cerchioRiparazione.js`, `CerchioMiglioramento.sospendi/occupa`, `apriRiparazione` in `segheria.js`, `CONFIG.muraAllarme`); suono `cerchio-riparazione`. Suoni: 77 file, circa 1,7 MB.
+- 2026-10-26 — Gruppo C salvato con il commit 2bc4372 (provato e approvato dall’utente).
