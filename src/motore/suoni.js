@@ -28,6 +28,7 @@ const VOLUME_MUSICA = Math.min(CONFIG.audio.volumeMusica, CONFIG.audio.volumeEff
 const VOCI_MASSIME = 16;     // effetti che possono suonare insieme in tutto
 const ANTICIPO = 3;             // quanti secondi prima si preparano le ripetizioni dei suoni continui (così un rallentamento del gioco non li interrompe)
 const SFUMATURA_CICLO = 0.6; // secondi in cui una ripetizione di un ciclo sfuma nella successiva
+const SFUMATURA_CAMBIO = 2;   // secondi in cui una musica sfuma e l'altra sale (quando arriva o muore il lupo gigante)
 const SFUMATURA_MUSICA = 1;   // secondi in cui la fine della musica sfuma nell'inizio della ripetizione (breve, senza stacchi né silenzi)
 
 // I file di ogni effetto (più file = uno a caso), il volume (0-1), la pausa minima tra due uguali (s) e quanti
@@ -35,8 +36,8 @@ const SFUMATURA_MUSICA = 1;   // secondi in cui la fine della musica sfuma nell'
 const tanti = (nome, n) => Array.from({ length: n }, (_, i) => `${nome}-${i + 1}`);
 const EFFETTI = {
   // --- Base ---
-  passoNeve: { file: tanti('passo-neve', 4), volume: 0.59, pausa: 0.08, insieme: 2, varia: 0.04 },
-  passoPietra: { file: tanti('passo-pietra', 4), volume: 0.51, pausa: 0.08, insieme: 2, varia: 0.04 },
+  passoNeve: { file: tanti('passo-neve', 4), volume: 0.39, pausa: 0.08, insieme: 2, varia: 0.04 },
+  passoPietra: { file: tanti('passo-pietra', 4), volume: 0.34, pausa: 0.08, insieme: 2, varia: 0.04 },
   ascia: { file: tanti('ascia', 2), volume: 0.94, pausa: 0.05, insieme: 3, varia: 0.04 },
   lupoMuore: { file: ['lupo-muore'], volume: 0.68, pausa: 0.15, insieme: 2, varia: 0.04 },
   morso: { file: tanti('morso', 3), volume: 0.51, pausa: 0.25, insieme: 2, varia: 0.04 },
@@ -54,6 +55,11 @@ const EFFETTI = {
   cancelloApre: { file: ['cancello-apre'], volume: 0.35, pausa: 0.5, insieme: 2, varia: 0.03 },
   cancelloChiude: { file: ['cancello-chiude'], volume: 0.3, pausa: 0.5, insieme: 2, varia: 0.03 },
   slitta: { file: ['slitta'], volume: 0.59, pausa: 2, insieme: 1 },
+  passoGigante: { file: ['passo-gigante'], volume: 0.7, pausa: 0.5, insieme: 1, varia: 0.05 }, // tonfo di un passo del lupo gigante
+  cerchioRiparazione: { file: ['cerchio-riparazione'], volume: 0.7, pausa: 2, insieme: 1 },  // compare il cerchio verde per riparare le mura
+  riparazioneMura: { file: ['riparazione-mura'], volume: 0.8, pausa: 2, insieme: 1 },      // le mura sono state riparate con la legna
+  allarmeMura: { file: ['allarme-mura'], volume: 0.6, pausa: 10, insieme: 1 },                // le mura stanno cedendo
+  muraCadute: { file: ['mura-cadute'], volume: 0.9, pausa: 5, insieme: 1 },                   // le mura sono crollate
   tronchiCatasta: { file: ['tronchi-catasta'], volume: 0.68, pausa: 0.5, insieme: 1 },
   // --- Costruzioni ---
   costruisciLegno: { file: tanti('costruisci-legno', 3), volume: 0.68, pausa: 0.15, insieme: 2, varia: 0.04 },
@@ -81,7 +87,8 @@ const EFFETTI = {
 // Suoni che si ripetono (cicli) e musiche
 const CICLI = { corsaNeve: 'corsa-neve', corsaNeveTanti: 'corsa-neve-tanti', carro: 'carro' };
 // Una sola musica per tutto il gioco: passando dalla base alla corsa (e ritorno) continua senza ripartire
-const MUSICHE = { base: 'musica', corsa: 'musica' };
+// "paura" è la musica inquietante del lupo gigante (vedi impostaPaura): sfuma al posto della musica normale e poi torna
+const MUSICHE = { base: 'musica', corsa: 'musica', paura: 'musica-paura' };
 
 // Curve della dissolvenza a potenza costante (seno e coseno)
 const CURVA_ENTRATA = Float32Array.from({ length: 64 }, (_, i) => Math.sin((i / 63) * Math.PI / 2));
@@ -101,6 +108,7 @@ class Suoni {
     this.cicli = [];                // i cicli e le musiche che stanno suonando
     this.musicaVoluta = null;       // quale musica deve suonare ('base', 'corsa' o null)
     this.musicaAttuale = null;      // { file, ciclo }
+    this.paura = false;             // c'è il lupo gigante: al posto della musica normale suona quella inquietante
     this.ultimoTentativo = 0;       // quando si è provato l'ultima volta a far ripartire l'audio fermato dal browser
     this.inPausa = false;           // menu delle impostazioni aperto: gli effetti tacciono, la musica continua
   }
@@ -228,6 +236,12 @@ class Suoni {
     return ciclo;
   }
 
+  // Con il lupo gigante in giro (true) la musica normale sfuma e parte quella inquietante; quando non c'è più (false)
+  // sfuma e torna la normale. Se la musica è spenta dalle impostazioni non si sente niente, come sempre.
+  impostaPaura(acceso) {
+    this.paura = acceso;
+  }
+
   // Quale musica suona: 'base', 'corsa' (o null = nessuna). Passa dolcemente da una all'altra.
   musica(nome) {
     this.musicaVoluta = nome;
@@ -242,13 +256,15 @@ class Suoni {
     }
     if (!this.pronto) return;
     // si cambia musica solo se il FILE è diverso: base e corsa usano lo stesso, quindi non ci sono né riavvii né interruzioni
-    const fileVoluto = this.musicaVoluta ? MUSICHE[this.musicaVoluta] : null;
-    if (fileVoluto !== (this.musicaAttuale?.file ?? null)) {
-      this.musicaAttuale?.ciclo.ferma(SFUMATURA_MUSICA);
+    const voluta = this.paura ? 'paura' : this.musicaVoluta;
+    const fileVoluto = voluta ? MUSICHE[voluta] : null;
+    if (fileVoluto && !this.buffer.get(fileVoluto)) this.decodifica(fileVoluto); // il nuovo brano deve essere pronto prima di cambiare
+    if (fileVoluto !== (this.musicaAttuale?.file ?? null) && (!fileVoluto || this.buffer.get(fileVoluto))) {
+      this.musicaAttuale?.ciclo.ferma(SFUMATURA_CAMBIO);
       this.musicaAttuale = null;
       if (this.musicaVoluta) {
         const ciclo = new Ciclo(this, fileVoluto, () => this.uscitaMusica, SFUMATURA_MUSICA);
-        ciclo.volume(1, SFUMATURA_MUSICA);
+        ciclo.volume(1, SFUMATURA_CAMBIO);
         this.cicli.push(ciclo);
         this.musicaAttuale = { file: fileVoluto, ciclo };
       }
@@ -296,7 +312,7 @@ class Ciclo {
     }
     this.volume(0, tempo);
     this.fermo = true;
-    this.fineFermata = this.suoni.contesto.currentTime + tempo;
+    this.fineFermata = this.suoni.contesto.currentTime + tempo * 1.7; // il volume scende piano: si stacca solo quando è davvero a zero
   }
 
   aggiorna() {

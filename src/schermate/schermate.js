@@ -131,6 +131,21 @@ export class Schermate {
     this.timerAvviso = setTimeout(() => avviso.classList.add('nascosto'), secondi * 1000);
   }
 
+  nascondiAvviso() {
+    clearTimeout(this.timerAvviso);
+    $('avviso-segheria').classList.add('nascosto');
+  }
+
+  // "Le mura sono cadute!": la partita è persa; il pulsante "Ricomincia" chiama alRicomincia
+  mostraMuraCadute(alRicomincia) {
+    this.nascondiAvviso();
+    $('schermata-mura').classList.remove('nascosto');
+    $('pulsante-mura').onclick = () => {
+      $('schermata-mura').classList.add('nascosto');
+      alRicomincia();
+    };
+  }
+
   // Festa di fine tutorial: "Ottimo lavoro!" con stelline e coriandoli che cadono.
   // Quando si preme "Gioca" la schermata si chiude e viene chiamata alGioca.
   mostraFesta(alGioca) {

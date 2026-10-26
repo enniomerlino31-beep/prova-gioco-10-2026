@@ -119,8 +119,49 @@ export function animaMorso(lupo, dt) {
   lupo.corpo.position.set(0, ALTEZZA_CORPO + 0.03 + Math.abs(Math.sin(f)) * 0.03, -slancio * 0.15);
   lupo.corpo.rotation.x = 0.22 - slancio * 0.2;
   lupo.testa.rotation.x = -0.15 - slancio * 0.35;
+  if (lupo.mascella) lupo.mascella.rotation.x = -0.12 - slancio * 0.5; // il gigante spalanca la bocca quando morde
   lupo.coda.rotation.set(0.5, Math.sin(f * 1.6) * 0.45, 0);
 }
+// Il lupo gigante cammina pesante: passi lenti, il corpo che ondeggia da un lato all'altro e sprofonda a ogni passo,
+// la testa bassa e minacciosa. Restituisce true quando una zampa batte per terra (serve per la polvere e il tonfo).
+export function animaPassoPesante(lupo, dt, velocita) {
+  const a = lupo.anim;
+  const prima = Math.sin(a.fase);
+  a.fase += dt * (2.2 + velocita * 1.6);
+  const f = a.fase;
+  const [as, ad, ps, pd] = lupo.zampe;
+  as.rotation.x = Math.sin(f) * 0.55;
+  pd.rotation.x = -Math.sin(f) * 0.5;
+  ad.rotation.x = -Math.sin(f) * 0.55;
+  ps.rotation.x = Math.sin(f) * 0.5;
+  lupo.corpo.position.set(Math.sin(f) * 0.03, ALTEZZA_CORPO - 0.03 + Math.abs(Math.cos(f)) * 0.06, 0);
+  lupo.corpo.rotation.z = Math.sin(f) * 0.06;
+  lupo.corpo.rotation.x = 0.03;
+  lupo.testa.rotation.x = -0.2 + Math.sin(f * 2) * 0.04;
+  lupo.testa.rotation.y = Math.sin(f) * 0.12;
+  if (lupo.mascella) lupo.mascella.rotation.x = -0.1 - Math.abs(Math.sin(f)) * 0.06;
+  lupo.coda.rotation.set(-0.25, Math.sin(f) * 0.15, 0);
+  return velocita > 0.05 && prima * Math.sin(f) < 0; // il segno cambia: un piede è arrivato a terra
+}
+
+// Il lupo gigante ulula: si alza sulle zampe di dietro con la testa al cielo, la bocca aperta che trema e la coda alta.
+// salita (0-1) è quanto è già alzato: all'inizio la testa sale piano.
+export function animaUlulato(lupo, dt) {
+  const a = lupo.anim;
+  a.fase += dt * 3;
+  a.ululato = Math.min(1, (a.ululato ?? 0) + dt * 1.6);
+  const sale = a.ululato;
+  const f = a.fase;
+  const [as, ad, ps, pd] = lupo.zampe;
+  as.rotation.x = ad.rotation.x = -0.45 * sale;
+  ps.rotation.x = pd.rotation.x = 0.25 * sale;
+  lupo.corpo.position.set(0, ALTEZZA_CORPO + 0.09 * sale, 0);
+  lupo.corpo.rotation.set(0.45 * sale + Math.sin(f) * 0.02, 0, 0);
+  lupo.testa.rotation.set(1.0 * sale + Math.sin(f * 2.3) * 0.05, 0, 0);
+  if (lupo.mascella) lupo.mascella.rotation.x = -(0.55 + Math.sin(f * 4) * 0.08) * sale;
+  lupo.coda.rotation.set(0.9 * sale, Math.sin(f) * 0.12, 0);
+}
+
 
 // Il lupo fermo ringhia: basso sulle zampe, testa giù che trema, coda bassa
 export function animaRinghio(lupo, dt) {

@@ -453,6 +453,15 @@ h2 { font-size: 36px; }
   transform: translate(-50%, -50%);
 }
 
+/* Le mura sono cadute: riquadro rosso scuro, sopra tutto tranne le impostazioni */
+.schermata-mura {
+  z-index: 50;
+  background: rgba(40, 10, 10, 0.55);
+}
+.riquadro-mura {
+  background: linear-gradient(180deg, #d95a4a, #a32a2a);
+}
+
 /* Impostazioni: l'ingranaggio sta in alto a sinistra, sotto il contatore delle monete, sempre visibile (anche sopra
    le schermate). Icona disegnata qui come le altre */
 .pulsante-impostazioni {

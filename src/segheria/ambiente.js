@@ -82,6 +82,10 @@ export const MAPPA = {
     new THREE.Vector3(-5.5, 0, -9.8),           // lungo le mura, a sinistra della segheria
     new THREE.Vector3(-10, 0, -19.5),           // tra gli abeti, dove sparisce
   ],
+  // Il grande cerchio verde dove si porta la legna per riparare le mura (compare sotto il 25% della vita), esattamente al
+  // centro della base. Finché c'è, i cerchi e le scritte che si sovrappongono (pavimento, venditore, aiutante...) si
+  // rimpiccioliscono e poi tornano come prima (vedi gestisceRiparazione)
+  riparazioneMura: new THREE.Vector3(0, 0, META_LATO),
   // L'unico cerchio delle monete: i clienti dei due sportelli pagano qui, dentro la base tra i due depositi
   monete: new THREE.Vector3(0, 0, 5.2),
   torri: TORRI,

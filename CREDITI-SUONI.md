@@ -1,7 +1,7 @@
 # Crediti dei suoni
 
 Non ci sono suoni delle frecce (tolti su richiesta). Tutti i suoni e le musiche del gioco hanno licenza **CC0** (pubblico dominio: si possono usare anche in un gioco da vendere, senza obbligo di citare l'autore). Li citiamo comunque per riconoscenza.
-I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compressi in mp3 (effetti mono a 96 kbps, musiche stereo), senza filtri che tolgano gli acuti. In tutto pesano circa 1,3 MB (71 file).
+I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compressi in mp3 (effetti mono a 96 kbps, musiche stereo), senza filtri che tolgano gli acuti. In tutto pesano circa 1,7 MB (77 file).
 
 ## Fonti
 
@@ -20,6 +20,7 @@ I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compre
 | Passi di gruppo sulla neve (corsa) | AudioPapkin | 712022 |
 | Carro | SoundsLikeYukon | 721122 |
 | Musica (unica, per tutto il gioco) "A Ukulele Tune" | shaunhillyard | 830500 |
+| Musica inquietante del lupo gigante "Action music loop with dark ambient drones" | burning-mir | 155139 |
 | Grido "Men Shouting Hey" | Jace | 57204 |
 | Grido "3 Men Cheering" | jbeetle | 274510 |
 | Grido "Male voice Yeah" | deleted_user_5205523 | 340363 |
@@ -71,5 +72,10 @@ I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compre
 | nuovo-cerchio | compare un nuovo cerchio di miglioramento | Kenney Jingles Pizzicato: PIZZI13 |
 | festa | fine del tutorial e "Bentornato!" | Kenney Jingles Steel: STEEL02 |
 | grido-1…6 | grida allegre dei boscaioli nella corsa (Hey!, Yeah!, Woo-hoo!, tre uomini che esultano) | Freesound 57204, 274510, 340363, 475444, 468898, 557125 (nell'ordine) |
-| musica | l'unica musica del gioco, base e corsa (ukulele acustico, in loop con una breve dissolvenza; senza silenzio iniziale e finale) | Freesound 830500 "A Ukulele Tune", shaunhillyard |
+(m) => m| allarme-mura | le mura stanno cedendo (due rintocchi di campana, più bassi) | Kenney Impact: impactBell_heavy_001 |
+| mura-cadute | le mura crollano (scricchiolio e tonfi di legno, sempre più bassi) | Kenney RPG: creak3 + Kenney Impact: impactWood_heavy_000, 004, 002, impactSoft_heavy_000, impactWood_medium_003 |
+| passo-gigante | tonfo di un passo del lupo gigante | Kenney Impact: impactSoft_heavy_001 (più basso) |
 | taglio-1…3 | colpi dell'ascia sul legno dell'albero nella corsa | Kenney Impact: impactPlank_medium_002-004 |
+| musica-paura | musica inquietante mentre c'è il lupo gigante (loop di circa 29 s, tesa e cupa, con bassi e droni scuri; sfuma al posto dell'ukulele e poi torna) | Freesound 155139 "Action music loop with dark ambient drones", burning-mir |
+| riparazione-mura | le mura sono state riparate con la legna (tre colpetti di martello sul legno e un campanellino) | Kenney Impact: impactWood_light_000-002 + Kenney Jingles Pizzicato: PIZZI08 |
+| cerchio-riparazione | compare il grande cerchio verde per riparare le mura (un tonfo morbido e un campanellino) | Kenney Impact: impactSoft_heavy_000 (più basso) + Kenney Jingles Pizzicato: PIZZI12 |

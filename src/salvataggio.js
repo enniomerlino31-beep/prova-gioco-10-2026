@@ -136,6 +136,15 @@ export function salva(stato) {
   }
 }
 
+// Dopo che le mura sono cadute: partita nuova come all'inizio, ma il tutorial resta fatto (le impostazioni dell'audio
+// stanno in un'altra memoria e restano)
+export function ricominciaDaCapo() {
+  const stato = statoIniziale();
+  stato.tutorial = 3;
+  stato.orologio = Date.now();
+  salva(stato);
+}
+
 // Cancella tutto e riparte da zero (utile per le prove)
 export function cancella() {
   try {

@@ -162,8 +162,8 @@ export const CONFIG = {
     tempoCancello: 1.0,          // secondi da passare sul sentiero per partire per una nuova corsa
     raggioJoystick: 55,          // quanto si può spostare il pomello del joystick (pixel)
     pezziMassimiSportello: 24,   // pezzi che si vedono al massimo sulla rastrelliera (legna) o sul tavolo (carne) di uno sportello
-    hpMura: 180,                 // punti vita delle mura di legno (con i miglioramenti diventano di più)
-    dannoMura: 2.2,               // danno che un lupo fa a una muraglia ogni secondo (più rilassato)
+    hpMura: 360,                 // punti vita delle mura di legno (con i miglioramenti diventano di più: pietra 800, metallo 1500)
+    dannoMura: 1.1,               // danno che un lupo fa alle mura ogni secondo (il lupo gigante invece morde a colpi: vedi lupoGigante)
     // Vita dei lupi in "punti": un lupo normale ne ha 15. L'ascia ne toglie 5 (servono 3 colpi),
     // una freccia quanti ne dice il livello della torretta (3 = 5 frecce, 5 = 3 frecce, 8 = 2 frecce).
     hpLupo: 15,                  // punti di vita di un lupo normale
@@ -202,21 +202,46 @@ export const CONFIG = {
   },
 
   // ---------------- LUPO GIGANTE ----------------
-  // Ogni 2-3 minuti arriva un lupo grande il doppio, con il pelo più scuro e una barra della vita grande.
-  // Ha 60 punti di vita: un colpo d'ascia ne toglie 6 (servono 10 colpi), una freccia quanti ne toglie a un
-  // lupo normale (3 = 20 frecce; con "Potenzia arcieri" 5 = 12 frecce, con "Potenzia arcieri 2" 8 = 8 frecce).
+  // Ogni 2-3 minuti arriva un lupo grande il doppio, con il pelo più scuro e una grande barra della vita sopra la testa.
+  // Morde le mura ogni 0,5-0,8 secondi e ogni morso toglie 8 punti, ma in tutto non toglie mai più del 25% della vita massima
+  // delle mura (legno 90, pietra 200, metallo 375): poi i suoi morsi non fanno più danno finché non muore.
+  // Ha 400 punti di vita: un colpo d'ascia ne toglie 6 (servono 67 colpi), una freccia quanti ne toglie a un lupo
+  // normale (3 = 134 frecce; con "Potenzia arcieri" 5 = 80 frecce, con "Potenzia arcieri 2" 8 = 50 frecce).
+  // Con il boscaiolo che colpisce con l'ascia (circa 8 punti al secondo, non sempre vicino) e le due torrette del
+  // suo lato con "Potenzia arcieri" (circa 8 punti al secondo) servono circa 25 secondi di combattimento.
   // Il primo arriva 2-3 minuti dopo l'acquisto della prima torretta.
   lupoGigante: {
     ogniMinimo: 120,         // secondi minimi tra un lupo gigante e il successivo
     ogniMassimo: 180,        // secondi massimi tra un lupo gigante e il successivo
-    vita: 60,                // punti di vita
+    vita: 400,               // punti di vita (un lupo normale ne ha 15)
     dannoAscia: 6,           // punti tolti da un colpo d'ascia (del boscaiolo o del cacciatore)
     grandezza: 2,            // quanto è più grande di un lupo normale
-    velocita: 0.5,           // cammina a questa parte della velocità di un lupo normale (è lento)
-    dannoMura: 3,            // fa questo numero di volte il danno alle mura di un lupo normale
+    velocita: 1.5,           // va verso le mura a questa parte della velocità di un lupo normale (1,5 = una volta e mezza; prima 0,5)
+    intervalloMorso: [0.5, 0.8], // secondi tra un suo morso alle mura e il successivo, a caso tra questi due (prima 1,1-1,7 come i lupi normali)
+    dannoMorso: 8,           // punti di vita tolti alle mura da ogni suo morso (prima in media circa 4,6 a morso: 3,3 al secondo)
+    limiteDanno: 0.25,       // in tutto il suo attacco, dall'arrivo a quando muore, non toglie mai più di questa parte della vita massima
+                             // delle mura (0,25 = 25%, per ogni livello delle mura; il danno dei lupi normali non conta)
     carne: 10,               // unità di carne che lascia quando muore...
     pezziCarne: 5,           // ...divise in questi pezzi sparsi a terra
-    tempoAvviso: 2,          // secondi in cui resta la scritta "Arriva il lupo gigante!"
+    tempoAvviso: 2.6,        // secondi in cui resta la scritta "Arriva il lupo gigante!"
+    ululato: 2.6,            // secondi in cui, appena arrivato, si ferma a ululare con la testa al cielo
+    sostaTelecamera: 2.6,    // secondi in cui la telecamera lo guarda quando arriva (poi torna sul boscaiolo)
+    zoomTelecamera: 0.85,    // quanto è vicina la telecamera quando lo guarda (più basso = più vicina)
+  },
+
+  // ---------------- MURA CHE CEDONO ----------------
+  // Sotto questa parte di vita compare l'avviso "Le mura stanno cedendo! Riparale!" (al massimo una volta ogni tot secondi).
+  // A zero vita le mura cadono: la partita è persa e compare "Le mura sono cadute!" con il pulsante "Ricomincia".
+  muraAllarme: {
+    sotto: 0.25,             // sotto il 25% della vita delle mura
+    ogniSecondi: 30,         // al massimo un avviso ogni 30 secondi
+    tempoAvviso: 3,          // secondi in cui resta la scritta
+    // Alla stessa soglia compare al centro della base il grande cerchio verde per riparare le mura con la legna:
+    // il boscaiolo ci porta questa quantità di legna (prima la riparazione si comprava solo con le monete: 100 monete
+    // = 50 legna, perché la legna vale 2 monete l'una) e le mura tornano alla vita massima. Resta finché le mura non sono riparate.
+    legnaRiparazione: 50,
+    raggioCerchio: 3,        // grandezza del cerchio verde (un cerchio normale è 1,2): è il più grande della base
+    durataTelecamera: 2,     // secondi in cui la telecamera guarda il cerchio quando compare (poi torna sul boscaiolo; se il cerchio si vede già bene non si muove)
   },
 
   // ---------------- CLIENTI ----------------
@@ -252,13 +277,13 @@ export const CONFIG = {
   miglioramenti: {
     // --- Difesa ---
     mura: [
-      { nome: 'Mura di pietra', prezzo: 250, icona: 'pietra', hpMura: 400 },       // rocce appuntite alla base, verso fuori
-      { nome: 'Rinforzo in metallo', prezzo: 600, icona: 'metallo', hpMura: 750 }, // assi di ferro con i bulloni tra i pali
+      { nome: 'Mura di pietra', prezzo: 250, icona: 'pietra', hpMura: 800 },       // rocce appuntite alla base, verso fuori
+      { nome: 'Rinforzo in metallo', prezzo: 600, icona: 'metallo', hpMura: 1500 }, // assi di ferro con i bulloni tra i pali
     ],
     riparazione: [ // le mura recuperano vita da sole, lentamente (vita al secondo)
-      { nome: 'Riparazione', prezzo: 100, icona: 'martello', vitaAlSecondo: 0.4 },
-      { nome: 'Riparazione veloce', prezzo: 200, icona: 'martello', vitaAlSecondo: 0.8 },
-      { nome: 'Riparazione esperta', prezzo: 400, icona: 'martello', vitaAlSecondo: 1.6 },
+      { nome: 'Riparazione', prezzo: 100, icona: 'martello', vitaAlSecondo: 0.8 },
+      { nome: 'Riparazione veloce', prezzo: 200, icona: 'martello', vitaAlSecondo: 1.6 },
+      { nome: 'Riparazione esperta', prezzo: 400, icona: 'martello', vitaAlSecondo: 3.2 },
     ],
     // Torri di legno sulle mura con un arciere che tira frecce ai lupi: due torri per lato (quattro in tutto),
     // poi "Potenzia arcieri" per tutte. torri = quante torri ci sono (nell'ordine di MAPPA.torri).

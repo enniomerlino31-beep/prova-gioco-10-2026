@@ -16,7 +16,7 @@
 
 import * as THREE from 'three';
 import { CONFIG } from '../config.js';
-import { carica, salva } from '../salvataggio.js';
+import { carica, salva, ricominciaDaCapo } from '../salvataggio.js';
 import { registraVendita } from '../economia.js';
 import { Effetti } from '../motore/effetti.js';
 import { creaAmbiente, MAPPA, latoDelleMura } from './ambiente.js';
@@ -37,9 +37,11 @@ import { Mura } from './mura.js';
 import { BancoCacciatore } from './banco.js';
 import { BoscaioloSecondario, durataGiro } from './secondario.js';
 import { lavoroOffline, secondiDiAssenza } from './offline.js';
+import { creaBarraGigante } from './barraGigante.js';
+import { CerchioRiparazione } from './cerchioRiparazione.js';
 import { suoni } from '../motore/suoni.js';
 import { creaLupo } from '../modelli/lupo.js';
-import { animaGaloppo, animaMorso, COLPO } from '../modelli/animazioni.js';
+import { animaGaloppo, animaMorso, animaPassoPesante, animaUlulato, COLPO } from '../modelli/animazioni.js';
 import { creaCarne } from '../modelli/carne.js';
 
 const OGNI_QUANTO_SALVARE = 2; // secondi
@@ -54,6 +56,13 @@ const PAVIMENTI = { pavimentoPietra: 'pietra' };
 
 // Opzioni dei voli dentro la segheria (più brevi e piccoli di quelli della corsa)
 const VOLO_CORTO = { durata: 0.35, altezza: 1.4, scala: 0.55, sbuffo: false };
+
+// Toglie un comando di prova (come ?gigante) dall'indirizzo, così ricaricando la pagina non si ripete
+function togliDallIndirizzo(nome) {
+  const indirizzo = new URL(window.location.href);
+  indirizzo.searchParams.delete(nome);
+  window.history.replaceState(null, '', indirizzo);
+}
 
 // ---------------- LUPI ----------------
 const LUPI_NORMALI = 12;  // lupi normali che possono esserci al massimo (più il lupo gigante)
@@ -157,6 +166,10 @@ export class Segheria {
     this.attiva = false;
     this.haCamminato = false;
     this.mura = new Mura(this.radice, ambiente.palizzata, MAPPA.miglioramenti.mura, this.effetti);
+    // Il grande cerchio verde dove si porta la legna per riparare le mura: compare sotto il 25% della vita (vedi gestisceRiparazione)
+    const R = CONFIG.muraAllarme;
+    this.cerchioMura = new CerchioRiparazione(this.radice, MAPPA.riparazioneMura, R.legnaRiparazione, R.raggioCerchio);
+    this.cerchioMura.nascondi(true, true);
     this.tempoGioco = 0;
     // Da dove arrivano i lupi (vedi aggiornaLupi): ogni "fronte" ha il suo orologio, che parte quando il fronte si apre.
     // lato: -1 = dal lato sinistro della foresta, 1 = dal destro, 0 = da tutte le parti
@@ -169,6 +182,17 @@ export class Segheria {
     this.lupiBase = this.creaLupiBase();
     this.lupoGigante = this.lupiBase.find((lupo) => lupo.gigante);
     this.prossimoGigante = CONFIG.lupoGigante.ogniMinimo + Math.random() * (CONFIG.lupoGigante.ogniMassimo - CONFIG.lupoGigante.ogniMinimo);
+    this.attesaAvvisoGigante = null; // secondi alla scritta "Arriva il lupo gigante!" (parte quando la telecamera è arrivata da lui)
+    this.muraCadute = false;         // le mura sono arrivate a zero: partita persa, si aspetta "Ricomincia"
+    this.dannoGigante = 0;           // quanto danno ha fatto alle mura il lupo gigante di adesso (non può superare CONFIG.lupoGigante.limiteDanno)
+    this.riparazioneAperta = false;  // il cerchio verde per riparare le mura con la legna c'è (resta finché le mura non sono riparate)
+    this.attesaAllarme = 0;          // secondi prima che l'avviso "Le mura stanno cedendo!" possa ricomparire
+    // Per le prove: ?gigante fa arrivare subito il lupo gigante, ?mura=N mette le mura a N% della vita (0 = cadono)
+    this.provaGigante = indirizzo.has('gigante');
+    if (this.provaGigante) {
+      this.prossimoGigante = 3;
+      togliDallIndirizzo('gigante');
+    }
     this.attaccoCooldown = 0;
     this.colpoInArrivo = null; // il colpo d'ascia del boscaiolo arriva sul lupo quando la lama cala
     this.carneCadute = [];
@@ -207,6 +231,10 @@ export class Segheria {
     if (this.bancoAperto) this.banco.mostra(false);
     this.ripristinaMiglioramenti();
     this.aggiornaVisibilita(true);
+    if (indirizzo.has('mura')) {
+      this.mura.hp = this.mura.maxHp * THREE.MathUtils.clamp(Number(indirizzo.get('mura')) / 100, 0, 1);
+      togliDallIndirizzo('mura');
+    }
     this.tutorial = new Tutorial(this.radice, schermate, s.tutorial);
     // Durante il tutorial si può comprare solo il primo acquisto della fila DIFESA (le mura di pietra): gli altri
     // cerchi sono spenti (grigi); il cerchio DIFESA si accende solo al terzo passaggio, vedi aggiorna
@@ -338,6 +366,7 @@ export class Segheria {
   // Si entra nella segheria (all'avvio o dopo una corsa)
   entra() {
     this.chiudiRegia();
+    if (this.lupoGigante.vivo && !this.muraCadute) suoni.impostaPaura(true); // il lupo gigante c'è ancora: torna la musica inquietante
     this.attiva = true;
     this.giocatore.riposiziona();
     for (const cancello of Object.values(this.cancelli)) cancello.azzera();
@@ -362,6 +391,7 @@ export class Segheria {
   // Si esce dalla segheria (parte una corsa)
   esci() {
     this.tutorial.nascondi();
+    suoni.impostaPaura(false); // durante la corsa c'è la musica della corsa
     this.attiva = false;
     this.joystick.spegni();
     this.stato.corseFatte += 1;
@@ -393,7 +423,7 @@ export class Segheria {
       if (!materiali.has(parte.material)) materiali.set(parte.material, parte.material.clone());
       parte.material = materiali.get(parte.material);
     });
-    const barra = gigante ? creaBarra(1.1, 0, 1.5) : creaBarra(0.8, 5, 1.45);
+    const barra = gigante ? creaBarraGigante() : creaBarra(0.8, 5, 1.45);
     gruppo.add(barra.gruppo);
     this.radice.add(gruppo);
     const vita = gigante ? G.vita : CONFIG.segheria.hpLupo;
@@ -491,12 +521,27 @@ export class Segheria {
 
   // Arriva il lupo gigante, con la scritta sullo schermo
   // (arriva da un lato già aperto: solo da sinistra finché non c'è la torretta di destra)
+  // La telecamera va dolcemente su di lui (se non si vede già bene) mentre il boscaiolo resta fermo; lui si ferma e ulula
+  // con la testa al cielo; quando la telecamera è arrivata compare la scritta e si sente l'ululato; poi la telecamera
+  // torna sul boscaiolo e il lupo si muove verso le mura.
   arrivaGigante() {
+    const G = CONFIG.lupoGigante;
+    const gigante = this.lupoGigante;
     const partenza = this.partenzaLupi(this.frontiAperti().destra ? 0 : -1);
-    this.sveglia(this.lupoGigante, partenza.x, partenza.z, { fronte: 'gigante' });
+    this.sveglia(gigante, partenza.x, partenza.z, { fronte: 'gigante' });
     this.effetti.sbuffo(partenza.x, 0.5, partenza.z, 0xf4f8ff, 20, 4);
-    this.schermate.mostraAvviso('Arriva il lupo gigante!', CONFIG.lupoGigante.tempoAvviso);
-    suoni.suona('ululato');
+    const punto = new THREE.Vector3(partenza.x, 0, partenza.z);
+    const conTelecamera = !this.visibile(punto); // se si vede già bene la telecamera non si muove
+    const viaggio = conTelecamera ? CONFIG.regia.viaggio : 0;
+    if (conTelecamera) {
+      this.regia = { tappe: [{ punto, azione: () => {}, zoom: G.zoomTelecamera, sempre: false, sosta: G.sostaTelecamera, punti: [punto], senzaTesto: true }], indice: 0, tempo: 0, nome: 'Lupo gigante' };
+    }
+    this.dannoGigante = 0;
+    gigante.prossimoMorso = 0.4;
+    suoni.impostaPaura(true); // la musica normale sfuma e parte quella inquietante
+    gigante.fermoPer = viaggio + G.ululato; // fermo (a ululare) finché la telecamera non ha finito di guardarlo
+    gigante.modello.anim.ululato = 0;
+    this.attesaAvvisoGigante = viaggio;
   }
 
   // Un palo a caso tra i più vicini al lupo: il lupo ci va davanti, dal lato esterno delle mura
@@ -539,10 +584,23 @@ export class Segheria {
       if (fronte.prossimo <= 0) fronte.prossimo = nome === 'deboli' ? this.arrivaDebole() : this.arrivaDalLato(nome, fronte);
     }
     // il lupo gigante, ogni 2-3 minuti dopo la prima torretta (uno solo alla volta: se c'è ancora, il prossimo aspetta)
-    if (aperti.sinistra) this.prossimoGigante -= dt;
+    if (aperti.sinistra || this.provaGigante) this.prossimoGigante -= dt;
     if (this.prossimoGigante <= 0) {
-      if (!this.lupoGigante.vivo) this.arrivaGigante();
-      this.prossimoGigante = G.ogniMinimo + Math.random() * (G.ogniMassimo - G.ogniMinimo);
+      if (this.lupoGigante.vivo) {
+        this.prossimoGigante = G.ogniMinimo + Math.random() * (G.ogniMassimo - G.ogniMinimo);
+      } else if (!this.regia && !this.inFesta) {
+        // se la telecamera sta mostrando un acquisto, il lupo gigante aspetta che abbia finito
+        this.arrivaGigante();
+        this.prossimoGigante = G.ogniMinimo + Math.random() * (G.ogniMassimo - G.ogniMinimo);
+      }
+    }
+    if (this.attesaAvvisoGigante !== null) {
+      this.attesaAvvisoGigante -= dt;
+      if (this.attesaAvvisoGigante <= 0) {
+        this.attesaAvvisoGigante = null;
+        this.schermate.mostraAvviso('Arriva il lupo gigante!', G.tempoAvviso);
+        suoni.suona('ululato');
+      }
     }
 
     const pos = this.giocatore.posizione;
@@ -552,12 +610,14 @@ export class Segheria {
       // appena colpito lampeggia di bianco: si accende e si spegne tre volte
       lupo.lampo = Math.max(0, lupo.lampo - dt);
       const acceso = lupo.lampo > 0 && Math.floor(lupo.lampo / 0.07) % 2 === 0;
-      for (const materiale of lupo.materiali) materiale.emissive.setScalar(acceso ? 0.85 : 0);
+      for (const materiale of lupo.materiali) materiale.emissive?.setScalar(acceso ? 0.85 : 0); // gli occhi del gigante (che brillano da soli) non lampeggiano
       const distanza = Math.hypot(pos.x - lupo.x, pos.z - lupo.z);
       const target = lupo.obiettivo;
       const versoX = (target.x - lupo.x) * 0.28;
       const versoZ = (target.z - lupo.z) * 0.28;
-      const velocita = cfg.velocitaLupo * lupo.velocita * (lupo.gigante ? G.velocita : 1);
+      const fermo = (lupo.fermoPer ?? 0) > 0; // il gigante appena arrivato si ferma a ululare
+      if (fermo) lupo.fermoPer -= dt;
+      const velocita = fermo ? 0 : cfg.velocitaLupo * lupo.velocita * (lupo.gigante ? G.velocita : 1);
       lupo.x += versoX * dt * velocita;
       lupo.z += versoZ * dt * velocita;
       // i lupi non passano le mura (nemmeno dai cancelli)
@@ -565,16 +625,23 @@ export class Segheria {
       lupo.x = fuori.x;
       lupo.z = fuori.z;
       const daMura = Math.hypot(lupo.x - target.x, lupo.z - target.z);
-      const attacca = daMura < 1.7 + lupo.ingombro;
-      this.animaLupo(lupo, dt, Math.hypot(versoX, versoZ) * velocita, attacca);
+      const attacca = !fermo && daMura < 1.7 + lupo.ingombro;
+      this.animaLupo(lupo, dt, Math.hypot(versoX, versoZ) * velocita, attacca, fermo);
       if (daMura < 1.1 + lupo.ingombro) lupo.obiettivo = this.bersaglioVicino(lupo); // passa a un palo lì vicino
 
       if (attacca) {
-        this.mura.danneggia(cfg.dannoMura * (lupo.gigante ? G.dannoMura : 1) * dt);
-        // ogni tanto un morso si vede: il palo trema, schegge e neve (il gigante morde più forte)
+        // i lupi normali tolgono vita alle mura in continuazione; il gigante a ogni morso (vedi sotto)
+        if (!lupo.gigante) this.mura.danneggia(cfg.dannoMura * dt);
+        // ogni tanto un morso si vede: il palo trema, schegge e neve (il gigante morde più forte e più spesso)
         lupo.prossimoMorso = (lupo.prossimoMorso ?? Math.random()) - dt;
         if (lupo.prossimoMorso <= 0) {
-          lupo.prossimoMorso = 1.1 + Math.random() * 0.6;
+          if (lupo.gigante) {
+            const [minimo, massimo] = G.intervalloMorso;
+            lupo.prossimoMorso = minimo + Math.random() * (massimo - minimo);
+            this.mordeIlGigante();
+          } else {
+            lupo.prossimoMorso = 1.1 + Math.random() * 0.6;
+          }
           this.mura.colpisci(lupo.x, lupo.z, lupo.gigante ? 1.6 : 1);
           suoni.suona(lupo.gigante ? 'morsoGigante' : 'morso');
         }
@@ -591,7 +658,7 @@ export class Segheria {
 
   // Come si muove un lupo: corre a balzi girato verso dove va (con la polvere di neve quando atterra);
   // quando è alle mura si gira verso di loro e le morde e graffia. Salta un po' quando viene colpito.
-  animaLupo(lupo, dt, velocita, attacca) {
+  animaLupo(lupo, dt, velocita, attacca, fermo = false) {
     let angoloVoluto = null;
     if (attacca) {
       // si gira verso il punto delle mura più vicino a lui
@@ -601,11 +668,19 @@ export class Segheria {
       angoloVoluto = Math.atan2(-(x - lupo.x), -(z - lupo.z));
       animaMorso(lupo.modello, dt);
     } else {
-      const lento = lupo.gigante ? 1.4 : 1; // il gigante fa balzi più lunghi e lenti
-      const atterra = animaGaloppo(lupo.modello, dt, (8 + velocita * 1.5) / lento, Math.min(1, velocita / 1.2));
+      let atterra;
+      if (lupo.gigante && fermo) {
+        animaUlulato(lupo.modello, dt); // testa al cielo, bocca aperta
+        atterra = false;
+      } else if (lupo.gigante) {
+        atterra = animaPassoPesante(lupo.modello, dt, velocita); // cammina pesante e minaccioso
+        if (atterra) suoni.suona('passoGigante');
+      } else {
+        atterra = animaGaloppo(lupo.modello, dt, 8 + velocita * 1.5, Math.min(1, velocita / 1.2));
+      }
       if (atterra) {
         // quando atterra: un po' di neve e un'impronta di zampa, una a destra e una a sinistra
-        this.effetti.polvere(lupo.x, lupo.z, 3, lupo.gigante ? 2 : 1.2);
+        this.effetti.polvere(lupo.x, lupo.z, lupo.gigante ? 5 : 3, lupo.gigante ? 2.6 : 1.2);
         const scala = lupo.gruppo.scale.x;
         lupo.passi = (lupo.passi ?? 0) + 1;
         const fianco = (lupo.passi % 2 ? 0.12 : -0.12) * scala;
@@ -668,6 +743,7 @@ export class Segheria {
     lupo.barra.aggiorna(lupo);
 
     if (lupo.hp <= 0) {
+      if (lupo.gigante) suoni.impostaPaura(false); // sfuma la musica inquietante e torna quella normale
       suoni.suona('lupoMuore');
       lupo.vivo = false;
       lupo.gruppo.visible = false;
@@ -944,6 +1020,132 @@ export class Segheria {
     return venditore;
   }
 
+  // ---------------- MURA CHE CEDONO E MURA CADUTE ----------------
+
+  // Sotto il 25% della vita compare l'avviso "Le mura stanno cedendo! Riparale!" (al massimo uno ogni 30 secondi, con un
+  // suono); a zero le mura cadono e la partita è persa (vedi CONFIG.muraAllarme)
+  controllaMura(dt) {
+    const A = CONFIG.muraAllarme;
+    this.attesaAllarme = Math.max(0, this.attesaAllarme - dt);
+    if (this.mura.ratio < A.sotto && this.attesaAllarme <= 0) {
+      this.attesaAllarme = A.ogniSecondi;
+      this.schermate.mostraAvviso('Le mura stanno cedendo! Riparale!', A.tempoAvviso);
+      suoni.suona('allarmeMura');
+    }
+  }
+
+  // Un morso del lupo gigante: toglie "dannoMorso" punti alle mura, ma in tutto (dall'arrivo a quando muore) mai più della parte
+  // di vita massima indicata da CONFIG.lupoGigante.limiteDanno, qualunque sia il livello delle mura
+  mordeIlGigante() {
+    const G = CONFIG.lupoGigante;
+    const massimo = this.mura.maxHp * G.limiteDanno;
+    const danno = Math.min(G.dannoMorso, Math.max(0, massimo - this.dannoGigante));
+    this.dannoGigante += danno;
+    if (danno > 0) this.mura.danneggia(danno);
+  }
+
+  // ---------------- RIPARARE LE MURA CON LA LEGNA ----------------
+
+  // Sotto il 25% della vita compare il grande cerchio verde, esattamente al centro della base (se la telecamera sta già
+  // mostrando qualcos'altro aspetta che abbia finito): il boscaiolo ci passa sopra e deposita la legna che porta (un po'
+  // alla volta, come negli altri cerchi). Quando c'è tutta la legna le mura tornano alla vita massima e il cerchio sparisce.
+  // Resta finché le mura non sono riparate, anche se la vita risale sopra il 25%; la legna depositata resta nel cerchio.
+  // Finché c'è, i cerchi e le scritte che si sovrappongono si rimpiccioliscono; quando sparisce tornano come prima.
+  gestisceRiparazione(pos, dt) {
+    const cerchio = this.cerchioMura;
+    cerchio.aggiorna(dt);
+    if (!this.riparazioneAperta && !this.regia && !this.inFesta && this.mura.ratio < CONFIG.muraAllarme.sotto) {
+      this.apriRiparazione();
+    } else if (this.riparazioneAperta && this.mura.hp >= this.mura.maxHp) {
+      // le mura sono già al massimo (riparazione automatica o mura nuove): il cerchio sparisce e tiene la legna già messa
+      this.riparazioneAperta = false;
+      cerchio.nascondi(true);
+    }
+    const centro = MAPPA.riparazioneMura;
+    for (const altro of Object.values(this.cerchi)) altro.sospendi(this.riparazioneAperta && altro.occupa(centro.x, centro.z, cerchio.raggio));
+    if (!this.riparazioneAperta || this.regia || !cerchio.contiene(pos)) return;
+    const rata = cerchio.prossimaRata(this.giocatore.carico.legna, dt);
+    if (rata <= 0) return;
+    const partenza = this.giocatore.cimaSchiena(new THREE.Vector3(), 'legna');
+    const tolta = this.giocatore.togli('legna', rata);
+    cerchio.inArrivo -= rata - tolta;
+    if (tolta <= 0) return;
+    this.inVolo.legna += tolta;
+    this.effetti.lancia('legna', partenza, cerchio, 0, () => {
+      this.inVolo.legna -= tolta;
+      suoni.suona('legnaDeposito');
+      if (cerchio.riceviRata(tolta)) this.riparaMuraConLaLegna();
+    }, VOLO_CORTO);
+  }
+
+  // Il cerchio compare: "esplode" dal terreno con scintille e un suono. Se al centro della base non si vede bene, prima la
+  // telecamera ci va dolcemente (CONFIG.muraAllarme.durataTelecamera) e poi torna sul boscaiolo
+  apriRiparazione() {
+    const centro = MAPPA.riparazioneMura;
+    const azione = () => {
+      this.riparazioneAperta = true;
+      this.cerchioMura.nascondi(false, false, true);
+      suoni.suona('cerchioRiparazione');
+      this.effetti.sbuffo(centro.x, 0.3, centro.z, 0x9be37a, 40, 5);
+      this.effetti.sbuffo(centro.x, 0.3, centro.z, 0xf4f8ff, 24, 4);
+      this.effetti.scintille(centro.x, 0.5, centro.z, 0xb6ffa8, 14, 3);
+    };
+    if (this.visibile(centro)) {
+      azione();
+      return;
+    }
+    const r = this.cerchioMura.raggio;
+    const punti = [new THREE.Vector3(centro.x + r, 0, centro.z), new THREE.Vector3(centro.x, 0, centro.z + r)];
+    this.regia = {
+      tappe: [{ punto: centro.clone(), azione, zoom: this.zoomPerVedere(punti, centro), sempre: false, sosta: CONFIG.muraAllarme.durataTelecamera, punti: [centro], senzaTesto: true }],
+      indice: 0, tempo: 0, nome: 'Riparazione',
+    };
+  }
+
+  // Tutta la legna è arrivata: le mura tornano alla vita massima (la barra risale piano) e il cerchio sparisce
+  riparaMuraConLaLegna() {
+    const cerchio = this.cerchioMura;
+    this.mura.hp = this.mura.maxHp;
+    cerchio.pagato = 0;
+    cerchio.inArrivo = 0;
+    cerchio.aggiornaBarra();
+    cerchio.ridisegna();
+    this.riparazioneAperta = false;
+    cerchio.nascondi(true);
+    suoni.suona('riparazioneMura');
+    const { x, z } = cerchio.posizione;
+    this.effetti.testo(x, 2.4, z, 'Mura riparate!', 'buono');
+    this.effetti.sbuffo(x, 0.4, z, 0x9be37a, 24, 3.5);
+    for (let i = 0; i < 8; i++) {
+      const palo = this.mura.pali[Math.floor((i / 8) * this.mura.pali.length)];
+      this.effetti.sbuffo(palo.position.x, 1.5, palo.position.z, 0x9be37a, 5, 1.5);
+    }
+  }
+
+  // Le mura crollano: schegge e neve lungo tutta la palizzata, il suono del crollo e la schermata con "Ricomincia"
+  cadonoLeMura() {
+    this.muraCadute = true;
+    suoni.impostaPaura(false); // anche con il lupo gigante in giro la musica inquietante si ferma
+    this.joystick.spegni();
+    this.chiudiRegia();
+    suoni.suona('muraCadute');
+    const pali = this.mura.pali;
+    for (let i = 0; i < 10; i++) {
+      const palo = pali[Math.floor((i / 10) * pali.length)];
+      this.mura.colpisci(palo.position.x, palo.position.z, 2);
+    }
+    this.schermate.nascondiAvviso();
+    setTimeout(() => this.schermate.mostraMuraCadute(() => this.ricomincia()), 1200);
+  }
+
+  // "Ricomincia": si perde tutto e si riparte con la base dell'inizio (il tutorial resta fatto, l'audio resta com'è).
+  // Il salvataggio nuovo viene scritto e la pagina si ricarica; da adesso niente deve più sovrascriverlo.
+  ricomincia() {
+    this.salvaOra = () => {};
+    ricominciaDaCapo();
+    window.location.reload();
+  }
+
   // ---------------- TELECAMERA SUL MIGLIORAMENTO ----------------
 
   // Quanto alzare e allontanare la telecamera (zoom) perché, guardando "centro", si vedano tutti questi punti
@@ -981,7 +1183,7 @@ export class Segheria {
       if (!tappa.fatta && r.tempo >= cfg.viaggio) {
         tappa.fatta = true;
         tappa.azione();
-        this.effetti.testo(tappa.punto.x, 4, tappa.punto.z, `${r.nome}!`, 'buono');
+        if (!tappa.senzaTesto) this.effetti.testo(tappa.punto.x, 4, tappa.punto.z, `${r.nome}!`, 'buono');
       }
       if (r.tempo >= cfg.viaggio + tappa.sosta) {
         r.indice += 1;
@@ -1033,6 +1235,7 @@ export class Segheria {
   // ---------------- OGNI FOTOGRAMMA ----------------
 
   aggiorna(dt) {
+    if (this.muraCadute) return; // le mura sono cadute: tutto fermo, si aspetta "Ricomincia"
     // mentre la telecamera guarda un miglioramento appena comprato il boscaiolo resta fermo
     const direzione = this.regia ? { x: 0, y: 0 } : this.joystick.leggi();
     if (!this.haCamminato && (direzione.x || direzione.y)) {
@@ -1052,10 +1255,17 @@ export class Segheria {
     this.tempoGioco += dt;
 
     this.aggiornaLupi(dt);
+    // le mura cadono appena i morsi le portano a zero (prima della riparazione automatica, che altrimenti le rimetterebbe in piedi)
+    if (this.mura.hp <= 0) {
+      this.cadonoLeMura();
+      return;
+    }
     this.torrette.aggiorna(dt, this.lupiBase, (lupo, danno) => this.colpisciLupo(lupo, danno));
     this.riparaMura(dt);
     this.mura.aggiorna(dt);
     this.schermate.aggiornaMura(this.mura.ratio);
+    this.controllaMura(dt);
+    this.gestisceRiparazione(pos, dt);
 
     // carne lasciata dai lupi (fuori dalle mura): si raccoglie passandoci sopra
     for (const drop of this.carneCadute) {
@@ -1210,7 +1420,8 @@ export class Segheria {
   salvaOra() {
     const s = this.stato;
     // ciò che è in volo (o in mano ai lavoratori) viene salvato "a casa" (catasta, tavolo della carne, tasca) per non perderlo mai
-    s.catasta = this.catasta.quantita + this.inVolo.legna + (this.aiutante?.carico ?? 0);
+    // (anche la legna già messa nel cerchio per riparare le mura: ricaricando le mura sono di nuovo intere, quindi torna nella catasta)
+    s.catasta = this.catasta.quantita + this.inVolo.legna + (this.aiutante?.carico ?? 0) + this.cerchioMura.pagato;
     s.tutorial = this.tutorial.passo;
     s.soldi = Math.round(s.soldi);
     s.schiena = { ...this.giocatore.carico };

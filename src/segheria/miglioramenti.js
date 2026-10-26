@@ -28,8 +28,14 @@ export class CerchioMiglioramento {
   // posizioni: un punto, oppure un punto per ogni livello (da MAPPA.miglioramenti; scrittaSotto = scritta sotto il cerchio)
   // livelli: la lista dei livelli ({ nome, prezzo, icona }); comprati: a quale livello si è arrivati; pagato: monete già messe nel livello attuale
   // titolo: una parola piccola scritta sopra il nome di cosa si compra (es. 'PAVIMENTO'; '' = solo il nome);
-  // larghezzaScritta: quanto è larga la scritta (metri), così non tocca le scritte e le insegne vicine
-  constructor(genitore, posizioni, livelli, comprati, pagato, titolo = '', larghezzaScritta = 2.5) {
+  // larghezzaScritta: quanto è larga la scritta (metri), così non tocca le scritte e le insegne vicine;
+  // raggio: quanto è grande il cerchio (di solito RAGGIO); iconaPrezzo: l'icona del numero che manca
+  constructor(genitore, posizioni, livelli, comprati, pagato, titolo = '', larghezzaScritta = 2.5, raggio = RAGGIO, iconaPrezzo = 'moneta', altezzaScritta = ALTEZZA_SCRITTA) {
+    this.raggio = raggio;           // quanto è grande il cerchio (metri)
+    this.larghezzaScritta = larghezzaScritta;
+    this.altezzaScritta = altezzaScritta; // quanto è alta la scritta (metri)
+    this.sospeso = false;           // rimpicciolito per fare posto a un altro cerchio più grande (vedi sospendi)
+    this.iconaPrezzo = iconaPrezzo; // l'icona accanto al numero che manca ('moneta', oppure 'legna' per la riparazione delle mura)
     this.posizioni = Array.isArray(posizioni) ? posizioni : livelli.map(() => posizioni);
     this.posizione = (this.posizioni[comprati] ?? this.posizioni[this.posizioni.length - 1]).clone();
     this.livelli = livelli;
@@ -60,10 +66,10 @@ export class CerchioMiglioramento {
       this.gruppo.add(mesh);
       return mesh;
     };
-    piatto(new THREE.CircleGeometry(RAGGIO, 48), 0x2f8f4a, 0.5, 0);                                 // fondo verde
-    piatto(new THREE.RingGeometry(RAGGIO - LARGHEZZA_BARRA, RAGGIO, 64), 0x123d20, 0.85, 0.005);    // binario della barra
+    piatto(new THREE.CircleGeometry(this.raggio, 48), 0x2f8f4a, 0.5, 0);                                 // fondo verde
+    piatto(new THREE.RingGeometry(this.raggio - LARGHEZZA_BARRA, this.raggio, 64), 0x123d20, 0.85, 0.005);    // binario della barra
     this.barra = piatto(new THREE.BufferGeometry(), 0xffd23f, 1, 0.01);                             // barra che si riempie (oro, come le monete)
-    piatto(new THREE.RingGeometry(RAGGIO - 0.03, RAGGIO + 0.04, 64), 0xe9ffe0, 0.9, 0.012);        // bordo chiaro
+    piatto(new THREE.RingGeometry(this.raggio - 0.03, this.raggio + 0.04, 64), 0xe9ffe0, 0.9, 0.012);        // bordo chiaro
 
     // Icona e prezzo, disegnati su una tela appoggiata a terra
     this.tela = document.createElement('canvas');
@@ -71,7 +77,7 @@ export class CerchioMiglioramento {
     this.tela.height = 256;
     this.texture = new THREE.CanvasTexture(this.tela);
     this.texture.colorSpace = THREE.SRGBColorSpace;
-    this.disegno = piatto(new THREE.PlaneGeometry(RAGGIO * 1.5, RAGGIO * 1.5), 0xffffff, 1, 0.015);
+    this.disegno = piatto(new THREE.PlaneGeometry(this.raggio * 1.5, this.raggio * 1.5), 0xffffff, 1, 0.015);
     this.disegno.material.map = this.texture;
     this.disegno.renderOrder = 1;
 
@@ -79,10 +85,10 @@ export class CerchioMiglioramento {
     this.titolo = titolo;
     this.telaScritta = document.createElement('canvas');
     this.telaScritta.width = 512;
-    this.telaScritta.height = Math.round((512 * ALTEZZA_SCRITTA) / larghezzaScritta);
+    this.telaScritta.height = Math.round((512 * this.altezzaScritta) / larghezzaScritta);
     this.textureScritta = new THREE.CanvasTexture(this.telaScritta);
     this.textureScritta.colorSpace = THREE.SRGBColorSpace;
-    this.scritta = piatto(new THREE.PlaneGeometry(larghezzaScritta, ALTEZZA_SCRITTA), 0xffffff, 1, 0.015);
+    this.scritta = piatto(new THREE.PlaneGeometry(larghezzaScritta, this.altezzaScritta), 0xffffff, 1, 0.015);
     this.scritta.material.map = this.textureScritta;
     this.scritta.renderOrder = 1;
     this.sistemaScritta();
@@ -98,7 +104,34 @@ export class CerchioMiglioramento {
   }
 
   get attivo() {
-    return Boolean(this.livello) && !this.sparisce && this.trasloco <= 0 && !this.nascosto && !this.spento;
+    return Boolean(this.livello) && !this.sparisce && this.trasloco <= 0 && !this.fuori && !this.spento;
+  }
+
+  // Il cerchio non si vede (nascosto, oppure sospeso per fare posto a un altro)
+  get fuori() {
+    return this.nascosto || this.sospeso;
+  }
+
+  // Toglie il cerchio di mezzo per un po' (si rimpicciolisce) e poi lo rimette com'era, senza suoni
+  sospendi(si) {
+    if (si === this.sospeso) return;
+    this.sospeso = si;
+    if (!si && this.livello && !this.nascosto) {
+      this.gruppo.visible = true;
+      this.salto = 1;
+    }
+  }
+
+  // Il cerchio (o la sua scritta) tocca un cerchio più grande, di centro (cx, cz) e raggio r?
+  occupa(cx, cz, r) {
+    if (this.nascosto || !this.livello) return false;
+    if (Math.hypot(this.posizione.x - cx, this.posizione.z - cz) < this.raggio + r) return true;
+    const posto = this.posizioni[this.comprati] ?? this.posizioni[this.posizioni.length - 1];
+    const zScritta = this.posizione.z + (posto.scrittaSotto ? 1 : -1) * (this.raggio + this.altezzaScritta / 2 + 0.05);
+    // il punto della scritta (un rettangolo) più vicino al centro del cerchio grande
+    const px = Math.min(Math.max(cx, this.posizione.x - this.larghezzaScritta / 2), this.posizione.x + this.larghezzaScritta / 2);
+    const pz = Math.min(Math.max(cz, zScritta - this.altezzaScritta / 2), zScritta + this.altezzaScritta / 2);
+    return Math.hypot(px - cx, pz - cz) < r;
   }
 
   // Spegne il cerchio (grigio e trasparente, non si compra) o lo riaccende con un saltello
@@ -117,7 +150,7 @@ export class CerchioMiglioramento {
 
   // Nasconde il cerchio (si rimpicciolisce e sparisce) o lo fa ricomparire con un saltello.
   // subito: senza animazione (all'avvio)
-  nascondi(si, subito = false) {
+  nascondi(si, subito = false, silenzioso = false) {
     if (si === this.nascosto) return;
     this.nascosto = si;
     if (subito) {
@@ -126,13 +159,13 @@ export class CerchioMiglioramento {
     } else if (!si && this.livello) {
       this.gruppo.visible = true;
       this.salto = 1;
-      suoni.suona('nuovoCerchio'); // compare un nuovo cerchio da comprare
+      if (!silenzioso) suoni.suona('nuovoCerchio'); // compare un nuovo cerchio da comprare
     }
   }
 
   contiene(posizione) {
     if (this.trasloco > 0) return false;
-    return Math.hypot(posizione.x - this.posizione.x, posizione.z - this.posizione.z) < RAGGIO;
+    return Math.hypot(posizione.x - this.posizione.x, posizione.z - this.posizione.z) < this.raggio;
   }
 
   // Quanti soldi mandare nel prossimo volo (0 = niente da pagare adesso)
@@ -185,8 +218,8 @@ export class CerchioMiglioramento {
   }
 
   aggiorna(dt) {
-    this.presenza = THREE.MathUtils.clamp(this.presenza + (this.nascosto ? -dt : dt) * 3, 0, 1);
-    if (this.nascosto) {
+    this.presenza = THREE.MathUtils.clamp(this.presenza + (this.fuori ? -dt : dt) * 3, 0, 1);
+    if (this.fuori) {
       this.gruppo.scale.setScalar(Math.max(0.001, this.presenza));
       if (this.presenza <= 0) {
         this.gruppo.visible = false;
@@ -233,7 +266,7 @@ export class CerchioMiglioramento {
     const quota = this.livello ? Math.min(1, this.pagato / this.livello.prezzo) : 0;
     this.barra.geometry.dispose();
     this.barra.geometry = quota > 0
-      ? new THREE.RingGeometry(RAGGIO - LARGHEZZA_BARRA, RAGGIO, 64, 1, Math.PI / 2, -quota * Math.PI * 2)
+      ? new THREE.RingGeometry(this.raggio - LARGHEZZA_BARRA, this.raggio, 64, 1, Math.PI / 2, -quota * Math.PI * 2)
       : new THREE.BufferGeometry();
   }
 
@@ -256,7 +289,7 @@ export class CerchioMiglioramento {
     const latoMoneta = 50;
     const larghezzaRiga = latoMoneta + 8 + ctx.measureText(testo).width;
     const inizio = (l - larghezzaRiga) / 2;
-    disegnaIcona(ctx, 'moneta', inizio, 200 - latoMoneta / 2, latoMoneta);
+    disegnaIcona(ctx, this.iconaPrezzo, inizio, 200 - latoMoneta / 2, latoMoneta);
     ctx.lineJoin = 'round';
     ctx.lineWidth = 10;
     ctx.strokeStyle = 'rgba(20,60,30,0.9)';
@@ -270,7 +303,7 @@ export class CerchioMiglioramento {
   // La scritta sta sopra il cerchio (verso il fondo della base), o sotto se il posto lo chiede (scrittaSotto)
   sistemaScritta() {
     const posto = this.posizioni[this.comprati] ?? this.posizioni[this.posizioni.length - 1];
-    this.scritta.position.z = (posto.scrittaSotto ? 1 : -1) * (RAGGIO + ALTEZZA_SCRITTA / 2 + 0.05);
+    this.scritta.position.z = (posto.scrittaSotto ? 1 : -1) * (this.raggio + this.altezzaScritta / 2 + 0.05);
   }
 
   // La scritta a terra sopra il cerchio: il titolo piccolo (se c'è) e sotto il nome di cosa si compra
