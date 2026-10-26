@@ -72,7 +72,7 @@ Il gioco unisce una corsa infinita con una base di gestione: la squadra corre in
 - Il progetto è ancora in fase di prototipo e di testing di meccaniche base.
 - I Gruppi 1, 2 e 3 di `PIANO-GRUPPI.md` sono fatti, provati e salvati (Gruppo 2: commit f279bf9; Gruppo 3 con le richieste A, B, C: commit f0f1279).
 - Gruppo A di `PIANO-GRUPPI.md` (cartellino delle monete, boscaiolo secondario e guadagni offline = Fase 5): fatto, provato e approvato dall’utente, insieme alla modifica dopo la prova (boscaiolo secondario a 5000 monete come ultimo acquisto, `?tuttocomprato`): commit 363bb2c.
-- Gruppo B (suoni veri CC0, musica, menu delle impostazioni, grida, movimento della squadra e colpi d’ascia = Fase 4): fatto, **provato e approvato dall’utente** (2026-10-26); il codice del commit è scritto nel registro modifiche qui sotto. Poi: Gruppo C.
+- Gruppo B (suoni veri CC0, musica, menu delle impostazioni, grida, movimento della squadra e colpi d’ascia = Fase 4): fatto, **provato e approvato dall’utente** (2026-10-26); commit 1ffc4ab. Poi: Gruppo C.
 - Ancora da fare, descritti in `PIANO-GRUPPI.md`: Gruppo C (lupi più deboli, mura più resistenti, partita persa se le mura cadono, arrivo e aspetto del lupo gigante), poi Gruppo 4 (corsa alla lunghezza originale e orso gigante a fine corsa) e Gruppo 5 (edificio della segheria in stile cartoon, che migliora insieme alle mura).
 - Dopo verranno le espansioni della base (zona clienti con falò, affumicatoio, canile, casa dei lavoratori, grande magazzino), descritte in `PIANO-ESPANSIONI.md` e non ancora realizzate.
 
@@ -206,4 +206,4 @@ npm run build
 ## ✅ Note finali
 
 Questo README descrive il progetto così come appare nel codice attuale: sono riportate solo funzionalità già implementate, senza inventare meccaniche future come se fossero già presenti. Il gioco è ancora in fase di prototipo, ma la base giocabile, la gestione risorse e la corsa con obstacle/effects sono già concrete e testabili.
-- 2026-10-26 — Gruppo B salvato con un commit (provato e approvato dall’utente): suoni veri CC0, musica unica, menu delle impostazioni, grida, movimento della squadra, colpi d’ascia.
+- 2026-10-26 — Gruppo B salvato con il commit 1ffc4ab (provato e approvato dall’utente): suoni veri CC0, musica unica, menu delle impostazioni, grida, movimento della squadra, colpi d’ascia.

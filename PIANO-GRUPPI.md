@@ -9,7 +9,7 @@
 > **Adesso si fanno i Gruppi A, B e C** (scritti qui sotto), uno alla volta, in quest'ordine. Il **Gruppo A è fatto,
 > provato e approvato dall'utente e salvato** (2026-10-25, commit 363bb2c), con la modifica chiesta dopo la prova (boscaiolo
 > secondario a 5000 monete come ultimo acquisto, `?tuttocomprato`), anche lei provata e approvata.
-> **Gruppo B (suoni veri, musica, impostazioni, grida, movimento, colpi d'ascia): fatto, provato e approvato dall'utente e salvato (2026-10-26).** Prossimo: Gruppo C.
+> **Gruppo B (suoni veri, musica, impostazioni, grida, movimento, colpi d'ascia): fatto, provato e approvato dall'utente e salvato (2026-10-26, commit 1ffc4ab).** Prossimo: Gruppo C.
 > Il **Gruppo B (suoni)** è stato provato dall'utente e **va rifatto** (2026-10-25): i suoni fatti dal codice sono
 > fastidiosi e vanno sostituiti con **file audio veri CC0**, più la musica (vedi "GRUPPO B, SECONDA VERSIONE" qui sotto).
 > La prima versione NON va committata. Il pulsante dell'audio si tiene. Poi il Gruppo C (lupi, mura e lupo gigante).
