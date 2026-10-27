@@ -153,6 +153,7 @@ https://enniomerlino31-beep.github.io/prova-gioco-10-2026/
 - `src/segheria/barraGigante.js`: la grande barra della vita del lupo gigante (un cartellino disegnato in stile cartoon, sempre visibile sopra la testa).
 - `CREDITI-SUONI.md`: l’elenco di tutti i suoni e le musiche con la fonte e la licenza (CC0).
 - `public/suoni/`: gli 89 file mp3 dei suoni, delle grida e delle musiche (circa 2,0 MB in tutto; dodici sono dell’orso).
+- `public/favicon.svg` e `public/apple-touch-icon.png`: l’icona della scheda del browser (un’ascia piantata in un ceppo, in stile cartoon, con il cielo del gioco dietro) e la sua versione quadrata 180×180 per la schermata iniziale dell’iPhone; sono collegate in `index.html`.
 - `public/riferimenti/`: le tre foto di riferimento per le nuove mura del Gruppo 2 (struttura, distanza tra i pali, aspetto del legno).
 - `src/main.js`: punto di partenza del gioco e loop principale.
 - `src/config.js`: tutte le impostazioni principali: velocità, numero di boscaioli, porte, ostacoli, economia e telecamera.
@@ -185,6 +186,7 @@ Qui ci sono le ultime modifiche. **Il registro completo, dall’inizio, è in [A
 - 2026-10-27 — riordino dei documenti, senza toccare il gioco: README e `PIANO-GRUPPI.md` accorciati; la descrizione lunga, i gruppi finiti e il registro completo sono stati spostati senza cancellare niente in [ARCHIVIO.md](ARCHIVIO.md).
 - 2026-10-27 — controllo della velocità (da provare): nuovo comando di prova `?lupi=N` (tiene N lupi normali in giro); la corsa si prepara quando il boscaiolo si avvicina al cerchio CORSA (niente più scatto all’avvio); dettaglio dello schermo al massimo 1,5 (`CONFIG.grafica.pixelMassimi`). Provati e **non tenuti** perché non hanno dato un vantaggio misurabile: mappa delle ombre della base a 1024 e meno abeti lontani.
 - 2026-10-27 — gioco online con GitHub Pages (da provare): `.github/workflows/pubblica.yml` (a ogni commit su `main`), `base` in `vite.config.js`, percorso delle immagini della base con `import.meta.env.BASE_URL` (`schermate.js`), comandi di prova spenti online (`VITE_SENZA_PROVE` in `main.js`), foto di riferimento non pubblicate; l’indirizzo è nel README, sezione “Il gioco online”.
+- 2026-10-27 — icona della scheda del browser (`public/favicon.svg`, `public/apple-touch-icon.png`, collegate in `index.html`): un’ascia in un ceppo in stile cartoon; sparisce l’errore 404 di `favicon.ico`.
 
 ## ✅ Note finali
 
