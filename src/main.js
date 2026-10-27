@@ -94,6 +94,7 @@ function avviaCorsa(provaOrsoRichiesta = null) {
   const opzioni = prova
     ? { primaCorsa: false, orso: prova.livello > 0 ? prova.livello : null, prova: { boscaioli: prova.boscaioli, legna: prova.legna } }
     : segheria.preparaCorsa();
+  opzioni.livelloMura = segheria.livelli.mura; // la segheria in cima alla salita ha lo stesso aspetto di quella della base
   corsa = new Corsa(mondo, controlli, schermate, fineCorsa, opzioni);
   schermate.impostaTelecamera(mondo.telecamera);
   schermate.mostraCorsa();

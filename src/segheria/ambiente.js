@@ -244,6 +244,7 @@ export function creaAmbiente() {
     telecamera,
     palizzata,
     muri,
+    casa, // la segheria: segue il materiale delle mura con casa.userData.imposta(livello, conAnimazione)
     // La telecamera segue il boscaiolo con un po' di morbidezza.
     // Opzioni (le usa la telecamera che va a vedere un miglioramento appena comprato):
     //  zoom: 1 = normale, più di 1 = più in alto e più lontano, meno di 1 = più vicino
@@ -268,8 +269,8 @@ export function creaAmbiente() {
       telecamera.lookAt(puntoSeguito.x, 0, puntoSeguito.z - 1);
       neve.aggiorna(dt, telecamera.position);
       neveATerra.aggiorna(dt);
-      // la lama della sega gira
-      casa.userData.lama.rotation.y += dt * 5;
+      // la segheria: lama che gira, tronco, segatura e fumo del camino
+      casa.userData.aggiorna(dt);
     },
     reimpostaTelecamera() {
       primaVolta = true;

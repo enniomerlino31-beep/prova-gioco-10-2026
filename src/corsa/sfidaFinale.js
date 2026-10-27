@@ -16,7 +16,8 @@ import { suoni } from '../motore/suoni.js';
 const COLORI_GRADINI = [0x8fd3ff, 0x9be37a, 0xffe066, 0xffb35c, 0xff8a7a, 0xe39bff];
 
 export class SfidaFinale {
-  constructor(genitore, effetti) {
+  // livelloMura: l'aspetto della segheria in cima (come quella della base: 0 legno, 1 pietra, 2 metallo)
+  constructor(genitore, effetti, livelloMura = 0) {
     this.effetti = effetti;
     const cfg = CONFIG.salita;
     this.numeroGradini = cfg.moltiplicatori.length;
@@ -52,6 +53,7 @@ export class SfidaFinale {
     genitore.add(spiazzo);
 
     this.segheria = creaSegheria();
+    this.segheria.userData.imposta(livelloMura, false);
     this.segheria.position.set(0, altezzaCima, -(fineGradini + 8));
     genitore.add(this.segheria);
 
@@ -139,7 +141,7 @@ export class SfidaFinale {
     squadra.y += (this.altezzaA(squadra.distanza) - squadra.y) * Math.min(1, dt * 10);
     carro.y += (this.altezzaA(carro.distanza + carro.lunghezza * 0.3) - carro.y) * Math.min(1, dt * 8);
 
-    // La lama della segheria gira
-    this.segheria.userData.lama.rotation.y += dt * 6;
+    // La segheria: lama che gira, tronco, segatura e fumo
+    this.segheria.userData.aggiorna(dt);
   }
 }

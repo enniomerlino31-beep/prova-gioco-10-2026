@@ -40,7 +40,8 @@ export function unisciPezzi(pezzi) {
     const materiale = typeof p.colore === 'number' ? MATERIALE_COLORI : p.colore;
     const chiave = `${p.perno}|${materiale.uuid}`;
     if (!gruppi.has(chiave)) gruppi.set(chiave, { perno: p.perno, materiale, forme: [] });
-    const forma = FORME[p.forma].clone();
+    // "forma" è il nome di una forma di base, oppure una geometria già pronta (es. un prisma)
+    const forma = (typeof p.forma === 'string' ? FORME[p.forma] : p.forma).clone();
     matrice.compose(
       new THREE.Vector3(...p.pos),
       new THREE.Quaternion().setFromEuler(new THREE.Euler(...p.rot)),

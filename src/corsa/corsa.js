@@ -27,6 +27,7 @@ export class Corsa {
   // alTermine: funzione chiamata con i risultati quando la corsa finisce
   // opzioni: { primaCorsa: true nel tutorial (niente porte tutte rosse);
   //            orso: livello dell'orso di fine corsa (null = niente orso, si va dritti alla scalinata);
+  //            livelloMura: il livello delle mura comprato (0 legno, 1 pietra, 2 metallo): decide l'aspetto della segheria in cima alla salita
   //            prova: { boscaioli } per provare lo scontro (?orso=5&boscaioli=200): si parte vicino alla fine, senza livello }
   constructor(mondo, controlli, schermate, alTermine, opzioni = {}) {
     this.mondo = mondo;
@@ -48,7 +49,7 @@ export class Corsa {
     this.alberi = new Alberi(this.radice, effetti);
     this.ostacoli = new Ostacoli(this.radice, effetti);
     this.lupi = new Lupi(this.radice, effetti);
-    this.sfida = new SfidaFinale(this.radice, effetti);
+    this.sfida = new SfidaFinale(this.radice, effetti, opzioni.livelloMura ?? 0);
     this.prova = opzioni.prova ?? null;
     this.orso = opzioni.orso ? new ScontroOrso(this.radice, effetti, opzioni.orso) : null;
     if (this.orso) this.orso.alTremito = (forza) => mondo.scuoti(forza); // ogni colpo dell'orso fa tremare la telecamera

@@ -33,7 +33,7 @@ import { Cacciatore } from './cacciatore.js';
 import { Venditore, postoVenditore } from './venditore.js';
 import { Torrette } from './torrette.js';
 import { Tutorial } from './tutorial.js';
-import { Mura } from './mura.js';
+import { Mura, SUONO_MATERIALE } from './mura.js';
 import { BancoCacciatore } from './banco.js';
 import { BoscaioloSecondario, durataGiro } from './secondario.js';
 import { lavoroOffline, secondiDiAssenza } from './offline.js';
@@ -1011,6 +1011,7 @@ export class Segheria {
   // La riparazione non ha bisogno di niente: si legge il suo livello a ogni fotogramma.
   ripristinaMiglioramenti() {
     this.mura.applicaLivello(this.livelli.mura, false);
+    this.ambiente.casa.userData.imposta(this.livelli.mura, false);
     this.aiutante = this.livelli.aiutante > 0 ? this.creaAiutante(false) : null;
     this.secondario = this.livelli.boscaioloSecondario > 0 ? this.creaSecondario(this.stato.secondarioMancano, false) : null;
     this.torrette.imposta(this.livelli.torretta);
@@ -1258,6 +1259,21 @@ export class Segheria {
 
   // ---------------- OGNI FOTOGRAMMA ----------------
 
+  // La segheria prende il materiale delle mura quando l'onda del miglioramento le passa vicino (come le torrette)
+  aggiornaCasa() {
+    const casa = this.ambiente.casa.userData;
+    if (casa.livello === this.mura.livello || !this.mura.ondaArrivata(MAPPA.casa.x, MAPPA.casa.z)) return;
+    const conAnimazione = this.mura.onda !== null;
+    casa.imposta(this.mura.livello, conAnimazione);
+    if (!conAnimazione) return;
+    const { x, z } = MAPPA.casa;
+    for (const dx of [-2.5, 1, 4.5]) this.effetti.sbuffo(x + dx, 0.4, z, this.mura.livello >= 2 ? 0x8b939e : 0x9aa2ad, 14, 3);
+    if (this.mura.livello >= 2) this.effetti.scintille(x + 3, 2, z + 1, 0xfff3b0, 10, 2);
+    suoni.suona(SUONO_MATERIALE[this.mura.livello]);
+    suoni.suona(SUONO_MATERIALE[this.mura.livello], { ritardo: 0.35, volume: 0.8 });
+  }
+
+
   aggiorna(dt) {
     if (this.muraCadute) return; // le mura sono cadute: tutto fermo, si aspetta "Ricomincia"
     // mentre la telecamera guarda un miglioramento appena comprato il boscaiolo resta fermo
@@ -1285,6 +1301,7 @@ export class Segheria {
       return;
     }
     this.torrette.aggiorna(dt, this.lupiBase, (lupo, danno) => this.colpisciLupo(lupo, danno));
+    this.aggiornaCasa();
     this.riparaMura(dt);
     this.mura.aggiorna(dt);
     this.schermate.aggiornaMura(this.mura.ratio);
