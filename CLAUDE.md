@@ -2,4 +2,6 @@ REGOLA FONDAMENTALE: il README.md deve essere sempre aggiornato. Ogni volta che 
 
 All'inizio di ogni nuova sessione leggi README.md e PIANO-GRUPPI.md (e PIANO-ESPANSIONI.md se serve).
 
+ARCHIVIO.md contiene la storia dei gruppi finiti: NON leggerlo a ogni sessione, aprilo solo se serve recuperare una vecchia decisione o un vecchio numero.
+
 Rispondi sempre in italiano, con spiegazioni semplici adatte a un principiante.
