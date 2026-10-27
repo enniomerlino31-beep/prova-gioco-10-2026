@@ -119,6 +119,20 @@ Per creare una versione pronta da distribuire:
 npm run build
 ```
 
+## 🌐 Il gioco online
+
+**Indirizzo da mandare agli amici (si apre nel browser del telefono, niente da installare):**
+
+https://enniomerlino31-beep.github.io/prova-gioco-10-2026/
+
+- Il gioco online è pubblicato con **GitHub Pages**: a **ogni commit su `main`** GitHub lo ricostruisce e lo aggiorna da solo, in circa 1-2 minuti (il file è `.github/workflows/pubblica.yml`; si può anche rilanciare a mano da GitHub, scheda **Actions**, “Pubblica il gioco online”, “Run workflow”).
+- **Il salvataggio è sul telefono di ognuno** (nel browser): ogni persona ha la sua partita, che non si sposta tra telefoni; cancellando i dati del sito o usando la navigazione privata si ricomincia da zero.
+- **I comandi di prova** (`?reset`, `?moneteinfinite`, `?tuttocomprato`, `?offline`, `?lupi`...) **online non fanno niente**: la costruzione online imposta `VITE_SENZA_PROVE` e `main.js` toglie subito tutto quello che c’è dopo il `?`. Sul computer, con `npm run dev`, funzionano come sempre.
+- Le foto di riferimento delle mura (`public/riferimenti/`) restano nel repository ma **non vanno online**.
+- Suoni, musica, salvataggio e guadagni mentre si è via funzionano anche online (provato con la costruzione online servita da una sottocartella, come fa GitHub). Il gioco ha bisogno di internet solo per scaricarsi e per il carattere dei titoli (Google Fonts).
+- **Una volta sola, nelle Impostazioni di GitHub** (serve per attivare Pages): aprire il repository su GitHub → **Settings** (Impostazioni) → nel menu a sinistra **Pages** → sotto “Build and deployment”, in **Source** scegliere **GitHub Actions**. Poi, nella scheda **Actions**, aspettare il segno verde della prima pubblicazione.
+- Come provare la costruzione online sul proprio computer: `BASE_PERCORSO=/prova-gioco-10-2026/ VITE_SENZA_PROVE=1 npm run build` e poi `npx vite preview` con la stessa `BASE_PERCORSO`.
+
 ## 🛠️ Tecnologie usate
 
 - JavaScript
@@ -153,7 +167,8 @@ npm run build
 - `src/economia.js`: logica delle vendite e del denaro.
 - `stile.css`: fogli di stile grafico e UI del gioco.
 - `public/base/`: immagini dei livelli della base (`base-livello-1/2/3.webp`), caricate dall’interfaccia in `src/schermate/schermate.js`.
-- `vite.config.js`: configurazione di Vite.
+- `vite.config.js`: configurazione di Vite (con `base`, la sottocartella dell’indirizzo online, da `BASE_PERCORSO`).
+- `.github/workflows/pubblica.yml`: la pubblicazione automatica del gioco online con GitHub Pages.
 - `package.json`: script del progetto e dipendenze.
 
 ## 📝 Registro modifiche
@@ -169,6 +184,7 @@ Qui ci sono le ultime modifiche. **Il registro completo, dall’inizio, è in [A
 - 2026-10-27 — Gruppo 5 approvato e salvato (commit a7d4df2): in cima alla salita finale la segheria ha lo stesso aspetto di quella della base (`livelloMura` passato da `main.js` a `Corsa` e `SfidaFinale`).
 - 2026-10-27 — riordino dei documenti, senza toccare il gioco: README e `PIANO-GRUPPI.md` accorciati; la descrizione lunga, i gruppi finiti e il registro completo sono stati spostati senza cancellare niente in [ARCHIVIO.md](ARCHIVIO.md).
 - 2026-10-27 — controllo della velocità (da provare): nuovo comando di prova `?lupi=N` (tiene N lupi normali in giro); la corsa si prepara quando il boscaiolo si avvicina al cerchio CORSA (niente più scatto all’avvio); dettaglio dello schermo al massimo 1,5 (`CONFIG.grafica.pixelMassimi`). Provati e **non tenuti** perché non hanno dato un vantaggio misurabile: mappa delle ombre della base a 1024 e meno abeti lontani.
+- 2026-10-27 — gioco online con GitHub Pages (da provare): `.github/workflows/pubblica.yml` (a ogni commit su `main`), `base` in `vite.config.js`, percorso delle immagini della base con `import.meta.env.BASE_URL` (`schermate.js`), comandi di prova spenti online (`VITE_SENZA_PROVE` in `main.js`), foto di riferimento non pubblicate; l’indirizzo è nel README, sezione “Il gioco online”.
 
 ## ✅ Note finali
 

@@ -78,7 +78,7 @@ export class Schermate {
     if (!anteprima || anteprima.dataset.caricata === 'true') return;
     const livelli = ['1', '2', '3'];
     const livello = livelli[Math.min(0, livelli.length - 1)];
-    const url = `/base/base-livello-${livello}.webp`;
+    const url = `${import.meta.env.BASE_URL}base/base-livello-${livello}.webp`; // BASE_URL: nel gioco online l'indirizzo ha una sottocartella
     anteprima.dataset.caricata = 'true';
     anteprima.src = url;
   }

@@ -18,6 +18,12 @@ import { Segheria } from './segheria/segheria.js';
 import { cancella } from './salvataggio.js';
 import { suoni, ascoltaTocchi } from './motore/suoni.js';
 
+// Nel gioco online (costruito con VITE_SENZA_PROVE, vedi .github/workflows/pubblica.yml) i comandi di prova nell'indirizzo
+// (?reset, ?moneteinfinite, ?tuttocomprato...) non fanno niente: si tolgono prima che qualcuno li legga
+if (import.meta.env.VITE_SENZA_PROVE && window.location.search) {
+  window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+}
+
 // Con ?reset nell'indirizzo si ricomincia da zero: il salvataggio viene cancellato prima di caricare la base.
 // Poi ?reset viene tolto dall'indirizzo, così ricaricando la pagina non si cancella di nuovo tutto.
 const indirizzo = new URL(window.location.href);

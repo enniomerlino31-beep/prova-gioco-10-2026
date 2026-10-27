@@ -1,0 +1,53 @@
+# Mette il gioco online con GitHub Pages: a ogni commit su "main" (o premendo "Run workflow" nella scheda Actions)
+# costruisce il gioco e lo pubblica. Dopo circa 1-2 minuti l'indirizzo online è aggiornato.
+# Una volta sola, nelle Impostazioni del repository: Pages -> Source: "GitHub Actions" (vedi README).
+name: Pubblica il gioco online
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# se arrivano due commit di fila, vale solo l'ultimo
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  costruisci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Costruisce il gioco
+        run: npm run build
+        env:
+          # l'indirizzo online ha una sottocartella (nome del repository)
+          BASE_PERCORSO: /${{ github.event.repository.name }}/
+          # nel gioco online i comandi di prova nell'indirizzo (?reset, ?moneteinfinite...) non fanno niente
+          VITE_SENZA_PROVE: "1"
+      # le foto di riferimento delle mura non servono al gioco: non vanno online
+      - name: Toglie le foto di riferimento
+        run: rm -rf dist/riferimenti
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  pubblica:
+    needs: costruisci
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
