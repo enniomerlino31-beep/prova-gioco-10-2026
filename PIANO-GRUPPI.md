@@ -2,7 +2,7 @@
 
 > **Stato (aggiornato il 2026-10-27):**
 > - **Fatti, provati e approvati dall'utente, e salvati:** Gruppi 1, 2 e 3 (con le richieste A pavimento, B Gruppo 5, C due cacciatori e la fila ECONOMIA a coppie), Gruppo A (monete, boscaiolo secondario, guadagni offline), Gruppo B (suoni veri, musica, impostazioni) e Gruppo C (lupi, mura, lupo gigante). Ultimo commit di codice: Gruppo C = 2bc4372.
-> - **Gruppo 4 (corsa con 10 coppie di porte, più alberi, orso gigante con scontro dinamico, scalinata fino a ×20): fatto, provato e approvato dall'utente e salvato (2026-10-27).** Vedi "GRUPPO 4: COSA È STATO FATTO" e le correzioni qui sotto.
+> - **Gruppo 4 (corsa con 10 coppie di porte, più alberi, orso gigante con scontro dinamico, scalinata fino a ×20): fatto, provato e approvato dall'utente e salvato (2026-10-27, commit 0b4c5f9).** Vedi "GRUPPO 4: COSA È STATO FATTO" e le correzioni qui sotto.
 > - **Mancano:** Gruppo 5 (edificio della segheria in stile cartoon), poi le espansioni di `PIANO-ESPANSIONI.md`. Prima del Gruppo 5 si aspetta il messaggio dell'utente.
 > - Le sezioni qui sotto dei Gruppi A, B e C sono il racconto di com'è andato il lavoro (richieste, prove, decisioni): servono come storia, non sono cose da rifare.
 

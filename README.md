@@ -77,7 +77,7 @@ Il gioco unisce una corsa infinita con una base di gestione: la squadra corre in
 - La parte estetica, l’equilibrio del gioco e la narrazione potrebbero essere ulteriormente sviluppate.
 - Il progetto è ancora in fase di prototipo e di testing di meccaniche base.
 - **Fatti, provati e approvati dall’utente, e salvati** (descritti in `PIANO-GRUPPI.md`): Gruppi 1, 2 e 3, Gruppo A (cartellino delle monete, boscaiolo secondario, guadagni offline), Gruppo B (suoni veri, musica, impostazioni, grida, movimento della squadra, colpi d’ascia) e Gruppo C (mura più resistenti che cedono e cadono con “Ricomincia”, lupi più deboli, lupo gigante nuovo con 400 punti di vita, cerchio verde per riparare le mura con la legna; commit 2bc4372).
-- **Gruppo 4** (corsa con 10 coppie di porte, più alberi, orso gigante con scontro dinamico e scalinata fino a ×20): **fatto, provato e approvato dall’utente e salvato** (2026-10-27).
+- **Gruppo 4** (corsa con 10 coppie di porte, più alberi, orso gigante con scontro dinamico e scalinata fino a ×20): **fatto, provato e approvato dall’utente e salvato** (2026-10-27, commit 0b4c5f9).
 - **Gruppo 5** (da fare): edificio della segheria in stile cartoon, che migliora insieme alle mura.
 - **Dopo i gruppi** verranno le espansioni della base (zona clienti con falò, affumicatoio, canile, casa dei lavoratori, grande magazzino), descritte in `PIANO-ESPANSIONI.md` e non ancora realizzate.
 
