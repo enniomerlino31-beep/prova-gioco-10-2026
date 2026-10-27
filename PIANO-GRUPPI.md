@@ -1,20 +1,9 @@
 # Piano dei gruppi di modifiche (prima delle Fasi 4 e 5)
 
-> **Stato:** i Gruppi 1 e 2 (con le loro correzioni) sono fatti e salvati (Gruppo 2: commit f279bf9).
-> Il Gruppo 3 è **fatto, provato dall'utente e salvato** (2026-10-25, commit f0f1279), insieme a tre richieste in più
-> (A pavimento solo in pietra al centro, B nuovo Gruppo 5 scritto qui sotto, C due cacciatori).
-> Fatto anche il **nuovo ordine della fila ECONOMIA** (2026-10-25, corretto dopo la prima prova dell'utente), **provato
-> e approvato dall'utente e salvato** (commit b32a24b): due cerchi che vanno avanti a coppie, prima "Aiutante" + "Cacciatore", poi
-> "Venditore" + "Secondo cacciatore", poi i potenziamenti; tolte le scritte DIFESA ed ECONOMIA (vedi le decisioni qui sotto).
-> **Adesso si fanno i Gruppi A, B e C** (scritti qui sotto), uno alla volta, in quest'ordine. Il **Gruppo A è fatto,
-> provato e approvato dall'utente e salvato** (2026-10-25, commit 363bb2c), con la modifica chiesta dopo la prova (boscaiolo
-> secondario a 5000 monete come ultimo acquisto, `?tuttocomprato`), anche lei provata e approvata.
-> **Gruppo B (suoni veri, musica, impostazioni, grida, movimento, colpi d'ascia): fatto, provato e approvato dall'utente e salvato (2026-10-26, commit 1ffc4ab).** Prossimo: Gruppo C.
-> **Gruppo C fatto, provato e approvato dall'utente e salvato (2026-10-26, commit 2bc4372). Prossimi: Gruppo 4 (corsa e orso) e Gruppo 5 (segheria).**
-> Il **Gruppo B (suoni)** è stato provato dall'utente e **va rifatto** (2026-10-25): i suoni fatti dal codice sono
-> fastidiosi e vanno sostituiti con **file audio veri CC0**, più la musica (vedi "GRUPPO B, SECONDA VERSIONE" qui sotto).
-> La prima versione NON va committata. Il pulsante dell'audio si tiene. Poi il Gruppo C (lupi, mura e lupo gigante).
-> I Gruppi 4 e 5 sono **rimandati a più avanti** (dopo A, B e C).
+> **Stato (aggiornato il 2026-10-27):**
+> - **Fatti, provati e approvati dall'utente, e salvati:** Gruppi 1, 2 e 3 (con le richieste A pavimento, B Gruppo 5, C due cacciatori e la fila ECONOMIA a coppie), Gruppo A (monete, boscaiolo secondario, guadagni offline), Gruppo B (suoni veri, musica, impostazioni) e Gruppo C (lupi, mura, lupo gigante). Ultimo commit di codice: Gruppo C = 2bc4372.
+> - **Mancano:** Gruppo 4 (corsa alla lunghezza originale e orso gigante a fine corsa), poi Gruppo 5 (edificio della segheria in stile cartoon), poi le espansioni di `PIANO-ESPANSIONI.md`.
+> - Le sezioni qui sotto dei Gruppi A, B e C sono il racconto di com'è andato il lavoro (richieste, prove, decisioni): servono come storia, non sono cose da rifare.
 
 Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il gioco lo prova l'utente, niente partite di prova lunghe), aggiornare il README e dire cosa è stato fatto. Commit solo quando lo dice l'utente. Se la sessione sta per finire, fermarsi alla fine di un gruppo e dirlo.
 

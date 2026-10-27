@@ -32,7 +32,7 @@ Le espansioni allargano la base con nuove zone, ognuna con il suo edificio e i s
 - **Com’è fatto**: un edificio di legno e pietra con un camino che fuma.
 - **Cosa fa**: trasforma la carne in **carne affumicata**, un prodotto nuovo che vale di più della carne normale.
 - **Vendita**: ha un suo sportello di vendita “AFFUMICATA” lungo le mura, con la sua fila di clienti.
-- **Lavoratori**: i venditori portano la carne dalla dispensa all’affumicatoio, e la carne affumicata dall’affumicatoio al suo sportello.
+- **Lavoratori**: i venditori portano la carne all’affumicatoio dal tavolo dello sportello CARNE (la dispensa non esiste più: oggi la carne della corsa e quella dei cacciatori arriva lì), e la carne affumicata dall’affumicatoio al suo sportello.
 - **Miglioramenti**:
   - affumicatura più veloce;
   - più carne lavorata alla volta.
