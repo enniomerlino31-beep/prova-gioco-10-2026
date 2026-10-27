@@ -38,6 +38,11 @@ export const CONFIG = {
     velocitaTastiera: 12,       // velocità dello spostamento con le frecce/A-D (metri al secondo)
   },
 
+  // ---------------- GRAFICA ----------------
+  grafica: {
+    pixelMassimi: 1.5,   // dettaglio massimo dello schermo (pixel disegnati per ogni punto): 1 = leggero, 2 = nitido, il telefono ne ha spesso 3
+  },
+
   // ---------------- AUDIO ----------------
   audio: {
     volumeEffetti: 0.5,         // volume generale degli effetti (0-1); ogni effetto ha poi il suo, in motore/suoni.js

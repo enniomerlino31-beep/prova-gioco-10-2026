@@ -16,7 +16,8 @@ const COLORE_CIELO = 0xbfe3f7;
 export function creaMondo(contenitore) {
   // --- Il pittore ---
   const renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  // sui telefoni molto nitidi (3 pixel per punto) si disegna con meno pixel: meno lavoro per la scheda grafica, immagine un po' meno nitida
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, CONFIG.grafica.pixelMassimi));
   renderer.setSize(window.innerWidth, window.innerHeight);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;

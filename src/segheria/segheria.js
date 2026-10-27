@@ -65,6 +65,7 @@ function togliDallIndirizzo(nome) {
 }
 
 // ---------------- LUPI ----------------
+const DISTANZA_PREPARA_CORSA = 5; // a questa distanza dal cerchio CORSA (metri) la corsa comincia a prepararsi
 const LUPI_NORMALI = 12;  // lupi normali che possono esserci al massimo (più il lupo gigante)
 const SCALA_LUPO = 0.72;  // grandezza dei lupi intorno alla base
 const VERDE = 0x6fe17d;
@@ -102,11 +103,15 @@ function creaBarra(larga, tacche, altezza) {
 
 export class Segheria {
   // alPartenzaCorsa: funzione chiamata quando il boscaiolo riempie il cerchio del cancello della corsa
-  constructor(renderer, schermate, joystick, alPartenzaCorsa) {
+  // alVicinoAlCancello(true/false): chiamata quando il boscaiolo si avvicina al cancello della corsa (e quando si allontana):
+  // serve a preparare la corsa un attimo prima, così all'avvio non c'è lo scatto
+  constructor(renderer, schermate, joystick, alPartenzaCorsa, alVicinoAlCancello = () => {}) {
     this.renderer = renderer;
     this.schermate = schermate;
     this.joystick = joystick;
     this.alPartenzaCorsa = alPartenzaCorsa;
+    this.alVicinoAlCancello = alVicinoAlCancello;
+    this.vicinoAlCancello = false;
 
     const ambiente = creaAmbiente();
     this.ambiente = ambiente;
@@ -193,6 +198,9 @@ export class Segheria {
       this.prossimoGigante = 3;
       togliDallIndirizzo('gigante');
     }
+    // Per le prove: ?lupi=N tiene sempre N lupi normali in giro (al massimo 12): appena uno muore ne arriva un altro
+    this.provaLupi = indirizzo.has('lupi') ? THREE.MathUtils.clamp(Math.floor(Number(indirizzo.get('lupi'))) || 0, 0, LUPI_NORMALI) : 0;
+    if (indirizzo.has('lupi')) togliDallIndirizzo('lupi');
     this.attaccoCooldown = 0;
     this.colpoInArrivo = null; // il colpo d'ascia del boscaiolo arriva sul lupo quando la lama cala
     this.carneCadute = [];
@@ -366,15 +374,17 @@ export class Segheria {
   // Sta per partire una corsa: dice se è la prima (tutorial: niente orso né porte tutte rosse) e quale orso aspetta alla fine
   // (livello, oppure null se è ancora lontano: dopo che è stato sconfitto salta da 3 a 5 corse; ogni corsa iniziata ne conta una)
   preparaCorsa() {
+    const opzioni = this.opzioniCorsa();
+    if (!opzioni.primaCorsa && this.stato.orso.corseMancanti > 0) this.stato.orso.corseMancanti--;
+    this.salvaOra();
+    return opzioni;
+  }
+
+  // Come sarà la prossima corsa, senza cambiare niente (serve a prepararla in anticipo: vedi alVicinoAlCancello)
+  opzioniCorsa() {
     const primaCorsa = this.tutorial.passo === 0;
     const o = this.stato.orso;
-    let orso = null;
-    if (!primaCorsa) {
-      if (o.corseMancanti > 0) o.corseMancanti--;
-      else orso = o.livello;
-    }
-    this.salvaOra();
-    return { primaCorsa, orso };
+    return { primaCorsa, orso: primaCorsa || o.corseMancanti > 0 ? null : o.livello };
   }
 
   // Finita una corsa: se l'orso è stato sconfitto sale di livello e sparisce per un numero di corse a caso (3-5);
@@ -414,6 +424,7 @@ export class Segheria {
 
   // Si esce dalla segheria (parte una corsa)
   esci() {
+    this.vicinoAlCancello = false;
     this.tutorial.nascondi();
     suoni.impostaPaura(false); // durante la corsa c'è la musica della corsa
     this.attiva = false;
@@ -513,6 +524,18 @@ export class Segheria {
     return { deboli: this.livelli.mura >= 1, sinistra: torri >= 1, destra: torri >= 2 };
   }
 
+  // Per le prove (?lupi=N): se i lupi normali vivi sono meno di N ne arrivano altri, da punti a caso della foresta
+  tieniLupiDiProva() {
+    let vivi = this.lupiBase.filter((lupo) => lupo.vivo && !lupo.gigante).length;
+    for (const lupo of this.lupiBase) {
+      if (vivi >= this.provaLupi) break;
+      if (lupo.vivo || lupo.gigante) continue;
+      const partenza = this.partenzaLupi(0);
+      this.sveglia(lupo, partenza.x + (Math.random() - 0.5) * 2, partenza.z + (Math.random() - 0.5) * 2);
+      vivi += 1;
+    }
+  }
+
   // Un lupo debole e lento, da un punto qualsiasi della foresta (se non ce ne sono già abbastanza).
   // Restituisce fra quanti secondi arriva il prossimo.
   arrivaDebole() {
@@ -608,6 +631,7 @@ export class Segheria {
       if (fronte.prossimo <= 0) fronte.prossimo = nome === 'deboli' ? this.arrivaDebole() : this.arrivaDalLato(nome, fronte);
     }
     // il lupo gigante, ogni 2-3 minuti dopo la prima torretta (uno solo alla volta: se c'è ancora, il prossimo aspetta)
+    if (this.provaLupi > 0 && !this.inFesta) this.tieniLupiDiProva();
     if (aperti.sinistra || this.provaGigante) this.prossimoGigante -= dt;
     if (this.prossimoGigante <= 0) {
       if (this.lupoGigante.vivo) {
@@ -1372,6 +1396,16 @@ export class Segheria {
     const cacciatori = this.cacciatori.map((cacciatore) => cacciatore.posizione);
     this.cancelli.foresta.aggiorna(dt, pos, cacciatori);
     this.cancelli.destra.aggiorna(dt, pos, cacciatori);
+    // quando il boscaiolo si avvicina al cerchio CORSA la corsa si prepara in anticipo (se si allontana, la si butta)
+    const zonaCorsa = this.cancelli.corsa.centroZona;
+    const distanzaCorsa = Math.hypot(pos.x - zonaCorsa.x, pos.z - zonaCorsa.z);
+    if (!this.vicinoAlCancello && distanzaCorsa < DISTANZA_PREPARA_CORSA) {
+      this.vicinoAlCancello = true;
+      this.alVicinoAlCancello(true);
+    } else if (this.vicinoAlCancello && distanzaCorsa > DISTANZA_PREPARA_CORSA + 3) {
+      this.vicinoAlCancello = false;
+      this.alVicinoAlCancello(false);
+    }
     // quello della corsa si apre anche per il boscaiolo secondario (ma la corsa la fa partire solo il giocatore)
     if (this.cancelli.corsa.aggiorna(dt, pos, this.secondario?.visibile ? [this.secondario.posizione] : [])) {
       this.cancelli.corsa.azzera();

@@ -75,15 +75,36 @@ const mondo = creaMondo(contenitore); // il mondo della corsa (e il "pittore" co
 const controlli = new Controlli(contenitore);
 const joystick = new Joystick(contenitore);
 const schermate = new Schermate(mondo.telecamera);
-const segheria = new Segheria(mondo.renderer, schermate, joystick, avviaCorsa);
+const segheria = new Segheria(mondo.renderer, schermate, joystick, avviaCorsa, preparaCorsaInAnticipo);
 
 let modo = 'menu';let corsa = null;
+let corsaPronta = null; // { corsa, opzioni }: la corsa costruita un attimo prima di partire, quando il boscaiolo si avvicina al cerchio CORSA
 
 // Con ?orso=5&boscaioli=200 (o ?orso=0 per la sola scalinata) parte subito una prova dello scontro con l'orso:
 // livello e numero di boscaioli a piacere, vicino alla fine della corsa. Una prova non cambia la partita salvata.
 const provaOrso = indirizzo.searchParams.has('orso')
   ? { livello: Math.max(0, Math.floor(Number(indirizzo.searchParams.get('orso'))) || 0), boscaioli: Math.max(1, Math.floor(Number(indirizzo.searchParams.get('boscaioli'))) || 100), legna: Math.max(0, Math.floor(Number(indirizzo.searchParams.get('legna'))) || 200) }
   : null;
+
+// Costruire la corsa (porte, alberi, scritte, ombre) e compilare i suoi "colori" per la scheda grafica costa un po': se lo si
+// fa quando il boscaiolo sta ancora camminando verso il cerchio CORSA, la corsa parte senza lo scatto dell'avvio.
+// Se poi il boscaiolo si allontana, la corsa preparata si butta.
+function preparaCorsaInAnticipo(vicino) {
+  if (!vicino) {
+    scartaCorsaPronta();
+    return;
+  }
+  if (corsaPronta || corsa || modo !== 'segheria') return;
+  const opzioni = segheria.opzioniCorsa();
+  opzioni.livelloMura = segheria.livelli.mura;
+  corsaPronta = { corsa: new Corsa(mondo, controlli, schermate, fineCorsa, { ...opzioni }), opzioni };
+  mondo.renderer.compile(mondo.scena, mondo.telecamera);
+}
+
+function scartaCorsaPronta() {
+  if (corsaPronta) corsaPronta.corsa.distruggi();
+  corsaPronta = null;
+}
 
 // Dal cancello della segheria parte una nuova corsa
 function avviaCorsa(provaOrsoRichiesta = null) {
@@ -95,7 +116,17 @@ function avviaCorsa(provaOrsoRichiesta = null) {
     ? { primaCorsa: false, orso: prova.livello > 0 ? prova.livello : null, prova: { boscaioli: prova.boscaioli, legna: prova.legna } }
     : segheria.preparaCorsa();
   opzioni.livelloMura = segheria.livelli.mura; // la segheria in cima alla salita ha lo stesso aspetto di quella della base
-  corsa = new Corsa(mondo, controlli, schermate, fineCorsa, opzioni);
+  if (!prova && corsaPronta && corsaPronta.opzioni.primaCorsa === opzioni.primaCorsa && corsaPronta.opzioni.orso === opzioni.orso
+    && corsaPronta.opzioni.livelloMura === opzioni.livelloMura) {
+    // la corsa è già pronta: si usa quella (si rimette a posto solo il dito e la telecamera)
+    corsa = corsaPronta.corsa;
+    corsaPronta = null;
+    controlli.azzera();
+    mondo.reimpostaTelecamera();
+  } else {
+    scartaCorsaPronta();
+    corsa = new Corsa(mondo, controlli, schermate, fineCorsa, opzioni);
+  }
   schermate.impostaTelecamera(mondo.telecamera);
   schermate.mostraCorsa();
   suoni.musica('corsa');
