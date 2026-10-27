@@ -79,11 +79,22 @@ const segheria = new Segheria(mondo.renderer, schermate, joystick, avviaCorsa);
 
 let modo = 'menu';let corsa = null;
 
+// Con ?orso=5&boscaioli=200 (o ?orso=0 per la sola scalinata) parte subito una prova dello scontro con l'orso:
+// livello e numero di boscaioli a piacere, vicino alla fine della corsa. Una prova non cambia la partita salvata.
+const provaOrso = indirizzo.searchParams.has('orso')
+  ? { livello: Math.max(0, Math.floor(Number(indirizzo.searchParams.get('orso'))) || 0), boscaioli: Math.max(1, Math.floor(Number(indirizzo.searchParams.get('boscaioli'))) || 100), legna: Math.max(0, Math.floor(Number(indirizzo.searchParams.get('legna'))) || 200) }
+  : null;
+
 // Dal cancello della segheria parte una nuova corsa
-function avviaCorsa() {
+function avviaCorsa(provaOrsoRichiesta = null) {
+  const prova = provaOrsoRichiesta && typeof provaOrsoRichiesta.livello === 'number' ? provaOrsoRichiesta : null; // solo ?orso passa una prova
   segheria.esci();
+  suoni.preparaPaura(); // la musica dello scontro con l'orso deve essere pronta quando serve
   if (corsa) corsa.distruggi();
-  corsa = new Corsa(mondo, controlli, schermate, fineCorsa);
+  const opzioni = prova
+    ? { primaCorsa: false, orso: prova.livello > 0 ? prova.livello : null, prova: { boscaioli: prova.boscaioli, legna: prova.legna } }
+    : segheria.preparaCorsa();
+  corsa = new Corsa(mondo, controlli, schermate, fineCorsa, opzioni);
   schermate.impostaTelecamera(mondo.telecamera);
   schermate.mostraCorsa();
   suoni.musica('corsa');
@@ -92,8 +103,14 @@ function avviaCorsa() {
 
 // A fine corsa il bottino va SUBITO in magazzino (e viene salvato), poi si vede il riepilogo
 // (la prima corsa del tutorial può avere un bonus di legna, che si vede nel riepilogo)
+// Le prove (?orso) non toccano la partita: niente bottino e l'orso non cambia livello.
+// Se i boscaioli finiscono contro l'orso si porta a casa SOLO la legna degli alberi (niente carne, niente moltiplicatore).
 function fineCorsa(risultato) {
-  if (risultato.vinto) risultato.bonusLegna = segheria.aggiungiBottino(risultato.legnaFinale, risultato.carneFinale);
+  if (!risultato.prova) {
+    if (risultato.vinto) risultato.bonusLegna = segheria.aggiungiBottino(risultato.legnaFinale, risultato.carneFinale);
+    else if (risultato.orsoVince) segheria.aggiungiBottino(risultato.legnaPortata, 0);
+    segheria.registraOrso(risultato);
+  }
   suoni.suona(risultato.vinto ? 'vittoria' : 'sconfitta');
   schermate.mostraFine(risultato);
 }
@@ -113,6 +130,10 @@ function vaiAllaSegheria() {
     indirizzo.searchParams.delete('corsa');
     window.history.replaceState(null, '', indirizzo);
     avviaCorsa();
+  } else if (provaOrso) {
+    for (const nome of ['orso', 'boscaioli', 'legna']) indirizzo.searchParams.delete(nome);
+    window.history.replaceState(null, '', indirizzo);
+    avviaCorsa(provaOrso);
   }
 }
 

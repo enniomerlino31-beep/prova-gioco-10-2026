@@ -3,7 +3,7 @@
 //  La squadra spinge il carro su per la collina. Per salire ogni gradino
 //  alcuni boscaioli restano indietro stanchi (il "costo" del gradino).
 //  Il costo cresce gradino dopo gradino ed è più alto se il carro è pesante.
-//  Il gradino più alto raggiunto decide il moltiplicatore del bottino.
+//  Il gradino più alto raggiunto decide il moltiplicatore del bottino (da x1 a x20).
 // =====================================================================
 
 import * as THREE from 'three';
@@ -59,6 +59,7 @@ export class SfidaFinale {
     this.gradiniRaggiunti = 0;
     this.tempoFermo = 0;
     this.finita = false;
+    this.carneOrso = 0; // carne dell'orso sconfitto: si aggiunge al bottino dopo la scalinata, senza essere moltiplicata
   }
 
   // Altezza del terreno a una certa distanza (0 prima della salita)
@@ -115,7 +116,8 @@ export class SfidaFinale {
           }
         }
         if (this.stato === 'sale') {
-          squadra.distanza += cfg.velocita * dt;
+          // prima dei gradini la squadra corre veloce (arriva dall'orso), poi sale a passo di salita
+          squadra.distanza += (squadra.distanza < this.inizio - 3 ? CONFIG.squadra.velocitaBase : cfg.velocita) * dt;
           // i passi della squadra sui gradini, mentre sale
           this.attesaPasso = (this.attesaPasso ?? 0) - dt;
           if (this.attesaPasso <= 0) {

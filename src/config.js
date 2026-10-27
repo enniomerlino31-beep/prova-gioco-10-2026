@@ -61,7 +61,7 @@ export const CONFIG = {
     perditaAgilitaMassima: 0.35, // con un carico enorme lo spostamento laterale perde AL MASSIMO il 35% (si riesce sempre a schivare)
     prontezzaCarro: 10,          // quanto velocemente il carro segue la squadra di lato (più alto = più preciso)
     riduzioneCollisione: 0.8,    // gli urti del carro contano solo sull'80% della sua larghezza (perdona i colpi di striscio)
-    legnaPerTronco: 4,           // ogni quanta legna compare un tronco in più sulla pila del carro
+    legnaPerTronco: 8,           // ogni quanta legna compare un tronco in più sulla pila del carro (prima 4; la pila è piena a 36 tronchi = 288 legna e poi smette di crescere)
     tronchiMassimi: 36,          // tronchi disegnati al massimo; oltre, la pila diventa "cataste" più grosse
     carnePerPezzo: 4,            // ogni quanta carne compare un pezzo in più sul carro
     pezziCarneMassimi: 12,       // pezzi di carne disegnati al massimo sul carro
@@ -79,15 +79,23 @@ export const CONFIG = {
 
   // ---------------- PORTE CON I NUMERI ----------------
   porte: {
-    numeroCoppie: 7,         // quante coppie di porte ci sono in ogni corsa
-    sommaMinima: 4,          // porta "+": numero minimo
-    sommaMassima: 20,        // porta "+": numero massimo
-    sottrazioneMinima: 3,    // porta "-": numero minimo
-    sottrazioneMassima: 12,  // porta "-": numero massimo
+    numeroCoppie: 10,        // quante coppie di porte ci sono in ogni corsa (prima 7), distribuite lungo tutta la corsa
+    sommaMinima: 4,          // porta "+": numero minimo all'inizio della corsa
+    sommaMassima: 20,        // porta "+": numero massimo all'inizio della corsa
+    sottrazioneMinima: 3,    // porta "-": numero minimo all'inizio della corsa
+    sottrazioneMassima: 12,  // porta "-": numero massimo all'inizio della corsa
+    crescitaSomme: 4,        // alla fine della corsa le somme "+" sono (1 + questo) volte più grandi: le porte buone sono più generose nella seconda metà
+    crescitaSottrazioni: 3,  // lo stesso per le sottrazioni "-" (così scegliere male costa sempre, anche con squadre grandi)
     probabilitaX2: 0.25,     // probabilità che la porta buona sia "x2"
-    probabilitaX3: 0.07,     // probabilità che la porta buona sia "x3"
+    probabilitaX3: [0.06, 0.14],   // probabilità di "x3": all'inizio e alla fine della corsa (cresce piano piano)
+    probabilitaX4: [0, 0.08],     // probabilità di "x4": dopo il 35% della corsa, fino a questo valore alla fine
+    probabilitaX5: [0, 0.04],     // probabilità di "x5": dopo il 60% della corsa, fino a questo valore alla fine
     probabilitaDiviso: 0.3,  // probabilità che la porta cattiva sia "÷2" invece di "-"
     probabilitaDueBuone: 0.2,// probabilità che entrambe le porte siano buone (ma diverse)
+    coppieRosse: 2,          // quante coppie (su 10) hanno tutte e due le porte rosse: una toglie un numero fisso, l'altra divide (mai la prima coppia, mai nella prima corsa)
+    rosseMinimo: 10,         // la porta rossa "-" di queste coppie: numero fisso all'inizio della corsa...
+    rosseMassimo: 120,       // ...e alla fine (cresce con la corsa, arrotondato a numeri tondi)
+    rosseDiviso3: 0.4,       // probabilità che la porta rossa che divide sia "÷3" invece di "÷2"
   },
 
   // ---------------- ALBERI ----------------
@@ -95,7 +103,7 @@ export const CONFIG = {
     resistenza: 14,          // "vita" di un albero: colpi d'ascia necessari per abbatterlo
     forzaAscia: 1,           // colpi d'ascia al secondo di ogni boscaiolo
     tempoMinimoTaglio: 0.25, // anche con tantissimi boscaioli il taglio dura almeno questi secondi
-    legnaPerAlbero: 12,      // legna che finisce sul carro per ogni albero abbattuto
+    legnaPerAlbero: 12,      // legna che finisce sul carro per ogni albero abbattuto (come in origine; per un po' erano 16)
     raggio: 0.9,             // ingombro di un albero (metri)
   },
 
@@ -121,11 +129,11 @@ export const CONFIG = {
 
   // ---------------- GENERAZIONE DEL LIVELLO ----------------
   livello: {
-    distanzaMinimaSezioni: 22, // distanza minima tra un gruppo di oggetti e il successivo (metri): tempo per reagire
-    distanzaMassimaSezioni: 30,// distanza massima tra un gruppo di oggetti e il successivo (metri)
-    pesoAlberi: 4,           // quanto spesso escono file di alberi (più alto = più spesso)
-    pesoRocce: 3,            // quanto spesso escono rocce
-    pesoLupi: 3,             // quanto spesso escono branchi di lupi
+    distanzaMinimaSezioni: 20, // distanza minima tra un gruppo di oggetti e il successivo (metri): tempo per reagire
+    distanzaMassimaSezioni: 26,// distanza massima tra un gruppo di oggetti e il successivo (metri)
+    pesoAlberi: 8,           // quanto spesso escono file di alberi (più alto = più spesso)
+    pesoRocce: 2,            // quanto spesso escono rocce
+    pesoLupi: 2,             // quanto spesso escono branchi di lupi
     pesoMisto: 2,            // quanto spesso escono alberi insieme a rocce o lupi
     margineLibero: 0.8,      // spazio in più lasciato nel passaggio libero, oltre alla larghezza di squadra e carro (metri)
     seme: 0,                 // 0 = livello diverso ogni volta; un altro numero = sempre lo stesso livello
@@ -133,13 +141,49 @@ export const CONFIG = {
 
   // ---------------- SALITA FINALE ----------------
   salita: {
-    moltiplicatori: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10], // moltiplicatore di ogni gradino, dal basso verso l'alto
-    altezzaGradino: 0.7,     // altezza di ogni gradino (metri)
+    moltiplicatori: Array.from({ length: 20 }, (_, i) => i + 1), // moltiplicatore di ogni gradino, dal basso verso l'alto: da x1 a x20 (prima fino a x10)
+    altezzaGradino: 0.5,     // altezza di ogni gradino (metri; prima 0,7, ora i gradini sono 20)
     profonditaGradino: 4.5,  // lunghezza di ogni gradino (metri)
-    velocita: 6,             // velocità della squadra in salita (metri al secondo)
-    costoBase: 2,            // boscaioli che restano indietro sul primo gradino (stanchi!)
-    crescitaCosto: 0.35,     // ogni gradino costa questa parte in più del precedente (0.35 = +35%)
-    pesoRiferimento: 150,    // con questo peso sul carro ogni gradino costa il doppio
+    velocita: 8,             // velocità della squadra in salita (metri al secondo; prima 6, ora i gradini sono 20)
+    costoBase: 14,           // boscaioli che restano indietro sul primo gradino (stanchi!) con un carro vuoto (in origine 2; per un po' 2,5)
+    crescitaCosto: 0.20,     // ogni gradino costa questa parte in più del precedente (0.20 = +20%; in origine 0.35, che a 20 gradini era impossibile; per un po' 0.23)
+    pesoRiferimento: 600,    // con questo peso sul carro ogni gradino costa il doppio (prima 150: con tanta legna dagli alberi i gradini sarebbero stati impossibili)
+  },
+
+  // ---------------- ORSO GIGANTE (fine corsa) ----------------
+  // Alla fine della corsa, davanti alla scalinata, c'è l'orso. Lo scontro è automatico: i boscaioli corrono da lui a ondate, ognuno che lo colpisce
+  // gli toglie 1 punto di vita e sparisce; ogni zampata ne fa volare via qualcuno. Se l'orso cade si sale la scalinata, se finiscono i boscaioli si perde.
+  orso: {
+    vita: 300,               // punti di vita dell'orso al livello 1 (un boscaiolo che lo colpisce ne toglie 1; prima 200)
+    crescitaVita: 0.08,      // a ogni livello ha questa parte di vita in più (0.08 = +8%; prima 0.12): livello 2 = 324, 3 = 350, 5 = 408, 10 = 600
+    livelloMassimoForza: 25, // oltre questo livello la vita non cresce più
+    corseSaltate: [3, 5],    // dopo che è stato sconfitto non compare per un numero di corse a caso tra questi due (si va dritti alla scalinata)
+    carne: 100,              // unità di carne in più nel bottino quando viene sconfitto (NON moltiplicate dalla scalinata)
+    grandezza: 2.8,          // quanto è grande il modello (il lupo gigante è circa 1,6 metri di lunghezza, l'orso circa 5 e alto 6 quando si alza)
+    distanzaScontro: 15,     // a che distanza dall'orso si ferma la squadra (metri)
+    distanzaOrso: 3,         // quanto prima dell'inizio della scalinata sta l'orso (metri)
+    tempoRuggito: 2.6,       // secondi in cui, appena arrivata la squadra, si alza sulle zampe di dietro e ruggisce (scritta "Orso livello N")
+    ondate: 13,              // in quante ondate arrivano i boscaioli per portargli via tutta la vita (più ondate = scontro più lungo)
+    pausaOndate: 0.4,        // secondi tra un'ondata e la successiva: durata dello scontro = ondate x pausa (circa 5-6 secondi, più la corsa verso di lui)
+    velocitaAttacco: 15,     // velocità dei boscaioli che corrono da lui (metri al secondo)
+    zampata: [0.8, 1.2],     // secondi tra una zampata e la successiva, a caso tra questi due
+    boscaioliPerZampata: 0.025,  // ogni zampata fa volare via questa parte della vita massima dell'orso in boscaioli (prima 0.018, poi 0.03): livello 1 = 8, livello 5 = 11, livello 10 = 15
+    zampataMinimo: 7,        // ...ma mai meno di questi (prima 3)
+    gridaScontro: [1.8, 3.2],   // ogni quanti secondi (da-a, a caso) i boscaioli gridano mentre combattono (le grida e il loro volume sono in motore/suoni.js)
+    boscaioliGridaFolla: 100,   // da questo numero di boscaioli in su le grida sono spesso quelle di gruppo, più piene
+    schiantoOgni: 4,         // ogni quanti attacchi l'orso si alza sulle zampe di dietro e batte a terra con tutte e due le zampe: colpo più forte, onda di neve
+    schiantoForza: 2,        // lo schianto fa volare via questo numero di volte i boscaioli di una zampata
+    furiaSotto: 0.3,         // sotto questa parte di vita (0.3 = 30%) l'orso diventa furioso: occhi più luminosi, ruggito...
+    furiaVelocita: 0.6,      // ...e attacca più spesso (il tempo tra un attacco e l'altro si moltiplica per questo)
+    rallentatore: [0.5, 0.25], // il colpo finale va al rallentatore: [secondi veri, velocità del tempo (0.25 = quattro volte più lento)]
+    tremitoTelecamera: [0.3, 0.7], // quanto trema la telecamera a ogni zampata e a ogni schianto (metri)
+    semicerchio: 1.35,       // i boscaioli attaccano l'orso da più lati: da -1,35 a +1,35 radianti (circa 77 gradi) rispetto al suo davanti
+    raggioAttacco: [2.9, 3.6], // a che distanza dal centro dell'orso colpiscono (metri)
+    saltatori: 0.35,         // parte dei boscaioli che gli salta addosso con l'ascia alzata
+    passiOrso: 2.2,          // velocità con cui l'orso fa qualche passo avanti e indietro (metri al secondo)
+    pausaDopo: 2.4,          // secondi dalla caduta dell'orso (cade, sprofonda nella neve) prima che la squadra salga la scalinata
+    zoomTelecamera: 1.15,    // quanto è lontana la telecamera durante lo scontro (1 = come nella corsa)
+    visibiliMassimi: 40,     // boscaioli disegnati in corsa verso l'orso o in volo, tutti insieme (ognuno può valere più boscaioli veri)
   },
 
   // ---------------- TUTORIAL ----------------

@@ -103,6 +103,7 @@ export function creaMondo(contenitore) {
   const puntoSeguito = new THREE.Vector3();
   let primaVolta = true;
   let zoomAttuale = 1;
+  let tremore = 0; // 0 = ferma; sale con scuoti() e scende da solo (colpi dell'orso)
 
   return {
     renderer,
@@ -127,6 +128,12 @@ export function creaMondo(contenitore) {
         puntoSeguito.y + cfg.altezza * zoomAttuale,
         puntoSeguito.z + cfg.distanzaDietro * zoomAttuale
       );
+      if (tremore > 0.001) {
+        // tremolio breve: la telecamera si sposta di poco e a caso, poi si calma da sola
+        telecamera.position.x += (Math.random() - 0.5) * tremore;
+        telecamera.position.y += (Math.random() - 0.5) * tremore;
+        tremore = Math.max(0, tremore - dt * 2.2);
+      }
       telecamera.lookAt(puntoSeguito.x, puntoSeguito.y, puntoSeguito.z - cfg.guardaAvanti);
 
       sole.position.set(x + 8, y + 22, z + 4);
@@ -135,10 +142,16 @@ export function creaMondo(contenitore) {
       neve.aggiorna(dt, telecamera.position);
     },
 
+    // Fa tremare un attimo la telecamera (forza in metri, per esempio 0.4)
+    scuoti(forza) {
+      tremore = Math.max(tremore, forza);
+    },
+
     // Riporta la telecamera di colpo al punto giusto (a inizio corsa)
     reimpostaTelecamera() {
       primaVolta = true;
       zoomAttuale = 1;
+      tremore = 0;
     },
 
     disegna() {

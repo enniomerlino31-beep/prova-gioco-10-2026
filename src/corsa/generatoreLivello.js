@@ -39,7 +39,8 @@ export function larghezzaPassaggioLibero() {
   return Math.max(larghezzaSquadra, larghezzaCarro) + CONFIG.livello.margineLibero;
 }
 
-export function generaLivello() {
+// primaCorsa = true (tutorial): niente coppie con tutte e due le porte rosse
+export function generaLivello({ primaCorsa = false } = {}) {
   const seme = CONFIG.livello.seme || Math.floor(Math.random() * 1e9);
   const caso = creaCasuale(seme);
   const intero = (min, max) => Math.floor(min + caso() * (max - min + 1));
@@ -57,29 +58,49 @@ export function generaLivello() {
   };
 
   // --- Porte ---
-  const portaBuona = () => {
+  // "p" va da 0 (inizio della corsa) a 1 (ultima coppia): le porte diventano più generose (e le cattive più dure) man mano che si va avanti
+  const tra = (coppia, p) => coppia[0] + (coppia[1] - coppia[0]) * p;
+  const portaBuona = (p) => {
     const c = CONFIG.porte;
     const r = caso();
-    if (r < c.probabilitaX3) return { tipo: 'x', valore: 3 };
-    if (r < c.probabilitaX3 + c.probabilitaX2) return { tipo: 'x', valore: 2 };
-    return { tipo: '+', valore: intero(c.sommaMinima, c.sommaMassima) };
+    const x5 = p >= 0.6 ? tra(c.probabilitaX5, (p - 0.6) / 0.4) : 0;
+    const x4 = p >= 0.35 ? tra(c.probabilitaX4, (p - 0.35) / 0.65) : 0;
+    const x3 = tra(c.probabilitaX3, p);
+    if (r < x5) return { tipo: 'x', valore: 5 };
+    if (r < x5 + x4) return { tipo: 'x', valore: 4 };
+    if (r < x5 + x4 + x3) return { tipo: 'x', valore: 3 };
+    if (r < x5 + x4 + x3 + c.probabilitaX2) return { tipo: 'x', valore: 2 };
+    return { tipo: '+', valore: Math.round(intero(c.sommaMinima, c.sommaMassima) * (1 + c.crescitaSomme * p * p)) };
   };
-  const portaCattiva = () => {
+  const portaCattiva = (p) => {
     const c = CONFIG.porte;
     if (caso() < c.probabilitaDiviso) return { tipo: '÷', valore: 2 };
-    return { tipo: '-', valore: intero(c.sottrazioneMinima, c.sottrazioneMassima) };
+    return { tipo: '-', valore: Math.round(intero(c.sottrazioneMinima, c.sottrazioneMassima) * (1 + c.crescitaSottrazioni * p * p)) };
   };
-  const coppiaDiPorte = (distanza) => {
-    let a = portaBuona();
+  // Coppia con tutte e due le porte rosse: una toglie un numero fisso, l'altra divide (÷2 o ÷3).
+  // Quale conviene dipende da quanti boscaioli si hanno: -V conviene se la squadra è piccola, la divisione se è grande.
+  const coppiaRossa = (p) => {
+    const c = CONFIG.porte;
+    const grezzo = c.rosseMinimo + (c.rosseMassimo - c.rosseMinimo) * p;
+    const passo = grezzo < 40 ? 5 : grezzo < 100 ? 10 : 20;
+    return [{ tipo: '-', valore: Math.max(10, Math.round(grezzo / passo) * passo) }, { tipo: '÷', valore: caso() < c.rosseDiviso3 ? 3 : 2 }];
+  };
+  const coppiaDiPorte = (distanza, p, rossa) => {
+    let a;
     let b;
-    if (caso() < CONFIG.porte.probabilitaDueBuone) {
-      // due porte buone ma diverse: il giocatore deve scegliere la migliore
-      do b = portaBuona(); while (b.tipo === a.tipo && b.valore === a.valore);
+    if (rossa) {
+      [a, b] = coppiaRossa(p);
     } else {
-      b = portaCattiva();
+      a = portaBuona(p);
+      if (caso() < CONFIG.porte.probabilitaDueBuone) {
+        // due porte buone ma diverse: il giocatore deve scegliere la migliore
+        do b = portaBuona(p); while (b.tipo === a.tipo && b.valore === a.valore);
+      } else {
+        b = portaCattiva(p);
+      }
     }
-    if (caso() < 0.5) [a, b] = [b, a]; // la porta buona a volte a sinistra, a volte a destra
-    return [{ tipo: 'porte', distanza, sinistra: a, destra: b }];
+    if (caso() < 0.5) [a, b] = [b, a]; // la porta buona (o la rossa che toglie) a volte a sinistra, a volte a destra
+    return [{ tipo: 'porte', distanza, sinistra: a, destra: b, rossa }];
   };
 
   // --- Il corridoio libero e le zone dove si possono mettere ostacoli ---
@@ -111,11 +132,11 @@ export function generaLivello() {
   const raggioAlbero = CONFIG.alberi.raggio * 0.7;
   const sezioneAlberi = (distanza) => {
     const c = scegliCorridoio();
-    const posti = postiFuoriDalCorridoio(c, raggioAlbero).slice(0, intero(2, 3));
+    const posti = postiFuoriDalCorridoio(c, raggioAlbero).slice(0, intero(3, 4));
     const cose = posti.map((x) => ({ tipo: 'albero', distanza, x }));
     // a volte una seconda fila poco più avanti (un piccolo bosco), con lo stesso corridoio
-    if (caso() < 0.5) {
-      for (const x of postiFuoriDalCorridoio(c, raggioAlbero).slice(0, intero(1, 2))) {
+    if (caso() < 0.7) {
+      for (const x of postiFuoriDalCorridoio(c, raggioAlbero).slice(0, intero(1, 3))) {
         cose.push({ tipo: 'albero', distanza: distanza + 6, x });
       }
     }
@@ -174,8 +195,10 @@ export function generaLivello() {
 
   // --- 2. Le porte occupano fermate distribuite in modo regolare (la prima è sempre una porta) ---
   const coppie = Math.min(CONFIG.porte.numeroCoppie, fermate.length);
-  const fermateConPorte = new Set();
-  for (let k = 0; k < coppie; k++) fermateConPorte.add(Math.round((k * fermate.length) / coppie));
+  const fermateConPorte = new Map(); // fermata -> numero della coppia (0 = la prima)
+  for (let k = 0; k < coppie; k++) fermateConPorte.set(Math.round((k * fermate.length) / coppie), k);
+  // quali coppie sono "rosse" (tutte e due le porte tolgono boscaioli): a caso, mai la prima e mai nella prima corsa
+  const rosse = new Set(primaCorsa ? [] : mescola(Array.from({ length: Math.max(0, coppie - 1) }, (_, i) => i + 1)).slice(0, CONFIG.porte.coppieRosse));
 
   // --- 3. Tutte le altre fermate diventano gruppi di ostacoli ---
   const elenco = [];
@@ -183,7 +206,8 @@ export function generaLivello() {
   let ultimoPericolo = null; // l'ultimo tra rocce e lupi: si alternano
   fermate.forEach((distanza, i) => {
     if (fermateConPorte.has(i)) {
-      elenco.push(...coppiaDiPorte(distanza));
+      const k = fermateConPorte.get(i);
+      elenco.push(...coppiaDiPorte(distanza, coppie > 1 ? k / (coppie - 1) : 0, rosse.has(k)));
       return;
     }
     let tipo = sceltaTipo();

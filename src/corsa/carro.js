@@ -135,15 +135,14 @@ export class Carro {
     // Le ruote girano in base alla velocità
     for (const ruota of this.modello.ruote) ruota.rotation.x -= (velocita * dt) / (0.4 * s);
 
-    // Un tronco in più ogni tot di legna. Oltre il massimo la pila diventa "cataste" più grosse:
-    // cresce soprattutto di lato e poco in altezza. Anche quando tutto il carro si ingrandisce, la pila non diventa
+    // Un tronco in più ogni tot di legna. Oltre il massimo la pila smette di crescere. Anche quando tutto il carro si ingrandisce, la pila non diventa
     // più alta (si divide per "s"): così, vista da dietro, non copre mai la folla davanti al carro
     const tronchiNecessari = Math.ceil(this.legna / c.legnaPerTronco);
     this.modello.tronchi.count = Math.min(c.tronchiMassimi, tronchiNecessari);
-    const ingrossamento = Math.min(1.6, Math.sqrt(Math.max(1, tronchiNecessari / c.tronchiMassimi)));
-    const altezza = (1 + (ingrossamento - 1) * 0.35) / s;
-    this.modello.pila.scale.set(ingrossamento, altezza, 1);
-    // (la pila si ingrossa partendo dal pianale, non da terra)
+    // La pila NON si allarga mai oltre i bordi del carro: oltre i tronchiMassimi smette di crescere (la legna vera continua a contare e a essere scritta)
+    const altezza = 1 / s;
+    this.modello.pila.scale.set(1, altezza, 1);
+    // (la pila resta appoggiata al pianale, non a terra)
     this.modello.pila.position.y = -0.71 * (altezza - 1);
 
     const pezzi = Math.min(c.pezziCarneMassimi, Math.ceil(this.carne / c.carnePerPezzo));

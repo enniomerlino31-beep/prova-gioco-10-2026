@@ -77,6 +77,14 @@ const EFFETTI = {
   perso: { file: ['perso'], volume: 0.59, pausa: 0.1, insieme: 3, varia: 0.04 },
   gradino: { file: tanti('gradino', 3), volume: 0.51, pausa: 0.1, insieme: 2, varia: 0.04 },
   restaIndietro: { file: ['resta-indietro'], volume: 0.59, pausa: 0.2, insieme: 1, varia: 0.04 },
+  orsoRuggito: { file: ['orso-ruggito'], volume: 0.75, pausa: 2, insieme: 1 },           // l'orso si alza e ruggisce (e quando vince)
+  orsoZampata: { file: ['orso-zampata'], volume: 0.8, pausa: 0.4, insieme: 1, varia: 0.04 }, // la zampata dell'orso
+  orsoColpo: { file: tanti('orso-colpo', 3), volume: 0.55, pausa: 0.07, insieme: 3, varia: 0.05 }, // un boscaiolo colpisce l'orso
+  // grida di battaglia dei boscaioli nello scontro con l'orso: tenute di proposito più basse della musica paurosa e del ruggito (le grida si sommano alla musica, non la coprono)
+  orsoCarica: { file: ['orso-carica'], volume: 0.6, pausa: 3, insieme: 1 },                  // grido di carica di tutta la squadra, all'inizio dello scontro
+  orsoGrido: { file: tanti('orso-grido', 3), volume: 0.5, pausa: 1.2, insieme: 1, varia: 0.05 },      // grida di singoli boscaioli (squadra piccola)
+  orsoGridoFolla: { file: tanti('orso-folla', 2), volume: 0.55, pausa: 1.2, insieme: 1, varia: 0.05 }, // grida di gruppo, più piene (squadra grande)
+  orsoCade: { file: ['orso-cade'], volume: 0.95, pausa: 3, insieme: 1 },                  // l'orso sconfitto cade
   vittoria: { file: ['vittoria'], volume: 0.77, pausa: 1, insieme: 1 },
   sconfitta: { file: ['sconfitta'], volume: 0.68, pausa: 1, insieme: 1 },
   // --- Menu e feste ---
@@ -89,6 +97,8 @@ const CICLI = { corsaNeve: 'corsa-neve', corsaNeveTanti: 'corsa-neve-tanti', car
 // Una sola musica per tutto il gioco: passando dalla base alla corsa (e ritorno) continua senza ripartire
 // "paura" è la musica inquietante del lupo gigante (vedi impostaPaura): sfuma al posto della musica normale e poi torna
 const MUSICHE = { base: 'musica', corsa: 'musica', paura: 'musica-paura' };
+// Alcune musiche sono registrate più piano: si alzano un po' (la musica inquietante senza questo si sentiva appena: circa -37 dB)
+const GUADAGNO_MUSICA = { 'musica-paura': 2.2 };
 
 // Curve della dissolvenza a potenza costante (seno e coseno)
 const CURVA_ENTRATA = Float32Array.from({ length: 64 }, (_, i) => Math.sin((i / 63) * Math.PI / 2));
@@ -242,6 +252,13 @@ class Suoni {
     this.paura = acceso;
   }
 
+  // Prepara la musica inquietante prima che serva (si scarica e si decodifica subito): all'inizio di una corsa, perché se il gioco
+  // è appena stato aperto le musiche non sono ancora pronte (arrivano 2,5 secondi dopo l'avvio) e lo scontro sarebbe cominciato in silenzio
+  preparaPaura() {
+    this.scarica(MUSICHE.paura);
+    if (this.contesto) this.decodifica(MUSICHE.paura);
+  }
+
   // Quale musica suona: 'base', 'corsa' (o null = nessuna). Passa dolcemente da una all'altra.
   musica(nome) {
     this.musicaVoluta = nome;
@@ -264,7 +281,7 @@ class Suoni {
       this.musicaAttuale = null;
       if (this.musicaVoluta) {
         const ciclo = new Ciclo(this, fileVoluto, () => this.uscitaMusica, SFUMATURA_MUSICA);
-        ciclo.volume(1, SFUMATURA_CAMBIO);
+        ciclo.volume(GUADAGNO_MUSICA[fileVoluto] ?? 1, SFUMATURA_CAMBIO);
         this.cicli.push(ciclo);
         this.musicaAttuale = { file: fileVoluto, ciclo };
       }

@@ -1,7 +1,7 @@
 # Crediti dei suoni
 
 Non ci sono suoni delle frecce (tolti su richiesta). Tutti i suoni e le musiche del gioco hanno licenza **CC0** (pubblico dominio: si possono usare anche in un gioco da vendere, senza obbligo di citare l'autore). Li citiamo comunque per riconoscenza.
-I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compressi in mp3 (effetti mono a 96 kbps, musiche stereo), senza filtri che tolgano gli acuti. In tutto pesano circa 1,7 MB (77 file).
+I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compressi in mp3 (effetti mono a 96 kbps, musiche stereo), senza filtri che tolgano gli acuti. In tutto pesano circa 2,0 MB (89 file).
 
 ## Fonti
 
@@ -20,6 +20,9 @@ I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compre
 | Passi di gruppo sulla neve (corsa) | AudioPapkin | 712022 |
 | Carro | SoundsLikeYukon | 721122 |
 | Musica (unica, per tutto il gioco) "A Ukulele Tune" | shaunhillyard | 830500 |
+| Ruggito dell'orso gigante (registrazione di un orso nero vero, 3 secondi presi da "Bear Angry Growl", tono abbassato del 14% e bassi un po' alzati) | celldroid | 763026 |
+| Grida di battaglia di gruppo (carica e grida piene) "People screaming in agony when charging into battle" | florianreichelt | 563011 |
+| Grida di battaglia di singoli boscaioli "Battle cry scream 04" | Simonus18 | 866009 |
 | Musica inquietante del lupo gigante "Action music loop with dark ambient drones" | burning-mir | 155139 |
 | Grido "Men Shouting Hey" | Jace | 57204 |
 | Grido "3 Men Cheering" | jbeetle | 274510 |
@@ -79,3 +82,16 @@ I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compre
 | musica-paura | musica inquietante mentre c'è il lupo gigante (loop di circa 29 s, tesa e cupa, con bassi e droni scuri; sfuma al posto dell'ukulele e poi torna) | Freesound 155139 "Action music loop with dark ambient drones", burning-mir |
 | riparazione-mura | le mura sono state riparate con la legna (tre colpetti di martello sul legno e un campanellino) | Kenney Impact: impactWood_light_000-002 + Kenney Jingles Pizzicato: PIZZI08 |
 | cerchio-riparazione | compare il grande cerchio verde per riparare le mura (un tonfo morbido e un campanellino) | Kenney Impact: impactSoft_heavy_000 (più basso) + Kenney Jingles Pizzicato: PIZZI12 |
+
+## Suoni dell'orso gigante (Gruppo 4)
+| File | A cosa serve | Fonte |
+|---|---|---|
+| orso-ruggito | l'orso si alza e ruggisce, e quando vince | Freesound 763026 "Bear Angry Growl", celldroid, CC0: registrazione di un orso nero vero (era 439441, sostituito perché poco realistico) |
+| orso-carica | grido di carica di tutta la squadra all'inizio dello scontro | Freesound 563011, florianreichelt, CC0 (secondi 12–15) |
+| orso-folla-1…2 | grida di gruppo, più piene (squadra grande) | Freesound 563011, florianreichelt, CC0 |
+| orso-grido-1…3 | grida di singoli boscaioli (squadra piccola) | Freesound 866009, Simonus18, CC0 |
+| orso-colpo-1…3 | un boscaiolo colpisce l'orso | Kenney Impact Sounds "impactSoft_heavy_000-002", CC0 |
+| orso-zampata | la zampata | Kenney RPG Audio "cloth2" + Kenney Impact Sounds "impactPunch_heavy_001" (colpo ritardato), CC0 |
+| orso-cade | l'orso sconfitto cade | Kenney Impact Sounds "impactPunch_heavy_004" rallentato (tono dimezzato), CC0 |
+
+Non li ho ascoltati: scelti dai nomi e dalle misure (il ruggito è la parte iniziale di un lungo verso "arrabbiato").

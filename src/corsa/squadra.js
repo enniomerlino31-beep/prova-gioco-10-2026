@@ -234,7 +234,7 @@ export class Squadra {
       this.omini = this.omini.filter((o) => o.vivo || o.scala > 0);
     }
 
-    const velocitaPasso = this.azione === 'corre' ? 14 : this.azione === 'taglia' ? 9 : 0;
+    const velocitaPasso = this.azione === 'corre' ? 14 : this.azione === 'taglia' ? 9 : this.azione === 'esulta' ? 11 : 0;
     const dimensione = CONFIG.squadra.dimensioneOmino;
 
     for (let i = 0; i < this.omini.length; i++) {
@@ -266,7 +266,7 @@ export class Squadra {
       o.onda = effetto.onda;
 
       const passo = Math.sin(o.fase);
-      const saltello = this.azione === 'corre' && o.vivo ? Math.abs(passo) * 0.06 : 0;
+      const saltello = o.vivo ? (this.azione === 'corre' ? Math.abs(passo) * 0.06 : this.azione === 'esulta' ? Math.abs(Math.sin(o.fase + o.x * 3)) * 0.28 : 0) : 0;
 
       // Matrice dell'omino intero (posizione nella folla + dimensione); quando corre si piega un po' in avanti
       this._v.set(o.x + o.onda, saltello, o.z);
@@ -298,6 +298,10 @@ export class Squadra {
   angoliArti(passo, fase) {
     if (this.azione === 'corre') {
       return { gambaSx: passo * 0.7, gambaDx: -passo * 0.7, braccioSx: -passo * 0.6, braccioDx: passo * 0.3 + 0.3 };
+    }
+    if (this.azione === 'esulta') {
+      // i boscaioli esultano: braccia in alto che si agitano e saltelli
+      return { braccioSx: 2.6 + Math.sin(fase * 1.3) * 0.4, braccioDx: 2.6 - Math.sin(fase * 1.3) * 0.4 };
     }
     if (this.azione === 'taglia') {
       // il braccio destro alza l'ascia sopra la testa e la abbatte in avanti

@@ -202,23 +202,34 @@ export class Schermate {
     const dati = $('fine-dati');
     const riga = (nome, valore, classe = '') => `<div class="dato ${classe}"><span>${nome}</span><span>${valore}</span></div>`;
 
+    const icona = (nome) => `<span class="hud-icon hud-icon--${nome} hud-icon--mini"></span>`;
     if (risultato.vinto) {
-      $('fine-titolo').textContent = 'Arrivati alla segheria!';
+      $('fine-titolo').textContent = risultato.orsoSconfitto ? `Orso livello ${risultato.livelloOrso} sconfitto!` : 'Arrivati alla segheria!';
       $('fine-messaggio').textContent =
-        risultato.moltiplicatore >= 5 ? 'Che scalata! Il bottino si moltiplica.' : 'Buona corsa! Con più boscaioli si sale più in alto.';
+        risultato.moltiplicatore >= 10 ? 'Che scalata! Il bottino si moltiplica.' : risultato.orsoSconfitto ? 'Che fatica! Più boscaioli arrivano all’orso, più in alto si sale.' : 'Buona corsa! Con più boscaioli si sale più in alto.';
+      const legnaMoltiplicata = risultato.legnaFinale;
       dati.innerHTML =
-        riga('<span class="hud-icon hud-icon--axe hud-icon--mini"></span> Boscaioli arrivati', risultato.boscaioliArrivati) +
-        riga('<span class="hud-icon hud-icon--log hud-icon--mini"></span> Legna sul carro', risultato.legna) +
-        riga('<span class="hud-icon hud-icon--meat hud-icon--mini"></span> Carne sul carro', risultato.carne) +
-        riga('<span class="hud-icon hud-icon--mountain hud-icon--mini"></span> Gradino raggiunto', `x${risultato.moltiplicatore}`) +
-        (risultato.bonusLegna > 0 ? riga('<span class="hud-icon hud-icon--log hud-icon--mini"></span> Bonus prima corsa', `+${risultato.bonusLegna} legna`) : '') +
-        riga('Bottino totale', `${risultato.legnaFinale + (risultato.bonusLegna ?? 0)} legna · ${risultato.carneFinale} carne`, 'totale');
+        riga(`${icona('axe')} Boscaioli arrivati`, risultato.boscaioliArrivati) +
+        riga(`${icona('log')} Legna sul carro`, risultato.legna) +
+        riga(`${icona('meat')} Carne sul carro`, risultato.carne) +
+        riga(`${icona('mountain')} Gradino raggiunto`, `x${risultato.moltiplicatore}`) +
+        (risultato.carneOrso > 0 ? riga(`${icona('meat')} Carne dell’orso (non moltiplicata)`, `+${risultato.carneOrso} carne`) : '') +
+        (risultato.bonusLegna > 0 ? riga(`${icona('log')} Bonus prima corsa`, `+${risultato.bonusLegna} legna`) : '') +
+        riga('Bottino totale', `${legnaMoltiplicata + (risultato.bonusLegna ?? 0)} legna · ${risultato.carneFinale} carne`, 'totale');
+    } else if (risultato.orsoVince) {
+      $('fine-titolo').textContent = `L’orso livello ${risultato.livelloOrso} ha vinto!`;
+      $('fine-messaggio').textContent =
+        'I boscaioli sono finiti prima dell’orso: non si sale la scalinata. Porti a casa SOLO la legna raccolta con gli alberi, senza moltiplicatori e senza carne. Alla prossima corsa c’è di nuovo lui, allo stesso livello: scegli porte migliori!';
+      dati.innerHTML =
+        riga(`${icona('log')} Legna portata a casa (solo dagli alberi)`, risultato.legnaPortata) +
+        riga(`${icona('meat')} Carne persa`, risultato.carnePersa) +
+        riga('Bottino totale', `${risultato.legnaPortata} legna · 0 carne`, 'totale');
     } else {
       $('fine-titolo').textContent = 'Squadra sconfitta!';
       $('fine-messaggio').textContent =
         'Tutti i boscaioli sono caduti: il carico è andato perso. Scegli porte migliori ed evita rocce e lupi! Torna alla segheria e riprova.';
       dati.innerHTML =
-        riga('<span class="hud-icon hud-icon--log hud-icon--mini"></span> Legna persa', risultato.legnaPersa) + riga('<span class="hud-icon hud-icon--meat hud-icon--mini"></span> Carne persa', risultato.carnePersa);
+        riga(`${icona('log')} Legna persa`, risultato.legnaPersa) + riga(`${icona('meat')} Carne persa`, risultato.carnePersa);
     }
     $('schermata-fine').classList.remove('nascosto');
   }

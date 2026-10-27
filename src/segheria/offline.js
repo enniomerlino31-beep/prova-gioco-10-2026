@@ -2,11 +2,13 @@
 //  GUADAGNI MENTRE SI È VIA (Fase 5)
 //  Quando si riapre il gioco, la base ha continuato a lavorare:
 //   - il boscaiolo secondario ha portato la sua legna sulla catasta, a ogni giro;
-//   - l'aiutante ha portato la legna dalla catasta allo sportello LEGNA;
-//   - i venditori hanno venduto ai clienti la legna e la carne sui banconi.
-//  I ritmi sono quelli del gioco vero (vedi ritmi): non si vende più in fretta
-//  di come succede giocando. Senza aiutante la legna resta nella catasta;
-//  senza venditori non si vende niente (e la merce resta dov'è). I lupi non fanno danni e i
+//   - l'aiutante ha portato QUELLA legna dalla catasta allo sportello LEGNA;
+//   - i venditori hanno venduto ai clienti quella legna e la carne già sul tavolo della carne.
+//  REGOLA (decisa dall'utente): mentre si è via si vende SOLO la legna portata dal boscaiolo
+//  secondario (e la carne già sul tavolo). La legna delle corse (nella catasta o sul banco) non si
+//  vende e resta dov'è: altrimenti con tanta legna si guadagnerebbero migliaia di monete all'ora
+//  invece di circa 1.000. I ritmi sono quelli del gioco vero (vedi ritmi). Senza aiutante la legna
+//  del secondario resta nella catasta; senza venditori non si vende niente. I lupi non fanno danni e i
 //  cacciatori non portano carne nuova (si vende solo quella già sul tavolo).
 //  Sotto "minimoMinuti" di assenza non succede niente; oltre "massimoOre"
 //  non succede più niente (CONFIG.offline).
@@ -66,8 +68,10 @@ export function lavoroOffline(stato, secondi) {
   const venditore = CONFIG.miglioramenti.venditore[(m.venditore?.comprati ?? 0) - 1] ?? null;
   const ritmo = venditore ? ritmi(venditore) : null;
 
-  let catasta = stato.catasta;
-  let legnaBanco = stato.sportelli.legna;
+  // solo la legna del secondario può essere venduta: "inCatasta" è quella che l'aiutante deve ancora portare,
+  // "sulBanco" quella già sul banco (la legna vera della catasta e del banco non si tocca)
+  let inCatasta = 0;
+  let sulBanco = 0;
   let carneBanco = stato.sportelli.carne;
   let mancano = Number.isFinite(stato.secondarioMancano) ? stato.secondarioMancano : durataGiro();
   let legnaPortata = 0;
@@ -80,32 +84,33 @@ export function lavoroOffline(stato, secondi) {
       mancano -= dt;
       while (mancano <= 0) {
         mancano += durataGiro();
-        catasta += CONFIG.lavoratori.legnaSecondario;
+        inCatasta += CONFIG.lavoratori.legnaSecondario;
         legnaPortata += CONFIG.lavoratori.legnaSecondario;
       }
     }
     if (ritmo) {
       if (conAiutante) {
-        const spostata = Math.min(catasta, ritmo.aiutante * dt);
-        catasta -= spostata;
-        legnaBanco += spostata;
+        const spostata = Math.min(inCatasta, ritmo.aiutante * dt);
+        inCatasta -= spostata;
+        sulBanco += spostata;
       }
-      const legna = Math.min(legnaBanco, ritmo.legna * dt);
+      const legna = Math.min(sulBanco, ritmo.legna * dt);
       const carne = Math.min(carneBanco, ritmo.carne * dt);
-      legnaBanco -= legna;
+      sulBanco -= legna;
       carneBanco -= carne;
       legnaVenduta += legna;
       carneVenduta += carne;
     }
   }
 
-  // unità intere: quello che non è venduto resta (prima sul bancone, il resto nella catasta)
+  // unità intere: la legna del secondario non venduta resta (quella già sul banco sul banco, il resto nella catasta);
+  // la legna che c'era prima (delle corse) è come l'ha lasciata il giocatore
   legnaVenduta = Math.floor(legnaVenduta);
   carneVenduta = Math.floor(carneVenduta);
-  const legnaTotale = stato.catasta + stato.sportelli.legna + legnaPortata - legnaVenduta;
-  const nuovaCatasta = Math.min(legnaTotale, Math.max(0, Math.round(catasta)));
-  stato.catasta = nuovaCatasta;
-  stato.sportelli.legna = legnaTotale - nuovaCatasta;
+  const restano = legnaPortata - legnaVenduta;
+  const restaSulBanco = Math.min(restano, Math.max(0, Math.round(sulBanco)));
+  stato.sportelli.legna += restaSulBanco;
+  stato.catasta += restano - restaSulBanco;
   stato.sportelli.carne = Math.max(0, stato.sportelli.carne - carneVenduta);
   if (conSecondario) stato.secondarioMancano = mancano;
 

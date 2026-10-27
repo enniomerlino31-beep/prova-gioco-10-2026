@@ -14,7 +14,7 @@ export const LUNGHEZZA_CARRO = 2.4;
 const LARGHEZZA = 1.8;
 
 // Dove stanno le due pile sul carro (posizione lungo il carro)
-export const Z_PILA_TRONCHI = -0.3;
+export const Z_PILA_TRONCHI = -0.25;
 export const Z_PILA_CARNE = 0.85;
 const ALTEZZA_PIANALE = 0.71;  // il piano su cui appoggia il carico
 const RAGGIO_TRONCO = 0.15;
@@ -25,14 +25,14 @@ const LEGNO_SCURO = 0x6e4022;
 const FERRO = 0x5a6370;
 
 // Geometria del tronco: corteccia + cerchi chiari alle estremità
-export const geometriaTronco = new THREE.CylinderGeometry(RAGGIO_TRONCO, RAGGIO_TRONCO, 1.7, 10);
+export const geometriaTronco = new THREE.CylinderGeometry(RAGGIO_TRONCO, RAGGIO_TRONCO, 1.6, 10);
 export const materialiTronco = [tinta(0x7a4520), tinta(0xf0c98e), tinta(0xf0c98e)];
 
 // Posizione di ogni tronco nella pila (a piramide bassa e larga: tanti sotto, sempre meno sopra).
 // La pila resta bassa apposta: se fosse alta, vista da dietro coprirebbe i boscaioli davanti al carro.
 function postiTronchi(quanti) {
   const posti = [];
-  const perStrato = [6, 6, 5, 5, 4, 4, 3, 3, 2, 2];
+  const perStrato = [5, 5, 5, 4, 4, 4, 3, 3, 3, 2]; // la fila più larga (5 tronchi) sta dentro le sponde del carro
   for (let strato = 0; posti.length < quanti; strato++) {
     const n = perStrato[Math.min(strato, perStrato.length - 1)];
     for (let i = 0; i < n && posti.length < quanti; i++) {

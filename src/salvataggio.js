@@ -42,6 +42,7 @@ function statoIniziale() {
     guadagnoTotale: 0,                         // tutti i soldi guadagnati da sempre
     corseFatte: 0,
     tutorial: 0,                               // a che passaggio del tutorial si è arrivati (3 = finito, non compare più)
+    orso: { livello: 1, corseMancanti: 0 },    // l'orso di fine corsa: a che livello è e fra quante corse ricompare (0 = alla prossima)
   };
 }
 
@@ -83,6 +84,12 @@ export function carica() {
       stato.soldi += stato.file.economia.pagato ?? 0;
       stato.file.economia.pagato = 0;
     }
+    // L'orso di fine corsa: nei salvataggi vecchi parte dal livello 1; i valori strani si sistemano
+    const orso = stato.orso && typeof stato.orso === 'object' ? stato.orso : {};
+    stato.orso = {
+      livello: Math.max(1, Math.floor(Number(orso.livello)) || 1),
+      corseMancanti: Math.max(0, Math.floor(Number(orso.corseMancanti)) || 0),
+    };
     stato.miglioramenti = { ...statoIniziale().miglioramenti, ...stato.miglioramenti };
     // Salvataggi con il parquet (non c'è più): chi l'aveva comprato ha il pavimento in pietra;
     // le monete messe nel cerchio del parquet (o in quello della pietra, se ormai è comprato) tornano in tasca

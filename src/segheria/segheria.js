@@ -363,6 +363,30 @@ export class Segheria {
     return bonus;
   }
 
+  // Sta per partire una corsa: dice se è la prima (tutorial: niente orso né porte tutte rosse) e quale orso aspetta alla fine
+  // (livello, oppure null se è ancora lontano: dopo che è stato sconfitto salta da 3 a 5 corse; ogni corsa iniziata ne conta una)
+  preparaCorsa() {
+    const primaCorsa = this.tutorial.passo === 0;
+    const o = this.stato.orso;
+    let orso = null;
+    if (!primaCorsa) {
+      if (o.corseMancanti > 0) o.corseMancanti--;
+      else orso = o.livello;
+    }
+    this.salvaOra();
+    return { primaCorsa, orso };
+  }
+
+  // Finita una corsa: se l'orso è stato sconfitto sale di livello e sparisce per un numero di corse a caso (3-5);
+  // se ha vinto lui, resta lo stesso livello e alla corsa dopo c'è di nuovo
+  registraOrso(risultato) {
+    if (!risultato.vinto || !risultato.orsoSconfitto) return;
+    const [da, a] = CONFIG.orso.corseSaltate;
+    this.stato.orso.livello = risultato.livelloOrso + 1;
+    this.stato.orso.corseMancanti = da + Math.floor(Math.random() * (a - da + 1));
+    this.salvaOra();
+  }
+
   // Si entra nella segheria (all'avvio o dopo una corsa)
   entra() {
     this.chiudiRegia();

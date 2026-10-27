@@ -1,7 +1,8 @@
 // =====================================================================
 //  CORSA: il "regista" di una partita
-//  Crea squadra, carro, porte, alberi, rocce, lupi e salita finale,
+//  Crea squadra, carro, porte, alberi, rocce, lupi, orso e salita finale,
 //  li aggiorna a ogni fotogramma e decide quando la corsa finisce.
+//  Stati: 'corsa' → ('scontro' con l'orso, se c'è) → 'salita' → 'finita'.
 // =====================================================================
 
 import * as THREE from 'three';
@@ -14,6 +15,7 @@ import { Ostacoli } from './ostacoli.js';
 import { Lupi } from './lupi.js';
 import { Effetti } from '../motore/effetti.js';
 import { SfidaFinale } from './sfidaFinale.js';
+import { ScontroOrso } from './orso.js';
 import { generaLivello } from './generatoreLivello.js';
 import { suoni } from '../motore/suoni.js';
 
@@ -23,7 +25,10 @@ const CODA_NORMALE = 5.5;
 export class Corsa {
   // mondo: scena e telecamera; controlli: dito/tastiera; schermate: interfaccia;
   // alTermine: funzione chiamata con i risultati quando la corsa finisce
-  constructor(mondo, controlli, schermate, alTermine) {
+  // opzioni: { primaCorsa: true nel tutorial (niente porte tutte rosse);
+  //            orso: livello dell'orso di fine corsa (null = niente orso, si va dritti alla scalinata);
+  //            prova: { boscaioli } per provare lo scontro (?orso=5&boscaioli=200): si parte vicino alla fine, senza livello }
+  constructor(mondo, controlli, schermate, alTermine, opzioni = {}) {
     this.mondo = mondo;
     this.controlli = controlli;
     this.schermate = schermate;
@@ -44,9 +49,14 @@ export class Corsa {
     this.ostacoli = new Ostacoli(this.radice, effetti);
     this.lupi = new Lupi(this.radice, effetti);
     this.sfida = new SfidaFinale(this.radice, effetti);
+    this.prova = opzioni.prova ?? null;
+    this.orso = opzioni.orso ? new ScontroOrso(this.radice, effetti, opzioni.orso) : null;
+    if (this.orso) this.orso.alTremito = (forza) => mondo.scuoti(forza); // ogni colpo dell'orso fa tremare la telecamera
+    // la squadra si ferma qui, davanti all'orso (se non c'è, va avanti fino alla scalinata)
+    this.fermataOrso = CONFIG.pista.lunghezza - CONFIG.orso.distanzaOrso - CONFIG.orso.distanzaScontro;
 
-    // Costruisce il livello a partire dall'elenco del generatore
-    const livello = generaLivello();
+    // Costruisce il livello a partire dall'elenco del generatore (nelle prove dello scontro non c'è: si parte vicino alla fine)
+    const livello = this.prova ? { elenco: [] } : generaLivello({ primaCorsa: !!opzioni.primaCorsa });
     for (const cosa of livello.elenco) {
       if (cosa.tipo === 'porte') this.porte.aggiungiCoppia(cosa.distanza, cosa.sinistra, cosa.destra);
       if (cosa.tipo === 'albero') this.alberi.aggiungi(cosa.distanza, cosa.x);
@@ -59,19 +69,27 @@ export class Corsa {
     this.suonoPassiTanti = suoni.ciclo('corsaNeveTanti');
     this.suonoCarro = suoni.ciclo('carro');
 
-    this.stato = 'corsa'; // 'corsa' → 'salita' → 'finita'
+    this.stato = 'corsa'; // 'corsa' → 'scontro' → 'salita' → 'finita'
     this.prossimoGrido = CONFIG.audio.gridaCorsa[0]; // quando grideranno la prossima volta (secondi dall'inizio)
     this.bersaglioX = 0;   // dove il giocatore vuole portare la squadra
     this.tempo = 0;
     this.velocita = 0;
     this.attesaFine = 0;
 
+    if (this.prova) {
+      this.squadra.imposta(this.prova.boscaioli);
+      this.squadra.distanza = (this.orso ? this.fermataOrso : CONFIG.pista.lunghezza) - 14;
+      this.carro.legna = this.prova.legna ?? 200;
+      this.carro.carne = 20;
+    }
     controlli.azzera();
     mondo.reimpostaTelecamera();
     this.carro.segui(this.squadra, 0, 0);
   }
 
-  aggiorna(dt) {
+  aggiorna(dtReale) {
+    // il colpo finale con l'orso va al rallentatore: tutto il mondo di gioco (non l'audio) va più piano
+    const dt = dtReale * (this.orso?.fattoreTempo ?? 1);
     this.tempo += dt;
     const squadra = this.squadra;
     const carro = this.carro;
@@ -111,9 +129,39 @@ export class Corsa {
         this.stato = 'finita';
         squadra.azione = 'ferma';
         this.risultato = { vinto: false, legnaPersa: carro.legna, carnePersa: carro.carne };
-      } else if (squadra.distanza >= CONFIG.pista.lunghezza) {
+      } else if (this.orso && squadra.distanza >= this.fermataOrso) {
+        // la squadra si ferma davanti all'orso: ruggito e scontro (il carro resta fermo dietro la squadra)
+        this.stato = 'scontro';
+        squadra.azione = 'ferma';
+        this.velocita = 0;
+        this.orso.inizia();
+        this.schermate.mostraAvviso(`Orso livello ${this.orso.livello}`, CONFIG.orso.tempoRuggito);
+        suoni.impostaPaura(true); // parte la musica paurosa del lupo gigante (con la stessa dissolvenza)
+      } else if (!this.orso && squadra.distanza >= CONFIG.pista.lunghezza) {
         this.stato = 'salita';
         this.sfida.inizia(squadra);
+      }
+    } else if (this.stato === 'scontro') {
+      squadra.azione = this.orso.fase === 'caduta' ? 'esulta' : 'ferma'; // l'orso è caduto: i boscaioli esultano
+      carro.segui(squadra, dt, 0);
+      this.alberi.aggiorna(dt, squadra, carro, []);
+      if (this.orso.esito === 'vinto') {
+        suoni.impostaPaura(false);
+        this.stato = 'salita';
+        this.sfida.carneOrso = CONFIG.orso.carne;
+        this.sfida.inizia(squadra);
+      } else if (this.orso.esito === 'perso') {
+        // i boscaioli sono finiti: si porta a casa solo la legna raccolta con gli alberi, senza moltiplicatori e senza carne
+        suoni.impostaPaura(false);
+        this.stato = 'finita';
+        this.risultato = {
+          vinto: false,
+          orsoVince: true,
+          livelloOrso: this.orso.livello,
+          legnaPortata: carro.legna,
+          carnePersa: carro.carne,
+          prova: !!this.prova,
+        };
       }
     } else if (this.stato === 'salita') {
       this.alberi.aggiorna(dt, squadra, carro, []);
@@ -123,13 +171,17 @@ export class Corsa {
         this.stato = 'finita';
         this.risultato = {
           vinto: true,
+          orsoSconfitto: !!this.orso,
+          livelloOrso: this.orso?.livello ?? 0,
+          carneOrso: this.sfida.carneOrso,
+          prova: !!this.prova,
           boscaioliArrivati: this.sfida.boscaioliArrivati,
           gradini: this.sfida.gradiniRaggiunti,
           moltiplicatore: this.sfida.moltiplicatore,
           legna: carro.legna,
           legnaFinale: Math.round(carro.legna * this.sfida.moltiplicatore),
           carne: carro.carne,
-          carneFinale: Math.round(carro.carne * this.sfida.moltiplicatore),
+          carneFinale: Math.round(carro.carne * this.sfida.moltiplicatore) + this.sfida.carneOrso, // la carne dell'orso non si moltiplica
           tempo: this.tempo,
         };
       }
@@ -143,6 +195,7 @@ export class Corsa {
     }
 
     this.aggiornaSuoni();
+    this.orso?.aggiorna(dt, squadra, dtReale);
 
     // --- Grafica: omini, effetti, telecamera, interfaccia ---
     squadra.aggiorna(dt, this.tempo);
@@ -152,7 +205,12 @@ export class Corsa {
     const coda = squadra.distanza - carro.distanza + carro.lunghezza / 2; // dal centro della folla al retro del carro
     const allungamento = Math.max(0, coda - CODA_NORMALE);
     const zoom = (1 + (carro.scala - 1) * CONFIG.telecamera.allontanamentoCarro) * (1 + allungamento * 0.04);
-    this.mondo.segui(squadra.x, squadra.y, -squadra.distanza + allungamento * 0.6, dt, zoom);
+    if (this.stato === 'scontro' && this.orso) {
+      // durante lo scontro la telecamera si ferma e inquadra insieme squadra e orso
+      this.mondo.segui(0, 0, -this.orso.centroInquadratura, dt, CONFIG.orso.zoomTelecamera);
+    } else {
+      this.mondo.segui(squadra.x, squadra.y, -squadra.distanza + allungamento * 0.6, dt, zoom);
+    }
     this.schermate.aggiornaCorsa({
       boscaioli: squadra.numero,
       legna: carro.legna,
