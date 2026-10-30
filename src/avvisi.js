@@ -59,8 +59,9 @@ export const AVVISI = {
   },
   primoCantiere: {
     titolo: 'Lavori in corso!',
-    testo: 'Pagato! I lavori partono sulla costruzione: la barra si riempie e solo alla fine vedi il miglioramento. Nel frattempo funziona come prima.',
+    testo: 'Pagato in un attimo! La costruzione cresce a fasi mentre la barra si riempie: puntelli, travi, assi e infine i teli, con gli operai al lavoro. Alla fine i teli si alzano e compare il miglioramento. Nel frattempo funziona come prima.',
   },
+
   legnaInEsaurimento: {
     titolo: 'Legna in esaurimento!',
     testo: 'Nella catasta restano meno di 10 pezzi (l’icona lampeggia): senza legna non hai niente da vendere. Fai una corsa per portarne di nuova.',

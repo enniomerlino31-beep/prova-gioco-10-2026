@@ -39,7 +39,7 @@ import { BoscaioloSecondario, durataGiro } from './secondario.js';
 import { lavoroOffline, secondiDiAssenza } from './offline.js';
 import { creaBarraGigante } from './barraGigante.js';
 import { CerchioRiparazione } from './cerchioRiparazione.js';
-import { Cantiere } from './cantiere.js';
+import { Cantiere, DURATA_SVELAMENTO_MASSIMA } from './cantiere.js';
 import { ArrivoLavoratore, durataArrivo } from './arrivo.js';
 import { Avvisi } from '../avvisi.js';
 import { suoni } from '../motore/suoni.js';
@@ -258,6 +258,8 @@ export class Segheria {
     this.pavimento = new Pavimento(this.radice, this.effetti);
     // I lavori in corso (cantieri) rimasti dall'ultima volta: ognuno sta sulla sua costruzione (il suo cerchio è nascosto)
     this.cantieri = [];
+    this.svelamenti = []; // i cantieri appena finiti che stanno togliendo teli e operai (vedi finisceCantiere)
+    this.fileMura = ambiente.palizzata.file; // le file di pali: i cantieri delle mura le coprono con i teli
     this.arrivi = []; // i lavoratori che stanno arrivando a piedi da un cancello (vedi arrivaALavorare)
     for (const lavori of s.cantieri) this.avviaCantiere(lavori.cerchio, lavori.durata, lavori.rimasto, false);
     this.cacciatori = []; // il primo esce dal cancello di sinistra, il secondo da quello di destra
@@ -978,18 +980,19 @@ export class Segheria {
     this.salvaOra();
   }
 
-  // Dove sta il cantiere di un livello: sulla cosa migliorata. Mura e riparazione: impalcature intorno alla palizzata;
-  // torretta: sulle torri nuove (o su tutte, con "Potenzia arcieri"); pavimento: nel punto del cerchio, al centro della base.
+  // Dove sta il cantiere di un livello: sulla cosa migliorata. Mura: la palizzata avvolta dai teli (la riparazione non ha cantiere);
+  // torretta: sulle torri nuove (o su tutte, con "Potenzia arcieri"), avvolte dai teli; pavimento: nel punto del cerchio,
+  // al centro della base.
   cantierePer(cerchio) {
     const livello = cerchio.livello;
     const catena = livello.catena ?? cerchio.nomeCatena;
-    if (catena === 'mura' || catena === 'riparazione') return { tipo: 'mura', punti: [] };
+    if (catena === 'mura') return { tipo: 'mura', punti: [], file: this.fileMura };
     if (catena === 'torretta') {
       const prima = CONFIG.miglioramenti.torretta[livello.indice - 1];
       const nuove = [];
       for (let i = prima?.torri ?? 0; i < livello.torri; i++) nuove.push(i);
       const indici = nuove.length > 0 ? nuove : this.torrette.torri.map((_, i) => i).filter((i) => i < livello.torri);
-      return { tipo: 'locale', punti: indici.map((i) => this.torrette.torri[i].posizione) };
+      return { tipo: 'torre', punti: indici.map((i) => this.torrette.torri[i].posizione) };
     }
     return { tipo: 'locale', punti: [cerchio.posizione] };
   }
@@ -1000,7 +1003,7 @@ export class Segheria {
     const cerchio = this.cerchi[nomeCerchio];
     if (!cerchio) return;
     cerchio.nomeCatena = nomeCerchio; // per il pavimento (il cerchio e la catena hanno lo stesso nome)
-    const cantiere = new Cantiere(this.radice, this.effetti, { ...this.cantierePer(cerchio), durata, rimasto });
+    const cantiere = new Cantiere(this.radice, this.effetti, { ...this.cantierePer(cerchio), durata, rimasto, ascolto: (x, z) => this.ascoltoLavori(x, z) });
     if (!conAnimazione) cantiere.comparsa = 1;
     cerchio.iniziaCantiere();
     if (!conAnimazione) {
@@ -1010,28 +1013,75 @@ export class Segheria {
     this.cantieri.push({ cerchio: nomeCerchio, cantiere });
   }
 
-  // A ogni fotogramma i cantieri vanno avanti; finiti i lavori (e quando la telecamera non sta mostrando un'altra cosa)
-  // arriva il miglioramento
+  // A ogni fotogramma i cantieri vanno avanti. Finiti i lavori (barra piena): se serve la telecamera va a guardare, e quando è
+  // arrivata partono INSIEME i teli che si alzano e, dopo l'attimo in cui il primo telo comincia a salire, il miglioramento vero
+  // (vedi iniziaFinale e finisceCantiere). Se la telecamera è occupata o si vede già tutto, parte subito, ma sempre insieme.
   aggiornaCantieri(dt) {
     for (const voce of [...this.cantieri]) {
       voce.cantiere.aggiorna(dt);
-      if (voce.cantiere.finito && !this.regia) this.finisceCantiere(voce);
+      if (!voce.cantiere.finito) continue;
+      if (!voce.fase) this.iniziaFinale(voce);
+      else if (voce.fase === 'svela' && voce.cantiere.svelando >= voce.cantiere.attesaEffetto) this.finisceCantiere(voce);
+    }
+    // quelli già finiti: operai che se ne vanno e teli che si alzano, poi si tolgono
+    for (const cantiere of [...this.svelamenti]) {
+      cantiere.aggiorna(dt);
+      if (cantiere.svelato) {
+        cantiere.distruggi();
+        this.svelamenti.splice(this.svelamenti.indexOf(cantiere), 1);
+      }
     }
   }
 
-  // Lavori finiti: il cantiere sparisce e il miglioramento compare, come prima del Gruppo 7 appena pagato
+  // Barra piena. Il cantiere resta nella lista (e nel salvataggio, con 0 secondi che mancano) finché il miglioramento non è
+  // effettivo: se si esce dalla pagina prima, al ritorno il miglioramento c'è già (vedi lavoroMentreVia).
+  iniziaFinale(voce) {
+    const cantiere = voce.cantiere;
+    voce.fase = 'attesa';
+    const parti = () => {
+      voce.fase = 'svela';
+      cantiere.svela(); // operai che esultano e se ne vanno, teli che si alzano
+    };
+    // mura e pavimento: la telecamera va sempre a vederli; le torrette solo se non si vedono già tutte
+    const sempre = cantiere.tipo !== 'torre';
+    const visto = cantiere.punti.every((punto) => this.visibile(punto));
+    if (!this.regia && !this.inFesta && (sempre || !visto)) {
+      // la telecamera arriva e SOLO ALLORA parte tutto: così il miglioramento non aspetta il viaggio della telecamera mentre i teli già salgono
+      this.regia = {
+        tappe: [{ punto: cantiere.centro.clone(), zoom: this.zoomCantiere(cantiere), sempre: true, sosta: DURATA_SVELAMENTO_MASSIMA + 0.2, punti: cantiere.punti, azione: parti, senzaTesto: true }],
+        indice: 0, tempo: 0, nome: voce.cantiere.tipo,
+      };
+    } else {
+      parti();
+    }
+  }
+
+  // Il primo telo comincia ad alzarsi: ADESSO il miglioramento diventa effettivo (mura più forti, torrette attive, pavimento nuovo...).
+  // Il cantiere esce dalla lista; resta solo da togliere in scena (svelamenti).
   finisceCantiere(voce) {
     this.cantieri.splice(this.cantieri.indexOf(voce), 1);
-    for (const punto of voce.cantiere.punti) this.effetti.sbuffo(punto.x, 0.5, punto.z, 0xd9c8a8, 20, 3);
-    voce.cantiere.distruggi();
+    this.svelamenti.push(voce.cantiere);
     this.cerchi[voce.cerchio].finisciCantiere();
-    this.completaMiglioramento(voce.cerchio);
+    this.completaMiglioramento(voce.cerchio, { daCantiere: true });
+  }
+
+  // Quanto si sente un rumore di lavori nel punto (x, z): 0 se il punto non si vede e il boscaiolo è lontano (più di 7 metri),
+  // altrimenti da 1 (vicino) a 0,25 (lontano)
+  ascoltoLavori(x, z) {
+    const { posizione } = this.giocatore;
+    const distanza = Math.hypot(posizione.x - x, posizione.z - z);
+    const p = new THREE.Vector3(x, 1.5, z).project(this.telecamera);
+    const visto = Math.abs(p.x) < 1.1 && Math.abs(p.y) < 1.1 && p.z < 1;
+    if (!visto && distanza > 7) return 0;
+    return THREE.MathUtils.clamp(1.15 - distanza / 18, 0.25, 1);
   }
 
   // Il miglioramento compare e il cerchio passa al prossimo acquisto
   // Se compare lontano o fuori dallo schermo, la telecamera va a vederlo (vedi aggiornaRegia).
   // nomeCerchio: 'difesa', 'economia' o un pavimento
-  completaMiglioramento(nomeCerchio) {
+  // daCantiere: arriva dalla fine di un cantiere: la telecamera sta già guardando (o non serve) e i teli si alzano adesso, quindi
+  // le tappe del miglioramento partono tutte insieme, subito (solo quelle "extra", come il banco del cacciatore, vanno dopo)
+  completaMiglioramento(nomeCerchio, { daCantiere = false } = {}) {
     const cerchio = this.cerchi[nomeCerchio];
     const livello = cerchio.livello;
     const nome = livello.catena ?? nomeCerchio; // la catena di quel livello (mura, torretta...) o il pavimento
@@ -1042,9 +1092,17 @@ export class Segheria {
     this.effetti.sbuffo(x, 0.4, z, 0x9be37a, 24, 3.5);
     suoni.suona('acquisto');
     const tappe = this.tappeDelMiglioramento(nome, livello);
-    const daMostrare = tappe.filter((tappa) => tappa.sempre || !tappa.punti.every((punto) => this.visibile(punto)));
-    for (const tappa of tappe) if (!daMostrare.includes(tappa)) tappa.azione();
-    if (daMostrare.length > 0) this.regia = { tappe: daMostrare, indice: 0, tempo: 0, nome: livello.nome };
+    if (daCantiere) {
+      for (const tappa of tappe) if (!tappa.extra) tappa.azione(); // il miglioramento vero: tutto insieme, adesso
+    }
+    const altre = daCantiere ? tappe.filter((tappa) => tappa.extra) : tappe;
+    const daMostrare = altre.filter((tappa) => tappa.sempre || !tappa.punti.every((punto) => this.visibile(punto)));
+    for (const tappa of altre) if (!daMostrare.includes(tappa)) tappa.azione();
+    if (daMostrare.length > 0) {
+      // se la telecamera sta già facendo il giro (quello del cantiere), le tappe in più vanno in coda
+      if (this.regia) this.regia.tappe.push(...daMostrare);
+      else this.regia = { tappe: daMostrare, indice: 0, tempo: 0, nome: livello.nome };
+    }
     this.salvaOra();
   }
 
@@ -1101,9 +1159,14 @@ export class Segheria {
       // con le mura di pietra compare anche il banco del cacciatore
       if (!this.bancoAperto) {
         this.bancoAperto = true;
-        tappe.push(tappa(MAPPA.bancoCacciatore, () => this.banco.mostra(true)));
+        tappe.push({ ...tappa(MAPPA.bancoCacciatore, () => this.banco.mostra(true)), extra: true }); // non fa parte del cantiere: ha la sua inquadratura dopo
       }
       return tappe;
+    }
+    // La riparazione non ha cantiere: vale subito, con un piccolo effetto di ripristino lungo la palizzata
+    if (nome === 'riparazione') {
+      this.effettoRipristino();
+      return [];
     }
     if (nome in PAVIMENTI) {
       // la telecamera si alza e guarda il pavimento nuovo che si allarga dal cerchio fino a coprire tutta la base
@@ -1170,6 +1233,31 @@ export class Segheria {
       return [];
     }
     return [];
+  }
+
+  // Effetto sobrio di ripristino (la riparazione appena comprata): un'onda di piccole scintille verdi fa il giro della palizzata,
+  // partendo dal cerchio della riparazione. Pochi punti (un palo ogni cinque), nessuna telecamera, nessun suono in più.
+  effettoRipristino() {
+    const origine = Math.atan2(MAPPA.miglioramenti.riparazione.z, MAPPA.miglioramenti.riparazione.x);
+    const punti = [];
+    this.mura.pali.forEach((palo, i) => {
+      if (i % 5 !== 0) return;
+      const d = Math.atan2(palo.position.z, palo.position.x) - origine;
+      punti.push({ x: palo.position.x, z: palo.position.z, ritardo: (Math.abs(Math.atan2(Math.sin(d), Math.cos(d))) / Math.PI) * 1.2 });
+    });
+    this.ripristino = { tempo: 0, punti };
+  }
+
+  aggiornaRipristino(dt) {
+    const r = this.ripristino;
+    if (!r) return;
+    r.tempo += dt;
+    r.punti = r.punti.filter((punto) => {
+      if (r.tempo < punto.ritardo) return true;
+      this.effetti.sbuffo(punto.x, 1.3, punto.z, 0x9be37a, 2, 1.1);
+      return false;
+    });
+    if (r.punti.length === 0) this.ripristino = null;
   }
 
   // Un cacciatore nuovo, già al suo posto (arrivato a piedi)
@@ -1505,10 +1593,11 @@ export class Segheria {
 
   // Quanto allontanare la telecamera per vedere un cantiere: quello sulle mura deve far vedere tutta la palizzata e il cartello
   zoomCantiere(cantiere) {
+    if (cantiere.tipo === 'torre' && cantiere.punti.length > 1) return this.zoomPerVedere(cantiere.punti, cantiere.centro); // tutte le torrette nello schermo
     if (cantiere.tipo !== 'mura') return cantiere.zoom;
     const M = MAPPA.mura;
     const punti = [{ x: M.sinistra - 1, z: M.fondo - 1 }, { x: M.destra + 1, z: M.fondo - 1 }, { x: M.sinistra - 1, z: M.fronte + 2 }, { x: M.destra + 1, z: M.fronte + 2 }];
-    return Math.min(1.6, this.zoomPerVedere(punti, cantiere.centro)); // sul telefono (schermo stretto) non troppo lontano: si vedono le impalcature davanti e il cartello
+    return Math.min(1.6, this.zoomPerVedere(punti, cantiere.centro)); // sul telefono (schermo stretto) non troppo lontano: si vedono i teli davanti e il cartello
   }
 
   // Il gioco è fermo: la telecamera va sulla novità (o torna sul boscaiolo) e aspetta il tocco che chiude il riquadro
@@ -1605,6 +1694,7 @@ export class Segheria {
     for (const sportello of Object.values(this.sportelli)) sportello.aggiorna(dt);
     this.catasta.aggiorna(dt);
     this.aggiornaCantieri(dt);
+    this.aggiornaRipristino(dt);
     for (const arrivo of this.arrivi) arrivo.aggiorna(dt); // i lavoratori che arrivano a piedi
     this.arrivi = this.arrivi.filter((arrivo) => !arrivo.finito);
     this.aiutante?.aggiorna(dt);

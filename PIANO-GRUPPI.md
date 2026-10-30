@@ -42,8 +42,16 @@ Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il g
 ## Cosa resta da fare
 
 Piano dato dall'utente il 2026-10-30 (testo originale). Si lavora un gruppo alla volta, nell'ordine 6 → 11.
-**Stato: il Gruppo 6 è fatto, approvato e salvato (734bc33). Il Gruppo 7 è fatto e aspetta la prova dell'utente (non ancora committato); i Gruppi 8-11 non sono iniziati.**
+**Stato (fine sessione del 2026-10-30): il Gruppo 6 è fatto, approvato e salvato (734bc33). Il Gruppo 7 è fatto ma NON ancora provato dall'utente. Il commit 6c699b5 (su `main`, già inviato) ha la prima versione. Tutte le correzioni del 2026-10-30 sono salvate nel ramo separato `bozza-gruppo7` (su GitHub), NON ancora unite a `main`: pagamenti tutti da 1,5 s, cantieri rifatti (fasi, operai, svelamento, suoni dei lavori, sega), riparazione senza cantiere, torrette tutte insieme, miglioramento effettivo quando i teli si alzano. Restano da fare: la prova dell'utente, poi l'unione a `main` con un commit finale; la proposta di durata dei lavori (sotto, NON applicata, aspetta l'ok dell'utente); il Gruppo 8 (non iniziato). Per riprendere: vedi la sezione "Come riprendere" qui sotto.**
 Gruppo 6, com'è fatto: vedi README, “Avvisi delle novità”. Il sistema è in `src/avvisi.js`: per aggiungere un avviso (anche nei Gruppi 8-11: giornata, personale, nuove zone, affumicatoio, clienti...) basta un testo in `AVVISI` e una riga in `controllaAvvisi` (`segheria.js` per la base, `corsa.js` per la corsa).
+
+### Come riprendere (scritto a fine sessione, 2026-10-30)
+
+1. Passare al ramo di bozza: `git checkout bozza-gruppo7` (il lavoro di oggi è solo lì; `main` è fermo a 6c699b5).
+2. Riaccendere il server di prova: `npm run dev` e aprire `http://localhost:5173/?reset&ricco&cantieri=1` (sul telefono: l'indirizzo di rete che stampa Vite).
+3. L'utente prova: cantieri (mura di pietra, torrette, pavimento), riparazione senza cantiere, pagamenti da 1,5 s, suono della sega, avviso "Lavori in corso!". Eventuali correzioni si fanno sullo stesso ramo.
+4. Dopo l'ok dell'utente: unire a `main` (`git checkout main`, `git merge bozza-gruppo7`) con un commit finale, inviare su GitHub (`git push`) e aggiornare README e questo piano (togliere "da provare").
+5. Poi: decidere la proposta di durata dei lavori (tabella più sotto, non applicata) e iniziare il Gruppo 8.
 
 ### Gruppo 7: com'è fatto (da provare) e tabella prima / dopo
 
@@ -63,14 +71,29 @@ Versione definitiva della richiesta (2026-10-30, dopo la prima prova): **catasta
 | Venditore della carne / svelto / esperto | 100 / 200 / 400 (×1,6 / ×2,2 / ×3) | 250 / 450 / 900 (×1 / ×2 / ×3); arrivo a piedi, niente cantiere |
 | Mura di pietra / metallo | 250 / 600 | 250 / 450; cantiere sulle mura 6 / 45 s |
 | Torrette 1-6 | 150, 150, 250, 250, 600, 1200 | 250, 250, 400, 400, 800, 1500; cantiere sulla torretta 8, 10, 15, 20, 35, 50 s |
-| Riparazione 1-3 | 100, 200, 400 | 250, 350, 700; cantiere sulle mura 10, 20, 30 s |
+| Riparazione 1-3 | 100, 200, 400 | 250, 350, 700; **nessun cantiere** (vale subito, con un piccolo effetto di ripristino; tolto il 2026-10-30) |
 | Aiutante | 120 | 250; arriva a piedi (niente cantiere) |
 | Cacciatore / secondo / esperto | 200 / 300 / 400 | 250 / 300 / 500; a piedi, niente cantiere |
 | Pavimento in pietra | 300 | 250; cantiere 30 s |
 | Boscaiolo secondario | 5000 | 5000 (sempre l'ultimo); arriva a piedi |
-| Pagamento | 12 voli di monete in 1,5 s | a goccia: un pacchetto di monete ogni 0,25 s (8-60 gocce: da 2 a 15 secondi) |
-| Cantieri | nessuno (subito) | solo per le costruzioni, sulla cosa migliorata, da 6 a 50 s |
+| Pagamento | 12 voli di monete in 1,5 s | prima a goccia (da 2 a 15 s), poi **di nuovo 12 voli in 1,5 s per tutti** (lavoratori e costruzioni), 2026-10-30 |
+| Cantieri | nessuno (subito) | solo per le costruzioni, sulla cosa migliorata, da 6 a 50 s (durata indipendente dal pagamento); mura e torrette **avvolte da teli** costruiti a fasi legate alla barra (puntelli 20%, travi 20%, assi 20%, teli 40%), operai che salgono, camminano, portano assi e martellano, svelamento sotto i 3 s, suoni dei lavori e sega (rifatto il 2026-10-30; prima erano impalcature intorno) |
 | Tempo per arrivare al boscaiolo secondario | pochi minuti | circa 17-18 minuti (modello di calcolo; primo acquisto a pagamento dopo circa 40 s di vendite, circa 1 minuto giocando) |
+
+### Proposta durata dei cantieri (2026-10-30, **NON applicata**: aspetta l'ok dell'utente)
+
+Oggi (a velocità normale, senza `?cantieri`): mura di pietra 6 s, rinforzo in metallo 45 s; (la riparazione non ha più il cantiere); torrette 8 / 10 / 15 / 20 / 35 / 50 s; pavimento 30 s. Con 4 fasi (20-20-20-40%) i lavori sotto i 15 secondi passano troppo in fretta: ogni fase dura meno di 3 secondi.
+
+| Cosa | Oggi | Proposta |
+|---|---|---|
+| Mura di pietra | 6 s | **20 s** |
+| Rinforzo in metallo | 45 s | **30 s** (più lungo del precedente ma non esagerato) |
+| Torretta sinistra 1 / destra 1 | 8 / 10 s | **15 / 15 s** |
+| Torretta sinistra 2 / destra 2 | 15 / 20 s | **18 / 20 s** |
+| Potenzia arcieri 1 / 2 | 35 / 50 s | **30 / 40 s** |
+| Pavimento in pietra | 30 s | **30 s** (invariato: non ha fasi) |
+
+Equilibrio: la durata dei lavori non blocca i guadagni (le monete si accumulano mentre si aspetta), ma ritarda l'effetto di quello che si compra. **La somma dei tempi è poco più bassa** (219 s oggi, 218 s con la proposta, senza la riparazione): cambia solo come sono distribuiti, più lunghi all'inizio (mura +14 s, torrette +7 e +5 s) e più corti verso la fine (rinforzo -15 s, potenzia arcieri -5 e -10 s). Il punto più sensibile è il primo: le mura di pietra portano i lupi e il banco del cacciatore (da cui compaiono aiutante e cacciatore), quindi 20 s invece di 6 spostano la catena di circa 14 s; ma la fine è più veloce, quindi il boscaiolo secondario resta intorno ai 16-17 minuti, dentro l'obiettivo 15-20. Il primo acquisto a pagamento (dopo circa 1 minuto) non cambia. Stima fatta a mano, non con il modello di calcolo.
 
 ```
 GRUPPO 6 - Avvisi e mini tutorial

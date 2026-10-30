@@ -32,7 +32,8 @@ const SFUMATURA_CAMBIO = 2;   // secondi in cui una musica sfuma e l'altra sale 
 const SFUMATURA_MUSICA = 1;   // secondi in cui la fine della musica sfuma nell'inizio della ripetizione (breve, senza stacchi né silenzi)
 
 // I file di ogni effetto (più file = uno a caso), il volume (0-1), la pausa minima tra due uguali (s) e quanti
-// uguali al massimo insieme. varia: di quanto può cambiare a caso il tono (0.05 = ±5%), per non stancare l'orecchio
+// uguali al massimo insieme. varia: di quanto può cambiare a caso il tono (0.05 = ±5%), per non stancare l'orecchio.
+// passaBasso (facoltativo): toglie gli acuti sopra quella frequenza (Hz), per un suono lontano e ovattato
 const tanti = (nome, n) => Array.from({ length: n }, (_, i) => `${nome}-${i + 1}`);
 const EFFETTI = {
   // --- Base ---
@@ -68,6 +69,11 @@ const EFFETTI = {
   armatura: { file: ['armatura'], volume: 0.68, pausa: 0.3, insieme: 2, varia: 0.04 },
   lastra: { file: tanti('lastra', 2), volume: 0.59, pausa: 0.2, insieme: 2, varia: 0.04 },
   comparsa: { file: ['comparsa'], volume: 0.59, pausa: 0.2, insieme: 2, varia: 0.04 },
+  // --- Lavori dei cantieri (Gruppo 7): bassi e morbidi, con i file già nel gioco ---
+  martello: { file: tanti('morso', 3), volume: 0.34, pausa: 0.1, insieme: 3, varia: 0.1 },        // colpo di martello su un'asse (legno leggero)
+  asseAppoggiata: { file: ['legna-deposito', 'legna-schiena'], volume: 0.3, pausa: 1.5, insieme: 1, varia: 0.06 }, // un'asse posata sulle altre
+  sega: { file: tanti('sega', 2), volume: 0.3, pausa: 6, insieme: 1, varia: 0.04 },                       // una sega a mano su una trave o un'asse (CC0, vedi CREDITI-SUONI.md)
+  voceOperaio: { file: ['grido-1'], volume: 0.1, pausa: 6, insieme: 1, varia: 0.1, passaBasso: 1500 },           // un "ehi!" lontano e ovattato
   // --- Corsa ---
   taglio: { file: tanti('taglio', 3), volume: 0.85, pausa: CONFIG.audio.colpiTaglio, insieme: 2, varia: 0.05 }, // ascia sul legno dell'albero
   grido: { file: tanti('grido', 6), volume: 0.8, pausa: CONFIG.audio.pausaGrida, insieme: 1, varia: 0.04 }, // incitamento allegro dei boscaioli
@@ -229,7 +235,16 @@ class Suoni {
     if (effetto.varia) sorgente.playbackRate.value = 1 + (Math.random() * 2 - 1) * effetto.varia;
     const g = c.createGain();
     g.gain.value = effetto.volume * volume;
-    sorgente.connect(g);
+    if (effetto.passaBasso) {
+      // suono lontano: senza gli acuti suona ovattato
+      const filtro = c.createBiquadFilter();
+      filtro.type = 'lowpass';
+      filtro.frequency.value = effetto.passaBasso;
+      sorgente.connect(filtro);
+      filtro.connect(g);
+    } else {
+      sorgente.connect(g);
+    }
     g.connect(this.uscitaEffetti);
     sorgente.start(inizio);
     const fine = inizio + buffer.duration / sorgente.playbackRate.value;

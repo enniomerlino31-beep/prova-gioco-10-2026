@@ -1,7 +1,7 @@
 # Crediti dei suoni
 
 Non ci sono suoni delle frecce (tolti su richiesta). Tutti i suoni e le musiche del gioco hanno licenza **CC0** (pubblico dominio: si possono usare anche in un gioco da vendere, senza obbligo di citare l'autore). Li citiamo comunque per riconoscenza.
-I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compressi in mp3 (effetti mono a 96 kbps, musiche stereo), senza filtri che tolgano gli acuti. In tutto pesano circa 2,0 MB (89 file).
+I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compressi in mp3 (effetti mono a 96 kbps, musiche stereo), senza filtri che tolgano gli acuti. In tutto pesano circa 2,1 MB (91 file).
 
 ## Fonti
 
@@ -30,6 +30,8 @@ I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compre
 | Grido "~Yeah!" | bogenseeberg | 475444 |
 | Grido "woohoo" | unfa | 468898 |
 | Grido "MaleVoiceWoohoo" | melisandepope | 557125 |
+
+| Sega a mano sul legno (cantieri) "sawing of wood sound effect.wav", vecchia sega di metallo che taglia un pezzo di legno | greggace | 118031 |
 
 (pagina del suono: `https://freesound.org/s/<numero>/`)
 
@@ -82,6 +84,12 @@ I file in `public/suoni/` sono stati tagliati, con il volume pareggiato e compre
 | musica-paura | musica inquietante mentre c'è il lupo gigante (loop di circa 29 s, tesa e cupa, con bassi e droni scuri; sfuma al posto dell'ukulele e poi torna) | Freesound 155139 "Action music loop with dark ambient drones", burning-mir |
 | riparazione-mura | le mura sono state riparate con la legna (tre colpetti di martello sul legno e un campanellino) | Kenney Impact: impactWood_light_000-002 + Kenney Jingles Pizzicato: PIZZI08 |
 | cerchio-riparazione | compare il grande cerchio verde per riparare le mura (un tonfo morbido e un campanellino) | Kenney Impact: impactSoft_heavy_000 (più basso) + Kenney Jingles Pizzicato: PIZZI12 |
+
+## Suoni dei lavori dei cantieri (Gruppo 7)
+| File | A cosa serve | Fonte |
+|---|---|---|
+| sega-1, sega-2 | una sega a mano che taglia una trave o un'asse, ogni tanto, nelle fasi di travi e assi del cantiere | Freesound 118031 "sawing of wood sound effect.wav", **greggace**, licenza **CC0** (https://freesound.org/people/greggace/sounds/118031/): due pezzi di 3 secondi (dal 4° al 7° e dall'8° all'11° secondo dell'originale), resi mono, con inizio e fine dolci, volume pareggiato e compressi in mp3 a 96 kbps |
+| (martello, asse posata, "ehi!" lontano) | usano file già presenti: morso-1…3, legna-deposito, legna-schiena, grido-1 (vedi `EFFETTI` in `suoni.js`) | Kenney Impact / Freesound 57204 |
 
 ## Suoni dell'orso gigante (Gruppo 4)
 | File | A cosa serve | Fonte |

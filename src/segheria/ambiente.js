@@ -141,6 +141,7 @@ export function creaAmbiente() {
   const pali = [];         // { position, userData: { normale } } (normale = da che parte è "fuori": le rocce stanno solo lì)
   const collegamenti = []; // coppie di pali vicini nella stessa fila [indiceA, indiceB] (servono per le fasce di metallo)
   const muri = [];
+  const file = [];         // le file dritte di pali { x1, z1, x2, z2, normale } (le usa il cantiere per coprire la palizzata con i teli)
   // Pali in fila dritta da (x1, z1) a (x2, z2), con un palo a ogni estremità (le file sono sempre dritte in x o in z)
   const filaDiPali = (x1, z1, x2, z2, normale) => {
     const n = Math.max(1, Math.round(Math.hypot(x2 - x1, z2 - z1) / PASSO_PALI));
@@ -148,6 +149,7 @@ export function creaAmbiente() {
       if (i > 0) collegamenti.push([pali.length - 1, pali.length]);
       pali.push({ position: new THREE.Vector3(x1 + ((x2 - x1) * i) / n, 0, z1 + ((z2 - z1) * i) / n), userData: { normale } });
     }
+    file.push({ x1, z1, x2, z2, normale });
     muri.push({
       x: (x1 + x2) / 2,
       z: (z1 + z2) / 2,
@@ -178,7 +180,7 @@ export function creaAmbiente() {
   // i due lati partono un passo dopo gli angoli (i pali d'angolo ci sono già)
   for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, varchiCancelli({ x: -1, z: 0 }))) filaDiPali(M.sinistra, a, M.sinistra, b, { x: -1, z: 0 });
   for (const [a, b] of tratti(M.fondo + PASSO_PALI, M.fronte - PASSO_PALI, varchiCancelli({ x: 1, z: 0 }))) filaDiPali(M.destra, a, M.destra, b, { x: 1, z: 0 });
-  const palizzata = { pali, collegamenti };
+  const palizzata = { pali, collegamenti, file };
 
   // Sentiero che esce dal cancello della corsa e arriva alla segheria
   const sentiero = new THREE.Mesh(new THREE.PlaneGeometry(2.6, 3.4), tinta(0xbfcfe2));

@@ -338,9 +338,9 @@ export const CONFIG = {
       { nome: 'Rinforzo in metallo', prezzo: 450, icona: 'metallo', hpMura: 1500, cantiere: 45 }, // assi di ferro con i bulloni tra i pali
     ],
     riparazione: [ // le mura recuperano vita da sole, lentamente (vita al secondo)
-      { nome: 'Riparazione', prezzo: 250, icona: 'martello', vitaAlSecondo: 0.8, cantiere: 10 },
-      { nome: 'Riparazione veloce', prezzo: 350, icona: 'martello', vitaAlSecondo: 1.6, cantiere: 20 },
-      { nome: 'Riparazione esperta', prezzo: 700, icona: 'martello', vitaAlSecondo: 3.2, cantiere: 30 },
+      { nome: 'Riparazione', prezzo: 250, icona: 'martello', vitaAlSecondo: 0.8 },
+      { nome: 'Riparazione veloce', prezzo: 350, icona: 'martello', vitaAlSecondo: 1.6 },
+      { nome: 'Riparazione esperta', prezzo: 700, icona: 'martello', vitaAlSecondo: 3.2 },
     ],
     // Torri di legno sulle mura con un arciere che tira frecce ai lupi: due torri per lato (quattro in tutto),
     // poi "Potenzia arcieri" per tutte. torri = quante torri ci sono (nell'ordine di MAPPA.torri).
@@ -392,13 +392,9 @@ export const CONFIG = {
     pavimentoPietra: [
       { nome: 'Pavimento in pietra', etichetta: 'Pietra', prezzo: 250, icona: 'pavimento', cantiere: 30 }, // etichetta: scritta sopra il cerchio
     ],
-    // Il pagamento a goccia (Gruppo 7): le monete entrano nel cerchio una alla volta, ogni "intervalloGoccia" secondi.
-    // Ogni goccia vale prezzo / numero di gocce; le gocce sono tante quanto il prezzo diviso "monetePerGoccia", ma mai meno di
-    // "gocceMinime" né più di "gocceMassime" (così un acquisto da 5000 non dura più di 1-2 minuti).
-    intervalloGoccia: 0.25,
-    monetePerGoccia: 25,
-    gocceMinime: 8,
-    gocceMassime: 60,
+    // Il pagamento: tutti i livelli (lavoratori e costruzioni) si pagano in questi secondi stando sul cerchio, in 12 voli di monete,
+    // qualunque sia il prezzo (era a goccia nel Gruppo 7, poi ripristinato). Non c'entra con la durata dei cantieri.
+    tempoPagamento: 1.5,
     tempoGratis: 1.2,        // il cerchio gratuito (venditore della legna) si riempie in questi secondi stando sopra
   },
 

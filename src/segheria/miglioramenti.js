@@ -21,6 +21,7 @@ import { suoni } from '../motore/suoni.js';
 
 const RAGGIO = 1.2;           // come gli altri cerchi a terra (es. il deposito degli sportelli)
 const LARGHEZZA_BARRA = 0.24; // spessore della barra circolare
+const PASSI_PAGAMENTO = 12;   // in quanti "voli" di monete si paga un livello (come prima del Gruppo 7)
 const ALTEZZA_SCRITTA = 0.95; // la scritta a terra sopra il cerchio (metri)
 
 export class CerchioMiglioramento {
@@ -168,22 +169,18 @@ export class CerchioMiglioramento {
     return Math.hypot(posizione.x - this.posizione.x, posizione.z - this.posizione.z) < this.raggio;
   }
 
-  // Quante gocce di monete servono per pagare un livello intero (Gruppo 7: le monete entrano nel cerchio una alla volta)
-  static gocce(prezzo) {
-    const M = CONFIG.miglioramenti;
-    return Math.min(M.gocceMassime, Math.max(M.gocceMinime, Math.round(prezzo / M.monetePerGoccia)));
-  }
-
-  // Quanti soldi mandare nella prossima goccia (0 = niente da pagare adesso)
+  // Quanti soldi mandare nel prossimo volo (0 = niente da pagare adesso). Tutti i livelli, costruzioni comprese, si pagano
+  // in 12 voli di monete in tempoPagamento secondi (1,5), qualunque sia il prezzo. La durata dei lavori di un cantiere non c'entra:
+  // è in "cantiere" di ogni livello (CONFIG.miglioramenti) e parte dopo il pagamento.
   prossimaRata(soldiInTasca, dt) {
     if (!this.attivo || this.livello.gratis) return 0;
     this.attesa -= dt;
     if (this.attesa > 0) return 0;
     const prezzo = this.livello.prezzo;
     const mancante = prezzo - this.pagato - this.inArrivo;
-    const rata = Math.min(mancante, Math.floor(soldiInTasca), Math.ceil(prezzo / CerchioMiglioramento.gocce(prezzo)));
+    const rata = Math.min(mancante, Math.floor(soldiInTasca), Math.ceil(prezzo / PASSI_PAGAMENTO));
     if (rata <= 0) return 0;
-    this.attesa = CONFIG.miglioramenti.intervalloGoccia;
+    this.attesa = CONFIG.miglioramenti.tempoPagamento / PASSI_PAGAMENTO;
     this.inArrivo += rata;
     return rata;
   }
