@@ -39,6 +39,7 @@ import { BoscaioloSecondario, durataGiro } from './secondario.js';
 import { lavoroOffline, secondiDiAssenza } from './offline.js';
 import { creaBarraGigante } from './barraGigante.js';
 import { CerchioRiparazione } from './cerchioRiparazione.js';
+import { Avvisi } from '../avvisi.js';
 import { suoni } from '../motore/suoni.js';
 import { creaLupo } from '../modelli/lupo.js';
 import { animaGaloppo, animaMorso, animaPassoPesante, animaUlulato, COLPO } from '../modelli/animazioni.js';
@@ -130,6 +131,13 @@ export class Segheria {
     this.moneteInfinite = indirizzo.has('moneteinfinite');
     // Per le prove: con ?tuttocomprato è già comprato tutto tranne il boscaiolo secondario, con 5000 monete in tasca
     if (indirizzo.has('tuttocomprato')) this.compraTuttoPerProva();
+    // Gli avvisi delle novità (vedi src/avvisi.js). Per le prove: con ?avvisi si rivedono tutti da capo
+    if (indirizzo.has('avvisi')) {
+      s.avvisiVisti = [];
+      togliDallIndirizzo('avvisi');
+      salva(s);
+    }
+    this.avvisi = new Avvisi(s, () => this.salvaOra());
     // Mentre si era via la base ha lavorato (?offline=N finge N minuti di assenza, per provare)
     this.lavoroMentreVia(indirizzo.get('offline'));
 
@@ -323,12 +331,14 @@ export class Segheria {
   apriBentornato() {
     const guadagno = this.stato.bentornato;
     this.joystick.spegni();
+    // la prima volta la schermata spiega anche come funziona (avviso "ritornoAssenza")
+    const spiegazione = this.avvisi.consuma('ritornoAssenza')?.testo ?? null;
     this.schermate.mostraBentornato(guadagno, () => {
       this.joystick.attivo = true;
       this.stato.bentornato = null;
       this.versaMonete(guadagno.monete);
       this.salvaOra();
-    });
+    }, spiegazione);
   }
 
   // Le monete cadono dall'alto nel cerchio delle monete, in qualche mucchietto
@@ -746,7 +756,7 @@ export class Segheria {
   }
 
   attaccaLupi(auto = false) {
-    if (this.attaccoCooldown > 0 || !this.attiva) return;
+    if (this.attaccoCooldown > 0 || !this.attiva || this.avvisi.attivo) return;
     const pos = this.giocatore.posizione;
     const distanza = (lupo) => Math.hypot(pos.x - lupo.x, pos.z - lupo.z) - lupo.ingombro;
     const obiettivo = this.lupiBase
@@ -1191,7 +1201,7 @@ export class Segheria {
   // Il salvataggio nuovo viene scritto e la pagina si ricarica; da adesso niente deve più sovrascriverlo.
   ricomincia() {
     this.salvaOra = () => {};
-    ricominciaDaCapo();
+    ricominciaDaCapo(this.stato.avvisiVisti); // gli avvisi già visti non ricompaiono
     window.location.reload();
   }
 
@@ -1298,8 +1308,55 @@ export class Segheria {
   }
 
 
+  // ---------------- AVVISI DELLE NOVITÀ ----------------
+
+  // La prima volta che compare una novità si chiede l'avviso (vedi src/avvisi.js): parte da solo appena si può, cioè quando
+  // la telecamera non sta mostrando altro e non ci sono schermate aperte. Il gioco si ferma, la telecamera va sulla novità
+  // e compare il riquadro; per aggiungere un avviso basta una riga in più qui sotto (e il testo in avvisi.js).
+  controllaAvvisi() {
+    const avvisi = this.avvisi;
+    if (avvisi.attivo || this.regia || this.inFesta || !this.tutorial.finito || this.stato.bentornato) return;
+    const lupoNormale = this.lupiBase.find((lupo) => lupo.vivo && !lupo.gigante);
+    // [nome, la novità c'è?, dove guardare, zoom della telecamera]: in ordine di importanza
+    const candidati = [
+      ['lupoGigante', this.lupoGigante.vivo && this.attesaAvvisoGigante === null, this.lupoGigante, CONFIG.lupoGigante.zoomTelecamera],
+      ['muraDanneggiate', this.riparazioneAperta && this.cerchioMura.comparso, MAPPA.riparazioneMura, 1], // aspetta che il cerchio verde sia comparso del tutto
+      ['primoLupo', !!lupoNormale, lupoNormale, 0.85],
+      // se è nella foresta si guarda il conto alla rovescia, accanto al cancello della corsa
+      ['boscaioloSecondario', !!this.secondario, this.secondario?.visibile ? this.secondario.posizione : { x: MAPPA.cancelli.corsa.x + 3.6, z: MAPPA.cancelli.corsa.z }, 0.8],
+    ];
+    const comune = {
+      alMostrare: () => {
+        this.joystick.spegni();
+        this.schermate.nascondiSuggerimento(); // il riquadro sta in basso, dove c'è il suggerimento dei primi passi
+      },
+      allaChiusura: () => { this.joystick.attivo = this.attiva; },
+    };
+    for (const [nome, presente, dove, zoom] of candidati) {
+      if (presente && avvisi.chiedi(nome, { ...comune, punto: new THREE.Vector3(dove.x, 0, dove.z), zoom })) return;
+    }
+  }
+
+  // Il gioco è fermo: la telecamera va sulla novità (o torna sul boscaiolo) e aspetta il tocco che chiude il riquadro
+  aggiornaAvviso(dt) {
+    this.avvisi.aggiorna(dt, (punto, zoom, passo, morbidezza) => {
+      if (punto) {
+        // la telecamera guarda un po' più in basso del punto, così la novità sta nella parte alta dello schermo, sopra il riquadro
+        const guarda = new THREE.Vector3(punto.x, 0, punto.z + CONFIG.avvisi.spostamentoBase * zoom);
+        this.ambiente.segui(guarda, passo, { zoom, libero: true, morbidezza });
+      } else {
+        this.ambiente.segui(this.giocatore.posizione, passo, { morbidezza });
+      }
+    });
+  }
+
   aggiorna(dt) {
     if (this.muraCadute) return; // le mura sono cadute: tutto fermo, si aspetta "Ricomincia"
+    if (this.avvisi.attivo) {
+      // un avviso è in corso: il gioco sta fermo (si muove solo la telecamera)
+      this.aggiornaAvviso(dt);
+      return;
+    }
     // mentre la telecamera guarda un miglioramento appena comprato il boscaiolo resta fermo
     const direzione = this.regia ? { x: 0, y: 0 } : this.joystick.leggi();
     if (!this.haCamminato && (direzione.x || direzione.y)) {
@@ -1331,6 +1388,7 @@ export class Segheria {
     this.schermate.aggiornaMura(this.mura.ratio);
     this.controllaMura(dt);
     this.gestisceRiparazione(pos, dt);
+    this.controllaAvvisi();
 
     // carne lasciata dai lupi (fuori dalle mura): si raccoglie passandoci sopra
     for (const drop of this.carneCadute) {

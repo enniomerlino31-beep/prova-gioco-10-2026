@@ -462,6 +462,34 @@ h2 { font-size: 36px; }
   background: linear-gradient(180deg, #d95a4a, #a32a2a);
 }
 
+/* Avviso di una novità: il riquadro sta in basso (la novità, al centro dello schermo, resta visibile) e un tocco
+   in un punto qualsiasi lo chiude */
+.schermata-novita {
+  z-index: 45;
+  align-items: flex-end;
+  padding-bottom: max(24px, env(safe-area-inset-bottom));
+  background: rgba(20, 40, 70, 0.1);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.riquadro-novita {
+  padding: 20px 20px 16px;
+  animation: festa-entra 0.4s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.riquadro-novita h2 {
+  font-size: 30px;
+}
+.tocca-continua {
+  margin-top: 14px;
+  font-family: system-ui, sans-serif;
+  font-size: 14px;
+  color: #cfe2ff;
+  animation: tocca-continua 1.2s ease-in-out infinite;
+}
+@keyframes tocca-continua {
+  50% { opacity: 0.35; }
+}
+
 /* Impostazioni: l'ingranaggio sta in alto a sinistra, sotto il contatore delle monete, sempre visibile (anche sopra
    le schermate). Icona disegnata qui come le altre */
 .pulsante-impostazioni {

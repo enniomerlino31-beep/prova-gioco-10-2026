@@ -456,6 +456,18 @@ export const CONFIG = {
     ritorno: 1.2,            // secondi per tornare sul boscaiolo
   },
 
+  // ---------------- AVVISI DELLE NOVITÀ ----------------
+  // La prima volta che compare una novità il gioco si ferma, la telecamera la mostra e un riquadro la spiega (vedi src/avvisi.js)
+  avvisi: {
+    viaggio: 1.4,            // secondi per portare la telecamera sulla novità (poi compare il riquadro)
+    ritorno: 1.0,            // secondi per tornare sul boscaiolo o sulla squadra (poi il gioco riparte)
+    morbidezza: 2.2,         // quanto in fretta la telecamera raggiunge il punto (più basso = più con calma)
+    spostamentoBase: 2.4,    // nella base la telecamera guarda questi metri più in basso della novità (per zoom 1), così la novità sta sopra il riquadro
+    spostamentoCorsa: 3,     // lo stesso nella corsa (metri)
+    attesaTocco: 0.6,        // secondi dopo i quali un tocco chiude il riquadro (evita di chiuderlo per sbaglio con il dito ancora giù)
+    avvisoOrso: 28,          // in corsa: l'avviso dell'orso compare quando la squadra è a questa distanza dal punto dove si ferma davanti a lui (metri)
+  },
+
   // ---------------- ECONOMIA ----------------
   economia: {
     prezzoLegna: 2,              // monete per ogni unità di legna venduta

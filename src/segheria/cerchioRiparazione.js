@@ -35,6 +35,11 @@ export class CerchioRiparazione extends CerchioMiglioramento {
     this.fondo = this.gruppo.children[0]; // il disco verde: si schiarisce e si scurisce piano
   }
 
+  // Il cerchio è comparso del tutto (l'animazione dello scoppio è finita)
+  get comparso() {
+    return this.tempoScoppio >= DURATA_SCOPPIO;
+  }
+
   // La scritta sta dentro il cerchio, in alto
   sistemaScritta() {
     this.scritta.position.z = -this.raggio * 0.55;

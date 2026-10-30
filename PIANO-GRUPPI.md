@@ -40,7 +40,9 @@ Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il g
 
 ## Cosa resta da fare
 
-Piano dato dall'utente il 2026-10-30 (testo originale, non ancora iniziato). Si lavora un gruppo alla volta, nell'ordine 6 → 11. Nessuno di questi gruppi è ancora stato fatto.
+Piano dato dall'utente il 2026-10-30 (testo originale). Si lavora un gruppo alla volta, nell'ordine 6 → 11.
+**Stato: il Gruppo 6 è fatto e aspetta la prova dell'utente (non ancora committato); i Gruppi 7-11 non sono iniziati.**
+Gruppo 6, com'è fatto: vedi README, “Avvisi delle novità”. Il sistema è in `src/avvisi.js`: per aggiungere un avviso (anche nei Gruppi 7-11: “catasta piena”, “legna in esaurimento”, nuove zone, affumicatoio, clienti...) basta un testo in `AVVISI` e una riga in `controllaAvvisi` (`segheria.js` per la base, `corsa.js` per la corsa).
 
 ```
 GRUPPO 6 - Avvisi e mini tutorial

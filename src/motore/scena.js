@@ -113,7 +113,8 @@ export function creaMondo(contenitore) {
 
     // Sposta telecamera, sole e neve per seguire la squadra.
     // "zoom" > 1 allontana la telecamera (serve quando il carro diventa grande)
-    segui(x, y, z, dt, zoom = 1) {
+    // "morbidezza": più è bassa, più la telecamera si muove con calma (gli avvisi delle novità la usano per andare sulla novità)
+    segui(x, y, z, dt, zoom = 1, morbidezza = 6) {
       const cfg = CONFIG.telecamera;
       zoomAttuale += (zoom - zoomAttuale) * Math.min(1, dt * 2);
       // più il carro è grande, più la telecamera guarda un po' indietro, verso il carro
@@ -122,7 +123,7 @@ export function creaMondo(contenitore) {
         puntoSeguito.copy(obiettivo);
         primaVolta = false;
       } else {
-        puntoSeguito.lerp(obiettivo, Math.min(1, dt * 6));
+        puntoSeguito.lerp(obiettivo, Math.min(1, dt * morbidezza));
       }
       telecamera.position.set(
         puntoSeguito.x,

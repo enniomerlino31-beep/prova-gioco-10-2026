@@ -116,6 +116,15 @@
     </div>
   </div>
 
+  <!-- Avviso di una novità (src/avvisi.js): un riquadro in basso, così la novità che la telecamera mostra resta visibile; un tocco lo chiude -->
+  <div id="schermata-novita" class="schermata schermata-novita nascosto" role="dialog" aria-live="polite" aria-labelledby="novita-titolo">
+    <div class="riquadro riquadro-novita">
+      <h2 id="novita-titolo"></h2>
+      <p id="novita-testo" class="sottotitolo"></p>
+      <p class="tocca-continua">Tocca per continuare</p>
+    </div>
+  </div>
+
   <!-- Impostazioni: l'ingranaggio è sempre visibile (anche sopra le schermate) e apre un piccolo menu con gli interruttori
        di effetti sonori e musica (restano salvati). Mentre il menu è aperto il gioco è in pausa -->
   <button id="pulsante-impostazioni" class="pulsante-impostazioni" type="button" aria-label="Impostazioni"></button>

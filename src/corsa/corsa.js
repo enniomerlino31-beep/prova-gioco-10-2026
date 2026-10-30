@@ -28,12 +28,14 @@ export class Corsa {
   // opzioni: { primaCorsa: true nel tutorial (niente porte tutte rosse);
   //            orso: livello dell'orso di fine corsa (null = niente orso, si va dritti alla scalinata);
   //            livelloMura: il livello delle mura comprato (0 legno, 1 pietra, 2 metallo): decide l'aspetto della segheria in cima alla salita
-  //            prova: { boscaioli } per provare lo scontro (?orso=5&boscaioli=200): si parte vicino alla fine, senza livello }
+  //            prova: { boscaioli } per provare lo scontro (?orso=5&boscaioli=200): si parte vicino alla fine, senza livello
+  //            avvisi: gli avvisi delle novità (src/avvisi.js): la prima volta che si incontrano porte, orso e scalinata la corsa si ferma e li spiega }
   constructor(mondo, controlli, schermate, alTermine, opzioni = {}) {
     this.mondo = mondo;
     this.controlli = controlli;
     this.schermate = schermate;
     this.alTermine = alTermine;
+    this.avvisi = opzioni.avvisi ?? null;
 
     // Tutti gli oggetti di questa corsa stanno qui dentro: così a fine corsa si buttano via in un colpo
     this.radice = new THREE.Group();
@@ -58,6 +60,7 @@ export class Corsa {
 
     // Costruisce il livello a partire dall'elenco del generatore (nelle prove dello scontro non c'è: si parte vicino alla fine)
     const livello = this.prova ? { elenco: [] } : generaLivello({ primaCorsa: !!opzioni.primaCorsa });
+    this.primaPorta = livello.elenco.find((cosa) => cosa.tipo === 'porte')?.distanza ?? null; // dove sta la prima coppia di porte (per l'avviso)
     for (const cosa of livello.elenco) {
       if (cosa.tipo === 'porte') this.porte.aggiungiCoppia(cosa.distanza, cosa.sinistra, cosa.destra);
       if (cosa.tipo === 'albero') this.alberi.aggiungi(cosa.distanza, cosa.x);
@@ -88,7 +91,17 @@ export class Corsa {
     this.carro.segui(this.squadra, 0, 0);
   }
 
+  // La corsa è ferma perché sta comparendo un avviso (vedi src/avvisi.js)
+  get inPausa() {
+    return !!this.avvisi?.attivo;
+  }
+
   aggiorna(dtReale) {
+    if (this.inPausa) {
+      this.aggiornaAvviso(dtReale);
+      return;
+    }
+    this.controllaAvvisi();
     // il colpo finale con l'orso va al rallentatore: tutto il mondo di gioco (non l'audio) va più piano
     const dt = dtReale * (this.orso?.fattoreTempo ?? 1);
     this.tempo += dt;
@@ -201,24 +214,72 @@ export class Corsa {
     // --- Grafica: omini, effetti, telecamera, interfaccia ---
     squadra.aggiorna(dt, this.tempo);
     this.effetti.aggiorna(dt);
-    // Con tanti boscaioli la folla si allunga all'indietro e spinge il carro in fondo allo schermo, fino a tagliarlo:
-    // la telecamera allora guarda un po' più indietro e si alza, così folla, carro e carico si vedono sempre tutti
-    const coda = squadra.distanza - carro.distanza + carro.lunghezza / 2; // dal centro della folla al retro del carro
-    const allungamento = Math.max(0, coda - CODA_NORMALE);
-    const zoom = (1 + (carro.scala - 1) * CONFIG.telecamera.allontanamentoCarro) * (1 + allungamento * 0.04);
-    if (this.stato === 'scontro' && this.orso) {
-      // durante lo scontro la telecamera si ferma e inquadra insieme squadra e orso
-      this.mondo.segui(0, 0, -this.orso.centroInquadratura, dt, CONFIG.orso.zoomTelecamera);
-    } else {
-      this.mondo.segui(squadra.x, squadra.y, -squadra.distanza + allungamento * 0.6, dt, zoom);
-    }
+    this.muoviTelecamera(dt);
     this.schermate.aggiornaCorsa({
       boscaioli: squadra.numero,
       legna: carro.legna,
       carne: carro.carne,
       progresso: Math.min(1, squadra.distanza / CONFIG.pista.lunghezza),
-      posizioneContatore: new THREE.Vector3(squadra.x, squadra.y + 1.9, -squadra.distanza),
+      posizioneContatore: this.posizioneContatore(),
     });
+  }
+
+  // La telecamera normale della corsa (morbidezza: più è bassa, più si muove con calma; senza valore va come sempre).
+  // Con tanti boscaioli la folla si allunga all'indietro e spinge il carro in fondo allo schermo, fino a tagliarlo:
+  // la telecamera allora guarda un po' più indietro e si alza, così folla, carro e carico si vedono sempre tutti
+  muoviTelecamera(dt, morbidezza) {
+    const squadra = this.squadra;
+    const carro = this.carro;
+    const coda = squadra.distanza - carro.distanza + carro.lunghezza / 2; // dal centro della folla al retro del carro
+    const allungamento = Math.max(0, coda - CODA_NORMALE);
+    const zoom = (1 + (carro.scala - 1) * CONFIG.telecamera.allontanamentoCarro) * (1 + allungamento * 0.04);
+    if (this.stato === 'scontro' && this.orso) {
+      // durante lo scontro la telecamera si ferma e inquadra insieme squadra e orso
+      this.mondo.segui(0, 0, -this.orso.centroInquadratura, dt, CONFIG.orso.zoomTelecamera, morbidezza);
+    } else {
+      this.mondo.segui(squadra.x, squadra.y, -squadra.distanza + allungamento * 0.6, dt, zoom, morbidezza);
+    }
+  }
+
+  // ---------------- AVVISI DELLE NOVITÀ ----------------
+
+  // La prima volta che compare una novità si chiede l'avviso (vedi src/avvisi.js): parte da solo se non è già stato visto.
+  // "punto" è dove deve guardare la telecamera: conta solo la distanza dalla partenza (z)
+  controllaAvvisi() {
+    const avvisi = this.avvisi;
+    if (!avvisi || avvisi.attivo) return;
+    const prova = !!this.prova; // nelle prove (?orso...) gli avvisi si vedono ma non si salvano
+    const comune = { prova, alMostrare: () => this.controlli.azzera(), allaChiusura: () => this.controlli.azzera() };
+    const dove = (distanza) => new THREE.Vector3(0, 0, -distanza);
+    if (this.stato === 'corsa') {
+      // le porte: appena parte la corsa (dopo un attimo, così si vede la squadra partire), la telecamera va sulla prima coppia
+      if (this.primaPorta !== null && this.tempo > 0.3) avvisi.chiedi('primaCorsa', { ...comune, punto: dove(this.primaPorta) });
+      // l'orso: quando la squadra gli si avvicina la telecamera va a guardarlo
+      if (this.orso && this.squadra.distanza >= this.fermataOrso - CONFIG.avvisi.avvisoOrso) {
+        avvisi.chiedi('orsoCorsa', { ...comune, punto: dove(this.orso.distanzaBase), zoom: 1.2 });
+      }
+    } else if (this.stato === 'salita') {
+      // la scalinata: la telecamera si alza e guarda i primi gradini
+      avvisi.chiedi('scalinata', { ...comune, punto: dove(this.sfida.inizio + 25), zoom: 1.5 });
+    }
+  }
+
+  // La corsa è ferma: la telecamera va sulla novità (o torna sulla squadra) e i suoni continui tacciono
+  aggiornaAvviso(dt) {
+    for (const ciclo of [this.suonoPassi, this.suonoPassiTanti, this.suonoCarro]) ciclo.volume(0);
+    this.avvisi.aggiorna(dt, (punto, zoom, passo, morbidezza) => {
+      // la telecamera guarda più avanti del punto che segue: per centrare la novità si segue un punto più vicino
+      // (e un po' di più, così la novità sta nella parte alta dello schermo, sopra il riquadro)
+      if (punto) this.mondo.segui(0, 0, punto.z + CONFIG.telecamera.guardaAvanti + CONFIG.avvisi.spostamentoCorsa, passo, zoom, morbidezza);
+      else this.muoviTelecamera(passo, morbidezza);
+    });
+    // il numero dei boscaioli resta attaccato alla squadra mentre la telecamera si muove
+    this.schermate.posizionaContatore(this.posizioneContatore());
+  }
+
+  // Dove sta il numero dei boscaioli nel mondo: sopra la testa della squadra
+  posizioneContatore() {
+    return new THREE.Vector3(this.squadra.x, this.squadra.y + 1.9, -this.squadra.distanza);
   }
 
   // Un solo suono di passi di gruppo: più pieno con tanti boscaioli (sfuma nel suono dei "tanti"), più leggero con

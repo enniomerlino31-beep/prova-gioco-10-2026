@@ -43,6 +43,7 @@ function statoIniziale() {
     corseFatte: 0,
     tutorial: 0,                               // a che passaggio del tutorial si è arrivati (3 = finito, non compare più)
     orso: { livello: 1, corseMancanti: 0 },    // l'orso di fine corsa: a che livello è e fra quante corse ricompare (0 = alla prossima)
+    avvisiVisti: [],                           // gli avvisi delle novità già mostrati (nomi, vedi src/avvisi.js): ognuno compare una volta sola
   };
 }
 
@@ -90,6 +91,8 @@ export function carica() {
       livello: Math.max(1, Math.floor(Number(orso.livello)) || 1),
       corseMancanti: Math.max(0, Math.floor(Number(orso.corseMancanti)) || 0),
     };
+    // Gli avvisi già visti: nei salvataggi vecchi non ce n'è nessuno; i valori strani si scartano
+    stato.avvisiVisti = Array.isArray(stato.avvisiVisti) ? [...new Set(stato.avvisiVisti.filter((nome) => typeof nome === 'string'))] : [];
     stato.miglioramenti = { ...statoIniziale().miglioramenti, ...stato.miglioramenti };
     // Salvataggi con il parquet (non c'è più): chi l'aveva comprato ha il pavimento in pietra;
     // le monete messe nel cerchio del parquet (o in quello della pietra, se ormai è comprato) tornano in tasca
@@ -143,11 +146,12 @@ export function salva(stato) {
   }
 }
 
-// Dopo che le mura sono cadute: partita nuova come all'inizio, ma il tutorial resta fatto (le impostazioni dell'audio
-// stanno in un'altra memoria e restano)
-export function ricominciaDaCapo() {
+// Dopo che le mura sono cadute: partita nuova come all'inizio, ma il tutorial resta fatto e gli avvisi già visti
+// non ricompaiono (le impostazioni dell'audio stanno in un'altra memoria e restano)
+export function ricominciaDaCapo(avvisiVisti = []) {
   const stato = statoIniziale();
   stato.tutorial = 3;
+  stato.avvisiVisti = [...avvisiVisti];
   stato.orologio = Date.now();
   salva(stato);
 }

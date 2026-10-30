@@ -164,12 +164,15 @@ export class Schermate {
 
   // "Bentornato!": quanto tempo si è stati via, quanta legna ha portato il boscaiolo secondario e quante monete
   // si sono guadagnate. guadagno: { secondi, legna, monete }; alRaccogli: quando si preme "Raccogli"
-  mostraBentornato(guadagno, alRaccogli) {
+  // spiegazione: solo la prima volta (avviso "ritornoAssenza"), una frase che spiega come funziona; altrimenti null
+  mostraBentornato(guadagno, alRaccogli, spiegazione = null) {
     const schermata = $('schermata-bentornato');
     const coriandoli = $('coriandoli-bentornato');
     lanciaCoriandoli(coriandoli);
     suoni.suona('festa');
-    $('bentornato-tempo').textContent = `Mentre eri via (${durataInParole(guadagno.secondi)}) la tua segheria ha continuato a lavorare.`;
+    $('bentornato-tempo').textContent = spiegazione
+      ? `Sei stato via ${durataInParole(guadagno.secondi)}. ${spiegazione}`
+      : `Mentre eri via (${durataInParole(guadagno.secondi)}) la tua segheria ha continuato a lavorare.`;
     const riga = (nome, valore, classe = '') => `<div class="dato ${classe}"><span>${nome}</span><span>${valore}</span></div>`;
     $('bentornato-dati').innerHTML =
       (guadagno.legna > 0 ? riga('<span class="hud-icon hud-icon--log hud-icon--mini"></span> Legna del boscaiolo secondario', `+${formatta(guadagno.legna)}`) : '') +
@@ -240,10 +243,18 @@ export class Schermate {
     this.aggiornaContatore('legna', legna);
     this.aggiornaContatore('carne', carne);
     $('hud-progresso').style.width = `${Math.round(progresso * 100)}%`;
+    $('contatore-squadra').textContent = boscaioli;
+    this.posizionaContatore(posizioneContatore);
+  }
+
+  // Mette il numero dei boscaioli sopra la squadra, nel punto dello schermo dove la telecamera la mostra adesso.
+  // Va richiamata anche quando la corsa è ferma ma la telecamera si muove (avvisi delle novità): il numero sta attaccato alla squadra.
+  posizionaContatore(posizione) {
+    this.telecamera.updateMatrixWorld(); // la telecamera può essersi mossa un attimo fa
+    const schermo = this.proietta(posizione);
     const contatore = $('contatore-squadra');
-    contatore.textContent = boscaioli;
-    const schermo = this.proietta(posizioneContatore);
     contatore.style.transform = `translate(${schermo.x}px, ${schermo.y}px) translate(-50%, -100%)`;
+    contatore.style.visibility = this._v.z > 1 ? 'hidden' : ''; // la squadra è dietro la telecamera: il numero non si vede (non deve comparire a specchio)
   }
 
   // Scrive un valore (legna, carne, soldi...); se è aumentato, il contatore fa un "pulse"

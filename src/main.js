@@ -33,6 +33,14 @@ if (indirizzo.searchParams.has('reset')) {
   window.history.replaceState(null, '', indirizzo);
 }
 
+// Toglie dei comandi di prova dall'indirizzo di adesso (rileggendolo: la base ne ha già tolti altri, come ?avvisi o ?tuttocomprato,
+// e non devono ricomparire)
+function togliDalIndirizzo(...nomi) {
+  const adesso = new URL(window.location.href);
+  for (const nome of nomi) adesso.searchParams.delete(nome);
+  window.history.replaceState(null, '', adesso);
+}
+
 // Suoni e musica: si scaricano subito (la musica un po' dopo), si sbloccano al primo tocco (il telefono lo vuole).
 ascoltaTocchi();
 suoni.carica();
@@ -103,6 +111,7 @@ function preparaCorsaInAnticipo(vicino) {
   if (corsaPronta || corsa || modo !== 'segheria') return;
   const opzioni = segheria.opzioniCorsa();
   opzioni.livelloMura = segheria.livelli.mura;
+  opzioni.avvisi = segheria.avvisi;
   corsaPronta = { corsa: new Corsa(mondo, controlli, schermate, fineCorsa, { ...opzioni }), opzioni };
   mondo.renderer.compile(mondo.scena, mondo.telecamera);
 }
@@ -122,6 +131,7 @@ function avviaCorsa(provaOrsoRichiesta = null) {
     ? { primaCorsa: false, orso: prova.livello > 0 ? prova.livello : null, prova: { boscaioli: prova.boscaioli, legna: prova.legna } }
     : segheria.preparaCorsa();
   opzioni.livelloMura = segheria.livelli.mura; // la segheria in cima alla salita ha lo stesso aspetto di quella della base
+  opzioni.avvisi = segheria.avvisi;            // gli avvisi delle novità (porte, orso, scalinata)
   if (!prova && corsaPronta && corsaPronta.opzioni.primaCorsa === opzioni.primaCorsa && corsaPronta.opzioni.orso === opzioni.orso
     && corsaPronta.opzioni.livelloMura === opzioni.livelloMura) {
     // la corsa è già pronta: si usa quella (si rimette a posto solo il dito e la telecamera)
@@ -166,11 +176,11 @@ function vaiAllaSegheria() {
   // Con ?corsa nell'indirizzo, la prima volta che si entra nella base parte subito una corsa (per provarla senza camminare)
   if (indirizzo.searchParams.has('corsa')) {
     indirizzo.searchParams.delete('corsa');
-    window.history.replaceState(null, '', indirizzo);
+    togliDalIndirizzo('corsa');
     avviaCorsa();
   } else if (provaOrso) {
     for (const nome of ['orso', 'boscaioli', 'legna']) indirizzo.searchParams.delete(nome);
-    window.history.replaceState(null, '', indirizzo);
+    togliDalIndirizzo('orso', 'boscaioli', 'legna');
     avviaCorsa(provaOrso);
   }
 }
@@ -205,7 +215,7 @@ function ciclo(adesso) {
       segheria.aggiorna(dt);
     } else if (modo === 'corsa') {
       corsa.aggiorna(dt);
-      segheria.lavoraDuranteLaCorsa(dt); // intanto il boscaiolo secondario continua a portare legna alla base
+      if (!corsa.inPausa) segheria.lavoraDuranteLaCorsa(dt); // intanto il boscaiolo secondario continua a portare legna alla base (non mentre c'è un avviso)
     } else {
       // sulla schermata iniziale si vede la segheria sullo sfondo
       segheria.ambiente.segui(segheria.giocatore.posizione, dt);

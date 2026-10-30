@@ -46,6 +46,12 @@ Questa è la descrizione breve di come funziona il gioco oggi. Il testo lungo e 
 **Guadagni mentre si è via** (`src/segheria/offline.js`, numeri in `CONFIG.offline`)
 - Riaprendo il gioco la base ha lavorato: si vende **solo la legna portata dal boscaiolo secondario** (più la carne già sul tavolo), con i ritmi veri di aiutante, venditori e clienti, circa **975 monete all’ora** con il boscaiolo secondario. Niente sotto i 2 minuti, al massimo 24 ore, niente durante il tutorial; i lupi non fanno danni. Compare “Bentornato!” con il tempo, la legna e le monete e il pulsante “Raccogli”. L’orologio non torna mai indietro (nessun guadagno doppio).
 
+**Avvisi delle novità** (`src/avvisi.js`, tempi in `CONFIG.avvisi`)
+- La **prima volta** che compare una novità il gioco si ferma, la telecamera va con calma sulla novità, compare un riquadro in basso con un titolo e una o due frasi, e **un tocco** (o Invio) lo chiude: la telecamera torna sul boscaiolo (o sulla squadra) e il gioco riparte. Ogni avviso compare **una volta sola**: resta “visto” nel salvataggio (`avvisiVisti`), anche chiudendo e riaprendo il gioco e anche dopo “Ricomincia” (mura cadute). Nelle prove (`?orso`) gli avvisi si vedono ma non si salvano.
+- Gli avvisi di ora (testi in `AVVISI`): **primo lupo**, **prime mura danneggiate** (compare quando il cerchio verde è comparso del tutto), **lupo gigante** (dopo la sua entrata con ululato), **le porte** (all’inizio della prima corsa, la telecamera va sulla prima coppia; è anche nel tutorial), **l’orso** (quando la squadra gli si avvicina), **la scalinata** (all’inizio della salita), **boscaiolo secondario** (quando c’è), e **ritorno dopo un’assenza** (la prima volta la schermata “Bentornato!” spiega come funziona, senza telecamera).
+- **Regola del progetto** (in `CLAUDE.md`): ogni nuova novità importante ha il suo avviso, nello stesso gruppo in cui nasce.
+- Per aggiungere un avviso: un testo in `AVVISI` e una riga nel punto del gioco in cui la novità compare (`controllaAvvisi` in `segheria.js` per la base, in `corsa.js` per la corsa). Nella base partono solo quando la telecamera non sta mostrando altro e non ci sono schermate aperte; il tutorial deve essere finito.
+
 **Tutorial** (solo alla prima partita): tre passaggi con messaggio giallo e freccia (1. prima corsa, 2. porta la legna allo sportello, 3. compra le mura di pietra), tutti gli altri cerchi spenti; alla fine una festa con “Gioca”. Chi aveva già fatto una corsa non lo vede.
 
 **La corsa**
@@ -66,7 +72,8 @@ Questa è la descrizione breve di come funziona il gioco oggi. Il testo lungo e 
 - La parte estetica, l’equilibrio del gioco e la narrazione potrebbero essere ulteriormente sviluppate.
 - Il progetto è ancora in fase di prototipo e di testing di meccaniche base.
 - **Gruppi di modifiche**: i Gruppi 1, 2, 3, A, B, C, 4 e 5 sono fatti, provati e approvati dall’utente e salvati (elenco in `PIANO-GRUPPI.md`, storia completa in `ARCHIVIO.md`).
-- **Prossimi gruppi (piano del 2026-10-30, non ancora iniziati)**: 6 avvisi e mini tutorial; 7 nuova economia (catasta con limite, venditore della legna gratuito, cantieri); 8 giornata e personale (paga, menu, stanchezza); 9 zona lavorazione legna; 10 affumicatoio; 11 zona clienti. Il testo completo è in `PIANO-GRUPPI.md`.
+- **Gruppo 6 (avvisi e mini tutorial)**: fatto, da provare (vedi “Avvisi delle novità”).
+- **Prossimi gruppi (piano del 2026-10-30, non ancora iniziati)**: 7 nuova economia (catasta con limite, venditore della legna gratuito, cantieri); 8 giornata e personale (paga, menu, stanchezza); 9 zona lavorazione legna; 10 affumicatoio; 11 zona clienti. Il testo completo è in `PIANO-GRUPPI.md`.
 - **Dopo i gruppi** verranno le espansioni della base (zona clienti con falò, affumicatoio, canile, casa dei lavoratori, grande magazzino), descritte in `PIANO-ESPANSIONI.md` e non ancora realizzate.
 
 ## 🎮 Comandi di gioco
@@ -86,6 +93,7 @@ I controlli usati nel codice sono questi:
 - Per provare gli acquisti senza guadagnare le monete: aggiungere `?moneteinfinite` all’indirizzo (per esempio `http://localhost:5173/?reset&senzatutorial&moneteinfinite`). Le monete in tasca tornano sempre a 999.999, quindi tutti i cerchi si pagano subito. Resta finché c’è nell’indirizzo; le monete però restano salvate, quindi per tornare a una partita normale conviene ricominciare con `?reset`.
 - Per provare il boscaiolo secondario: aggiungere `?tuttocomprato` all’indirizzo (per esempio `http://localhost:5173/?reset&tuttocomprato`). Risultano già comprati tutti i miglioramenti tranne il boscaiolo secondario, con 5000 monete in tasca, e il tutorial risulta finito: si vede solo il cerchio del boscaiolo secondario. Attenzione: cambia la partita salvata. Poi `?tuttocomprato` sparisce da solo dall’indirizzo.
 - Per provare i guadagni di quando si è via senza aspettare: aggiungere `?offline=N` all’indirizzo, dove N sono i minuti di assenza finti (per esempio `http://localhost:5173/?offline=60` finge di essere stati via 60 minuti). Valgono le stesse regole vere (niente sotto i 2 minuti, al massimo 24 ore, niente durante il tutorial). Poi `?offline` sparisce da solo dall’indirizzo, così ricaricando la pagina non conta di nuovo.
+- Per rivedere tutti gli avvisi delle novità da capo: aggiungere `?avvisi` all’indirizzo (per esempio `http://localhost:5173/?avvisi&tuttocomprato&gigante`, oppure `?avvisi&senzatutorial&corsa` per le porte). Gli avvisi già visti tornano “non visti” e poi `?avvisi` sparisce da solo dall’indirizzo. Online non fa niente.
 - Per togliere o rimettere i suoni: toccare l’ingranaggio in alto a sinistra e usare gli interruttori “Effetti sonori” e “Musica” (restano salvati; il gioco sta in pausa finché il menu è aperto).
 - Per provare la corsa subito: aggiungere `?corsa` all’indirizzo (per esempio `http://localhost:5173/?senzatutorial&corsa`): premuto “Gioca”, parte subito una corsa. Poi `?corsa` sparisce da solo.
 - Per provare lo scontro con l’orso: aggiungere `?orso=LIVELLO&boscaioli=NUMERO` all’indirizzo (per esempio `http://localhost:5173/?senzatutorial&orso=5&boscaioli=200`): dopo “Gioca” parte una corsa vicino alla fine, con quei boscaioli (se non si scrive `boscaioli`, 100), 200 legna e 20 carne sul carro, e l’orso di quel livello. Con `&legna=NUMERO` si sceglie la legna sul carro (per esempio `&legna=3000` per vedere la pila di tronchi al massimo). Con `?orso=0&boscaioli=1500` non c’è l’orso e si prova solo la scalinata alta. **Le prove non toccano la partita salvata** (niente bottino, l’orso non cambia livello). Poi `?orso` e `?boscaioli` spariscono da soli.
@@ -149,6 +157,7 @@ https://enniomerlino31-beep.github.io/prova-gioco-10-2026/
 - `PIANO-ESPANSIONI.md`: il piano delle 5 espansioni del livello 1 (meccanismo comune e cosa fa ogni zona), da realizzare in futuro una alla volta.
 - `PIANO-GRUPPI.md`: lo stato dei gruppi di modifiche (tutti fatti e salvati), in breve, e le note già decise che servono per lavorare sul codice.
 - `ARCHIVIO.md`: la storia dei gruppi finiti, la descrizione lunga di com’era il gioco e il registro modifiche completo. **Non serve leggerlo a ogni sessione**: tutto quello che è stato tolto dal README e dal piano per accorciarli è qui.
+- `src/avvisi.js`: gli avvisi delle novità (testi e regole: pausa, telecamera sulla novità, riquadro, “visto” una sola volta).
 - `src/segheria/cerchioRiparazione.js`: il grande cerchio verde per riparare le mura con la legna (esplosione, pulsazione e alone).
 - `src/corsa/orso.js`: lo scontro con l’orso gigante (ruggito, ondate di boscaioli, zampate, caduta) e la vita dell’orso per livello; `src/modelli/orso.js`: il modello dell’orso e le sue animazioni.
 - `src/segheria/barraGigante.js`: la grande barra della vita del lupo gigante (un cartellino disegnato in stile cartoon, sempre visibile sopra la testa).
@@ -190,6 +199,10 @@ Qui ci sono le ultime modifiche. **Il registro completo, dall’inizio, è in [A
 - 2026-10-27 — icona della scheda del browser (`public/favicon.svg`, `public/apple-touch-icon.png`, collegate in `index.html`): un’ascia in un ceppo in stile cartoon; sparisce l’errore 404 di `favicon.ico`.
 
 - 2026-10-30 — solo documenti, il gioco non è cambiato: salvato in `PIANO-GRUPPI.md` il nuovo piano dei Gruppi 6-11 (avvisi, nuova economia, giornata e personale, zona lavorazione legna, affumicatoio, zona clienti).
+
+- 2026-10-30 — Gruppo 6, avvisi e mini tutorial (da provare): nuovo `src/avvisi.js` (testi in `AVVISI`, pausa, telecamera sulla novità, riquadro `#schermata-novita` in basso, un tocco lo chiude, ognuno una volta sola, salvato in `avvisiVisti` in `salvataggio.js` e mantenuto da `ricominciaDaCapo`); `controllaAvvisi` e `aggiornaAvviso` in `segheria.js` (primo lupo, mura danneggiate, lupo gigante, boscaiolo secondario) e in `corsa.js` (porte, orso, scalinata); “Bentornato!” spiega come funziona la prima volta; `mondo.segui` accetta la morbidezza; `CerchioRiparazione.comparso`; `CONFIG.avvisi`; comando di prova `?avvisi`. Corretto anche un difetto di `main.js`: dopo `&corsa` o `&orso` nell’indirizzo tornavano comandi già tolti (come `?avvisi` o `?tuttocomprato`).
+
+- 2026-10-30 — Gruppo 6, correzione dopo la prova (da riprovare): durante gli avvisi della corsa (porte, orso, scalinata) il numero dei boscaioli ora resta attaccato alla squadra mentre la telecamera si muove e mentre il riquadro è aperto (`posizionaContatore` in `schermate.js`, chiamata da `aggiornaAvviso` in `corsa.js`); se la squadra finisce dietro la telecamera il numero si nasconde invece di comparire a specchio. Nuova regola in `CLAUDE.md`: ogni novità importante ha il suo avviso nello stesso gruppo in cui nasce.
 
 ## ✅ Note finali
 
