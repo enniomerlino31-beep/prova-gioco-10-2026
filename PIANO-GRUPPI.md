@@ -1,6 +1,6 @@
 # Piano dei gruppi di modifiche
 
-> **Stato (aggiornato il 2026-10-27):** tutti i gruppi di modifiche sono **fatti, provati e approvati dall'utente e salvati** (ultimo commit di codice: Gruppo 5 = a7d4df2). Manca solo la parte delle espansioni di `PIANO-ESPANSIONI.md`.
+> **Stato (aggiornato il 2026-10-27):** tutti i gruppi di modifiche sono **fatti, provati e approvati dall'utente e salvati** (ultimo commit di codice: Gruppo 5 = a7d4df2). Il 2026-10-30 l'utente ha dato un nuovo piano con i Gruppi 6-11 (vedi “Cosa resta da fare”), non ancora iniziati; dopo ci sono le espansioni di `PIANO-ESPANSIONI.md`.
 > Il racconto completo dei gruppi finiti (richieste dell'utente, prove, correzioni, decisioni, numeri) è in [ARCHIVIO.md](ARCHIVIO.md): **non serve leggerlo a ogni sessione**, solo se serve capire perché una cosa è fatta in un certo modo.
 
 Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il gioco lo prova l'utente, niente partite di prova lunghe), aggiornare il README e dire cosa è stato fatto. Commit solo quando lo dice l'utente. Se la sessione sta per finire, fermarsi alla fine di un gruppo e dirlo.
@@ -40,4 +40,42 @@ Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il g
 
 ## Cosa resta da fare
 
-- Le espansioni della base descritte in `PIANO-ESPANSIONI.md` (zona clienti con falò, affumicatoio, canile, casa dei lavoratori, grande magazzino), una alla volta, solo quando lo dice l’utente.
+Piano dato dall'utente il 2026-10-30 (testo originale, non ancora iniziato). Si lavora un gruppo alla volta, nell'ordine 6 → 11. Nessuno di questi gruppi è ancora stato fatto.
+
+```
+GRUPPO 6 - Avvisi e mini tutorial
+GRUPPO 7 - Nuova economia: catasta con limite; primo cerchio in assoluto =
+venditore della legna GRATUITO (la legna non si vende più da sola);
+venditore della carne compare dopo l'aiutante e costa; ordine degli altri
+cerchi invariato; vendite più lente e prezzi più alti; "cantieri" (monete
+versate a goccia + tempo di costruzione con barra "lavori in corso");
+avvisi "catasta piena" e "legna in esaurimento"; corsa del boscaiolo
+secondario da 5 a 3 minuti, ribilanciando la legna che porta
+GRUPPO 8 - Giornata e personale: giornata di 4-5 minuti, poi schermo nero
+di 1-2 secondi con "Giorno N"; paga automatica a fine giornata (chi non
+viene pagato per mancanza di monete non torna e va riassunto); menu del
+personale con elenco lavoratori, paga, costo totale al giorno, pulsanti
+Assumi/Licenzia (i cerchi sbloccano il tipo di lavoratore, il menu poi lo
+gestisce); stanchezza (si siedono con "Zzz", si svegliano toccandoli);
+guadagno offline semplice, senza paga e stanchezza
+GRUPPO 9 - Zona lavorazione legna (cerchio "Espandi" circa 2.500, dentro
+le mura): segheria (tronchi -> assi, segantino) e falegnameria (assi ->
+fasci di legna, sedie, slitte, falegname); le assi servono anche come
+costo di mura e miglioramenti grandi. Prima di costruire, fai uno
+screenshot della mappa e proponimi dove mettere le zone dei Gruppi 9-11
+GRUPPO 10 - Affumicatoio (cerchio "Espandi" circa 6.000, vicino ai
+cacciatori): carne -> carne affumicata, poi salsicce; brucia legna come
+combustibile; lavoratore affumicatore
+GRUPPO 11 - Zona clienti (Espansione 1, cerchio "Espandi" 10.000, fuori
+dalle mura, i lupi non ci arrivano): i clienti comprano i prodotti (slitte,
+sedie, carne affumicata) e lasciano la mancia; miglioramenti: panche,
+tavoli, falò più grande con più posti. Aggiorna anche PIANO-ESPANSIONI.md
+Ogni zona e ogni miglioramento al suo interno si paga. Prezzi indicativi:
+regolali tu in base all'economia rallentata.
+```
+
+Note per chi lavora sul piano:
+- Il Gruppo 6 nel piano è solo un titolo: prima di iniziarlo va chiesto all'utente quali avvisi e quali mini tutorial vuole (il Gruppo 7 aggiunge già “catasta piena” e “legna in esaurimento”, quindi non vanno fatti due volte).
+- Il Gruppo 9 deve cominciare con uno screenshot della mappa e una proposta all'utente su dove mettere le zone dei Gruppi 9-11, **prima** di costruire.
+- Il Gruppo 11 deve aggiornare anche `PIANO-ESPANSIONI.md`.
+- Le espansioni già descritte in `PIANO-ESPANSIONI.md` (zona clienti con falò, affumicatoio, canile, casa dei lavoratori, grande magazzino) restano da fare dopo questi gruppi, una alla volta, solo quando lo dice l’utente.

@@ -66,6 +66,7 @@ Questa è la descrizione breve di come funziona il gioco oggi. Il testo lungo e 
 - La parte estetica, l’equilibrio del gioco e la narrazione potrebbero essere ulteriormente sviluppate.
 - Il progetto è ancora in fase di prototipo e di testing di meccaniche base.
 - **Gruppi di modifiche**: i Gruppi 1, 2, 3, A, B, C, 4 e 5 sono fatti, provati e approvati dall’utente e salvati (elenco in `PIANO-GRUPPI.md`, storia completa in `ARCHIVIO.md`).
+- **Prossimi gruppi (piano del 2026-10-30, non ancora iniziati)**: 6 avvisi e mini tutorial; 7 nuova economia (catasta con limite, venditore della legna gratuito, cantieri); 8 giornata e personale (paga, menu, stanchezza); 9 zona lavorazione legna; 10 affumicatoio; 11 zona clienti. Il testo completo è in `PIANO-GRUPPI.md`.
 - **Dopo i gruppi** verranno le espansioni della base (zona clienti con falò, affumicatoio, canile, casa dei lavoratori, grande magazzino), descritte in `PIANO-ESPANSIONI.md` e non ancora realizzate.
 
 ## 🎮 Comandi di gioco
@@ -187,6 +188,8 @@ Qui ci sono le ultime modifiche. **Il registro completo, dall’inizio, è in [A
 - 2026-10-27 — controllo della velocità (da provare): nuovo comando di prova `?lupi=N` (tiene N lupi normali in giro); la corsa si prepara quando il boscaiolo si avvicina al cerchio CORSA (niente più scatto all’avvio); dettaglio dello schermo al massimo 1,5 (`CONFIG.grafica.pixelMassimi`). Provati e **non tenuti** perché non hanno dato un vantaggio misurabile: mappa delle ombre della base a 1024 e meno abeti lontani.
 - 2026-10-27 — gioco online con GitHub Pages (da provare): `.github/workflows/pubblica.yml` (a ogni commit su `main`), `base` in `vite.config.js`, percorso delle immagini della base con `import.meta.env.BASE_URL` (`schermate.js`), comandi di prova spenti online (`VITE_SENZA_PROVE` in `main.js`), foto di riferimento non pubblicate; l’indirizzo è nel README, sezione “Il gioco online”.
 - 2026-10-27 — icona della scheda del browser (`public/favicon.svg`, `public/apple-touch-icon.png`, collegate in `index.html`): un’ascia in un ceppo in stile cartoon; sparisce l’errore 404 di `favicon.ico`.
+
+- 2026-10-30 — solo documenti, il gioco non è cambiato: salvato in `PIANO-GRUPPI.md` il nuovo piano dei Gruppi 6-11 (avvisi, nuova economia, giornata e personale, zona lavorazione legna, affumicatoio, zona clienti).
 
 ## ✅ Note finali
 
