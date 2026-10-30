@@ -35,10 +35,10 @@ export function secondiDiAssenza(stato, adesso, minutiFinti = 0) {
 }
 
 // Quanto riescono a fare al secondo i lavoratori e i clienti, con i ritmi del gioco (unità al secondo).
-// venditore: il livello del venditore comprato (con la sua "rapidita")
-export function ritmi(venditore) {
+// rapidita: quanto sono veloci i clienti (1 = ritmo normale; "Venditore svelto" e "esperto" la alzano)
+// conCarne: c'è anche il venditore della carne (solo allora una parte dei clienti vuole carne)
+export function ritmi(rapidita, conCarne = true) {
   const c = CONFIG.clienti;
-  const rapidita = venditore.rapidita;
   const unitaPerCliente = (c.acquistoMinimo + c.acquistoMassimo) / 2;
   // i clienti arrivano in media ogni (min+max)/2 secondi, divisi per la rapidità del venditore...
   const arrivi = rapidita / ((c.intervalloMinimo + c.intervalloMassimo) / 2);
@@ -52,8 +52,8 @@ export function ritmi(venditore) {
   const giroAiutante = (2 * Math.abs(puntoSportello - puntoCatasta)) / CONFIG.segheria.velocitaAiutante + 2 * VOLO_AIUTANTE;
   return {
     unitaPerCliente,
-    legna: clienti(1 - c.probabilitaCarne) * unitaPerCliente,
-    carne: clienti(c.probabilitaCarne) * unitaPerCliente,
+    legna: clienti(conCarne ? 1 - c.probabilitaCarne : 1) * unitaPerCliente,
+    carne: clienti(conCarne ? c.probabilitaCarne : 0) * unitaPerCliente,
     aiutante: CONFIG.lavoratori.caricoMassimo / giroAiutante,
   };
 }
@@ -65,8 +65,11 @@ export function lavoroOffline(stato, secondi) {
   const m = stato.miglioramenti;
   const conSecondario = (m.boscaioloSecondario?.comprati ?? 0) > 0;
   const conAiutante = (m.aiutante?.comprati ?? 0) > 0;
-  const venditore = CONFIG.miglioramenti.venditore[(m.venditore?.comprati ?? 0) - 1] ?? null;
-  const ritmo = venditore ? ritmi(venditore) : null;
+  // Gruppo 7: si vende solo dove c'è il venditore: la legna con quello della legna (gratuito), la carne con quello della carne
+  const vendeLegna = (m.venditoreLegna?.comprati ?? 0) > 0;
+  const vendeCarne = (m.venditore?.comprati ?? 0) > 0;
+  const livelloVenditore = CONFIG.miglioramenti.venditore[(m.venditore?.comprati ?? 0) - 1] ?? null;
+  const ritmo = vendeLegna || vendeCarne ? ritmi(livelloVenditore?.rapidita ?? 1, vendeCarne) : null;
 
   // solo la legna del secondario può essere venduta: "inCatasta" è quella che l'aiutante deve ancora portare,
   // "sulBanco" quella già sul banco (la legna vera della catasta e del banco non si tocca)
@@ -94,8 +97,8 @@ export function lavoroOffline(stato, secondi) {
         inCatasta -= spostata;
         sulBanco += spostata;
       }
-      const legna = Math.min(sulBanco, ritmo.legna * dt);
-      const carne = Math.min(carneBanco, ritmo.carne * dt);
+      const legna = vendeLegna ? Math.min(sulBanco, ritmo.legna * dt) : 0;
+      const carne = vendeCarne ? Math.min(carneBanco, ritmo.carne * dt) : 0;
       sulBanco -= legna;
       carneBanco -= carne;
       legnaVenduta += legna;

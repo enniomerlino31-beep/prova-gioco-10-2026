@@ -17,6 +17,7 @@ Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il g
 | C | Mura più resistenti che cedono e cadono, lupo gigante nuovo, cerchio verde di riparazione | 2bc4372 |
 | 4 | Corsa: 10 coppie di porte, più alberi, orso gigante con scontro dinamico, scalinata fino a ×20 | 0b4c5f9 |
 | 5 | Grafica della segheria (capanno, tettoia con sega, tre aspetti con le mura) | a7d4df2 |
+| 6 | Avvisi con mini tutorial per le novità (`src/avvisi.js`) | 734bc33 |
 
 
 ## Note già decise (dalle sessioni precedenti)
@@ -41,18 +42,51 @@ Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il g
 ## Cosa resta da fare
 
 Piano dato dall'utente il 2026-10-30 (testo originale). Si lavora un gruppo alla volta, nell'ordine 6 → 11.
-**Stato: il Gruppo 6 è fatto e aspetta la prova dell'utente (non ancora committato); i Gruppi 7-11 non sono iniziati.**
-Gruppo 6, com'è fatto: vedi README, “Avvisi delle novità”. Il sistema è in `src/avvisi.js`: per aggiungere un avviso (anche nei Gruppi 7-11: “catasta piena”, “legna in esaurimento”, nuove zone, affumicatoio, clienti...) basta un testo in `AVVISI` e una riga in `controllaAvvisi` (`segheria.js` per la base, `corsa.js` per la corsa).
+**Stato: il Gruppo 6 è fatto, approvato e salvato (734bc33). Il Gruppo 7 è fatto e aspetta la prova dell'utente (non ancora committato); i Gruppi 8-11 non sono iniziati.**
+Gruppo 6, com'è fatto: vedi README, “Avvisi delle novità”. Il sistema è in `src/avvisi.js`: per aggiungere un avviso (anche nei Gruppi 8-11: giornata, personale, nuove zone, affumicatoio, clienti...) basta un testo in `AVVISI` e una riga in `controllaAvvisi` (`segheria.js` per la base, `corsa.js` per la corsa).
+
+### Gruppo 7: com'è fatto (da provare) e tabella prima / dopo
+
+Versione definitiva della richiesta (2026-10-30, dopo la prima prova): **catasta senza limite** (niente avviso “catasta piena”, nessuno aspetta mai), **boscaiolo secondario in circa 15-20 minuti**, **lavoratori senza cantiere** (arrivano a piedi da un cancello dopo 2-3 secondi), **cantieri solo per le costruzioni e sulla cosa migliorata** (la costruzione funziona al livello vecchio finché non finiscono), **animazione della legna**. Dettagli nel README (sezioni Economia, Catasta, Cantieri, Lavoratori, Animazione).
+
+| Cosa | Prima | Dopo |
+|---|---|---|
+| Limite della catasta | nessuno | nessuno (disegno fermo a 36 pezzi; icona che lampeggia con meno di 10 pezzi) |
+| Clienti: arrivo | ogni 1,2-2,2 s (media 1,7) | ogni 2,2-3,2 s (media 2,7) |
+| Clienti: carico di ogni acquisto | 5-15 unità (media 10) | 5-13 unità (media 9) |
+| Durata di un acquisto | 0,7 s + 0,3 s a pezzo | 1,0 s + 0,4 s a pezzo |
+| Prezzo legna / carne (per unità) | 2 / 5 | 2 / 5 (uguale) |
+| Legna per albero (corsa) | 12 | 10 |
+| Aiutante: carico e velocità | 20 unità, 3 m/s | 15 unità, 2,4 m/s |
+| Boscaiolo secondario | 40 legna ogni 5 min (circa 960 monete/ora) | 15 legna ogni 3 min (circa 600 monete/ora) |
+| Venditore della legna | si compra (100) insieme a quello della carne | **gratis**, primo cerchio dopo il tutorial; arriva a piedi |
+| Venditore della carne / svelto / esperto | 100 / 200 / 400 (×1,6 / ×2,2 / ×3) | 250 / 450 / 900 (×1 / ×2 / ×3); arrivo a piedi, niente cantiere |
+| Mura di pietra / metallo | 250 / 600 | 250 / 450; cantiere sulle mura 6 / 45 s |
+| Torrette 1-6 | 150, 150, 250, 250, 600, 1200 | 250, 250, 400, 400, 800, 1500; cantiere sulla torretta 8, 10, 15, 20, 35, 50 s |
+| Riparazione 1-3 | 100, 200, 400 | 250, 350, 700; cantiere sulle mura 10, 20, 30 s |
+| Aiutante | 120 | 250; arriva a piedi (niente cantiere) |
+| Cacciatore / secondo / esperto | 200 / 300 / 400 | 250 / 300 / 500; a piedi, niente cantiere |
+| Pavimento in pietra | 300 | 250; cantiere 30 s |
+| Boscaiolo secondario | 5000 | 5000 (sempre l'ultimo); arriva a piedi |
+| Pagamento | 12 voli di monete in 1,5 s | a goccia: un pacchetto di monete ogni 0,25 s (8-60 gocce: da 2 a 15 secondi) |
+| Cantieri | nessuno (subito) | solo per le costruzioni, sulla cosa migliorata, da 6 a 50 s |
+| Tempo per arrivare al boscaiolo secondario | pochi minuti | circa 17-18 minuti (modello di calcolo; primo acquisto a pagamento dopo circa 40 s di vendite, circa 1 minuto giocando) |
 
 ```
 GRUPPO 6 - Avvisi e mini tutorial
-GRUPPO 7 - Nuova economia: catasta con limite; primo cerchio in assoluto =
-venditore della legna GRATUITO (la legna non si vende più da sola);
-venditore della carne compare dopo l'aiutante e costa; ordine degli altri
-cerchi invariato; vendite più lente e prezzi più alti; "cantieri" (monete
-versate a goccia + tempo di costruzione con barra "lavori in corso");
-avvisi "catasta piena" e "legna in esaurimento"; corsa del boscaiolo
-secondario da 5 a 3 minuti, ribilanciando la legna che porta
+GRUPPO 7 - Nuova economia (versione definitiva del 2026-10-30): catasta SENZA
+limite (contatore con il numero, il disegno smette di crescere, icona che
+lampeggia con meno di 10 pezzi); animazione della legna (si china, pila che
+oscilla, tronchi lanciati uno alla volta con arco e rimbalzo); primo cerchio
+in assoluto = venditore della legna GRATUITO (la legna non si vende più da
+sola); venditore della carne dopo l'aiutante e a pagamento; vendite più
+lente e prezzi più alti (boscaiolo secondario in 15-20 minuti, primo
+acquisto dopo 1 minuto); monete a goccia; lavoratori senza cantiere (arrivano
+a piedi da un cancello dopo 2-3 secondi); costruzioni (mura, torrette,
+pavimento): cantiere SULLA COSA MIGLIORATA, che lavora al livello vecchio
+finché non finisce (6-50 secondi); corsa del boscaiolo secondario da 5 a 3
+minuti con meno legna; avvisi (venditore della legna, legna in esaurimento,
+primo cantiere, venditore della carne)
 GRUPPO 8 - Giornata e personale: giornata di 4-5 minuti, poi schermo nero
 di 1-2 secondi con "Giorno N"; paga automatica a fine giornata (chi non
 viene pagato per mancanza di monete non torna e va riassunto); menu del
@@ -77,7 +111,7 @@ regolali tu in base all'economia rallentata.
 ```
 
 Note per chi lavora sul piano:
-- Il Gruppo 6 nel piano è solo un titolo: prima di iniziarlo va chiesto all'utente quali avvisi e quali mini tutorial vuole (il Gruppo 7 aggiunge già “catasta piena” e “legna in esaurimento”, quindi non vanno fatti due volte).
+- Il Gruppo 6 nel piano è solo un titolo: prima di iniziarlo va chiesto all'utente quali avvisi e quali mini tutorial vuole (il Gruppo 7 ha aggiunto “legna in esaurimento” e gli altri avvisi della nuova economia, quindi non vanno fatti due volte).
 - Il Gruppo 9 deve cominciare con uno screenshot della mappa e una proposta all'utente su dove mettere le zone dei Gruppi 9-11, **prima** di costruire.
 - Il Gruppo 11 deve aggiornare anche `PIANO-ESPANSIONI.md`.
 - Le espansioni già descritte in `PIANO-ESPANSIONI.md` (zona clienti con falò, affumicatoio, canile, casa dei lavoratori, grande magazzino) restano da fare dopo questi gruppi, una alla volta, solo quando lo dice l’utente.

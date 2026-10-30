@@ -24,8 +24,9 @@ import { suoni } from '../motore/suoni.js';
 const SCALA = CONFIG.segheria.dimensioneBoscaiolo * 0.9; // grande come l'aiutante
 const SOSTA = 1.2;        // secondi fermo alla catasta mentre la legna vola dalla slitta
 const SPARISCE_IN = 2.5;  // negli ultimi metri verso la foresta si rimpicciolisce e sparisce (e ricompare da lì)
-const VOLI_SCARICO = 6;   // in quanti voli la legna passa dalla slitta alla catasta
-const VOLO = { durata: 0.45, altezza: 1.6, scala: 0.55, sbuffo: false };
+const VOLI_SCARICO = 5;   // in quanti tronchi la legna passa dalla slitta alla catasta (uno alla volta: sono i 5 tronchi della slitta)
+const INTERVALLO_TRONCO = 0.28; // secondi tra un tronco lanciato e il successivo
+const VOLO = { durata: 0.5, altezza: 1.5, scala: 0.55, sbuffo: false, rimbalzo: true }; // arco e piccolo rimbalzo sulla catasta
 // il conto alla rovescia sta accanto al cancello della corsa, a destra, sopra la palizzata
 // (non al centro, dove in alto c'è la barra della vita delle mura)
 const POSTO_CARTELLINO = { x: 3.6, y: 2.4 };
@@ -47,6 +48,8 @@ export class BoscaioloSecondario {
     this.comparsa = conAnimazione ? 0 : 1;
     this.posizione = new THREE.Vector3();
     this.visibile = false;
+    this.dalSlitta = []; // i tronchi che stanno per essere lanciati sulla catasta: { resta (secondi alla partenza), tronco }
+    this.chinato = 0;    // quanto si china in avanti mentre scarica (da 0 a 1)
 
     // La strada: dalla catasta al cancello e poi nella foresta (si percorre all'andata e, al contrario, al ritorno)
     this.strada = MAPPA.giroSecondario;
@@ -126,30 +129,43 @@ export class BoscaioloSecondario {
     }
   }
 
-  // La legna della slitta finisce sulla catasta
+  // La legna della slitta finisce sulla catasta: i tronchi vengono lanciati uno alla volta, ognuno con un arco e un piccolo
+  // rimbalzo, e la catasta cresce a ogni tronco che atterra. Intanto lui si china in avanti.
   scarica(conAnimazione) {
     const legna = CONFIG.lavoratori.legnaSecondario;
     if (!conAnimazione) {
       this.catasta.aggiungi(legna);
       return;
     }
-    suoni.suona('tronchiCatasta'); // i tronchi scaricati sulla catasta
     this.modello.updateMatrixWorld();
-    const partenza = this.slitta.localToWorld(new THREE.Vector3(0, 0.45, 0.4));
+    const tronchi = this.tronchi.children;
     for (let i = 0; i < VOLI_SCARICO; i++) {
       const parte = Math.floor(legna / VOLI_SCARICO) + (i < legna % VOLI_SCARICO ? 1 : 0);
+      const ritardo = i * INTERVALLO_TRONCO;
+      const tronco = tronchi[i % tronchi.length];
+      tronco.visible = true;
+      this.dalSlitta.push({ resta: ritardo, tronco });
+      const partenza = this.slitta.localToWorld(tronco.position.clone().add(new THREE.Vector3(0, 0.1, 0)));
       this.inVolo.legna += parte;
-      this.effetti.lancia('legna', partenza, (v) => this.catasta.cima(v), i * 0.12, () => {
+      this.effetti.lancia('legna', partenza, (v) => this.catasta.cima(v), ritardo, () => {
         this.inVolo.legna -= parte;
         this.catasta.aggiungi(parte);
+        suoni.suona('legnaDeposito');
       }, VOLO);
     }
     const { x, z } = this.catasta.posizione;
-    this.effetti.testo(x, 2.6, z, `+${legna} legna`, 'buono');
+    this.effetti.testo(x, 2.9, z, `+${legna} legna`, 'buono');
   }
 
   aggiorna(dt) {
     this.avanza(dt, true);
+    // i tronchi partono dalla slitta uno alla volta (quello lanciato sparisce dalla slitta) e lui si china mentre scarica
+    for (const voce of this.dalSlitta) {
+      voce.resta -= dt;
+      if (voce.resta <= 0) voce.tronco.visible = false;
+    }
+    this.dalSlitta = this.dalSlitta.filter((voce) => voce.resta > 0);
+    this.chinato += ((this.dalSlitta.length > 0 ? 1 : 0) - this.chinato) * Math.min(1, dt * 8);
     if (this.comparsa === 0) suoni.suona('comparsa'); // appena comprato: un suono breve mentre spunta
     this.comparsa = Math.min(1, this.comparsa + dt * 2);
 
@@ -164,7 +180,10 @@ export class BoscaioloSecondario {
       torna = true;
     }
     // ricompare dalla foresta con la slitta carica: si sente la slitta che scivola sulla neve
-    if (torna && !this.tornava) suoni.suona('slitta');
+    if (torna && !this.tornava) {
+      suoni.suona('slitta');
+      for (const tronco of this.tronchi.children) tronco.visible = true;
+    }
     this.tornava = torna;
     this.visibile = distanza !== null;
     this.modello.visible = this.visibile;
@@ -180,7 +199,10 @@ export class BoscaioloSecondario {
     } else {
       this.modello.rotation.y = Math.PI / 2; // fermo: guarda la catasta (a sinistra)
     }
-    this.tronchi.visible = torna;
+    // i tronchi si vedono al ritorno e finché non sono stati lanciati tutti sulla catasta
+    this.tronchi.visible = torna || this.dalSlitta.length > 0;
+    this.modello.rotation.order = 'YXZ'; // prima si gira, poi si china in avanti
+    this.modello.rotation.x = -this.chinato * 0.35;
     // compare con un saltello quando viene comprato; vicino alla foresta si rimpicciolisce (e ricompare da lì)
     const c = this.comparsa;
     const salto = c < 1 ? c + Math.sin(c * Math.PI) * 0.35 : 1;

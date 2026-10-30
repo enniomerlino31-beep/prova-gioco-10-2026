@@ -148,7 +148,9 @@ export class Effetti {
   // destinazione: una funzione che restituisce il punto di arrivo (può muoversi!)
   //               oppure un oggetto con il metodo puntoDiArrivo(tipo) come il carro.
   // Quando atterra viene chiamata la funzione alArrivo (che aggiunge il carico).
-  // opzioni: { durata, altezza, scala, sbuffo }
+  // opzioni: { durata, altezza, scala, sbuffo, rimbalzo }
+  //   rimbalzo: true = quando atterra (e alArrivo è già stato chiamato) il tronco fa un piccolo rimbalzo sul posto prima di sparire
+  //   (solo per destinazioni ferme, come la catasta o la rastrelliera)
   lancia(tipo, da, destinazione, ritardo, alArrivo, opzioni = {}) {
     let oggetto;
     if (tipo === 'carne') {
@@ -177,6 +179,7 @@ export class Effetti {
       durata: opzioni.durata ?? CONFIG.volo.durata,
       altezza: opzioni.altezza ?? CONFIG.volo.altezzaArco,
       sbuffo: opzioni.sbuffo ?? true,
+      rimbalzo: Boolean(opzioni.rimbalzo),
       giri: new THREE.Vector3(5 + Math.random() * 4, (Math.random() - 0.5) * 4, 3 + Math.random() * 3),
       alArrivo,
     });
@@ -205,10 +208,27 @@ export class Effetti {
       volo.oggetto.position.lerpVectors(volo.da, arrivo, k);
       volo.oggetto.position.y += Math.sin(k * Math.PI) * volo.altezza; // arco
       volo.oggetto.rotation.set(volo.giri.x * k, volo.giri.y * k, volo.giri.z * k);
-      if (k >= 1) {
+      if (k >= 1 && volo.rimbalzando) {
+        volo.finito = true; // il rimbalzo è finito
+        this.genitore.remove(volo.oggetto);
+      } else if (k >= 1) {
+        volo.destinazione.rimbalza?.();
+        if (volo.rimbalzo) {
+          // atterrato: la merce è già arrivata (alArrivo); il tronco fa un piccolo salto sul posto e poi sparisce
+          volo.alArrivo?.();
+          volo.alArrivo = null;
+          volo.rimbalzando = true;
+          volo.tempo = 0;
+          volo.durata = 0.2;
+          volo.altezza = 0.22;
+          volo.da = arrivo.clone();
+          const fermo = arrivo.clone();
+          volo.destinazione = (r) => r.copy(fermo);
+          volo.giri.multiplyScalar(0.15);
+          continue;
+        }
         volo.finito = true;
         this.genitore.remove(volo.oggetto);
-        volo.destinazione.rimbalza?.();
         if (volo.sbuffo) {
           // schegge (di legno o di carne) + un po' di polvere di neve
           const colore = volo.tipo === 'carne' ? 0xc8392f : volo.tipo === 'soldi' ? 0xffd23f : 0xb07a45;

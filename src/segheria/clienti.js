@@ -32,6 +32,7 @@ export class Clienti {
     this.prossimoArrivo = 1; // il primo cliente arriva quasi subito
     this.rapidita = 1;       // con il venditore è più di 1: i clienti arrivano e vengono serviti più in fretta
     this.spinta = 0;         // inizio più veloce: 1 = clienti come in CONFIG.clienti.avvio, 0 = ritmo normale (vedi segheria.js)
+    this.tuttiVendono = false; // vero solo durante il tutorial: i clienti comprano anche senza venditore (vedi vende)
   }
 
   // Un numero a metà tra quello normale e quello dell'inizio più veloce, secondo la spinta
@@ -68,7 +69,8 @@ export class Clienti {
         }
         if (posto === 0 && arrivato) {
           cliente.attesa += dt;
-          if (cliente.attesa > cfg.tempoAcquisto / this.svelti) this.compra(cliente, dt);
+          // senza il venditore dello sportello i clienti aspettano e non comprano (la merce si accumula soltanto)
+          if (cliente.attesa > cfg.tempoAcquisto / this.svelti && this.vende(cliente.vuole)) this.compra(cliente, dt);
         } else {
           cliente.attesa = 0;
         }
@@ -96,12 +98,21 @@ export class Clienti {
     return tipo === 'carne' ? CONFIG.clienti.filaCarne : CONFIG.clienti.filaPerSportello;
   }
 
+  // Allo sportello di questa merce si vende? Solo se c'è il suo venditore (Gruppo 7); durante il tutorial, quando ancora non
+  // si può comprare niente, i clienti comprano da soli (serve a guadagnare le monete per le mura di pietra)
+  vende(tipo) {
+    return this.tuttiVendono || Boolean(this.sportelli[tipo].venditore);
+  }
+
   // Arriva un cliente nuovo. Chi vuole carne e trova la fila piena va a comprare legna;
   // chi vuole legna e trova la fila piena non arriva (così la carne ha sempre meno clienti).
+  // Ai banconi senza venditore non viene nessuno: la merce si accumula soltanto.
   aggiungiCliente() {
     const cfg = CONFIG.clienti;
-    let vuole = Math.random() < cfg.probabilitaCarne ? 'carne' : 'legna';
-    if (vuole === 'carne' && this.fila('carne').length >= this.postiInFila('carne')) vuole = 'legna';
+    const possibili = ['legna', 'carne'].filter((tipo) => this.vende(tipo));
+    if (possibili.length === 0) return false;
+    let vuole = possibili.length === 1 ? possibili[0] : Math.random() < cfg.probabilitaCarne ? 'carne' : 'legna';
+    if (vuole === 'carne' && this.fila('carne').length >= this.postiInFila('carne') && possibili.includes('legna')) vuole = 'legna';
     if (this.fila(vuole).length >= this.postiInFila(vuole)) return false;
 
     const modello = creaCliente();

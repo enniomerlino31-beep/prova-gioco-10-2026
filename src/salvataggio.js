@@ -21,11 +21,14 @@ function statoIniziale() {
       aiutante: { comprati: 0, pagato: 0 },
       cacciatore: { comprati: 0, pagato: 0 },
       secondoCacciatore: { comprati: 0, pagato: 0 },
-      venditore: { comprati: 0, pagato: 0 },
+      venditore: { comprati: 0, pagato: 0 },     // dal Gruppo 7: il venditore della CARNE e i due che servono più in fretta
+      venditoreLegna: { comprati: 0, pagato: 0 }, // il venditore della legna (gratuito, il primo cerchio dopo il tutorial)
       pavimentoPietra: { comprati: 0, pagato: 0 },
       boscaioloSecondario: { comprati: 0, pagato: 0 },
     },
+    cantieri: [],                              // lavori in corso: [{ cerchio, rimasto, durata }] (secondi che mancano e durata intera); a fine lavori arriva il miglioramento
     file: {                                    // le file di cerchi: monete già messe nel loro prossimo acquisto
+      legna: { pagato: 0 },
       difesa: { pagato: 0 },
       economia: { pagato: 0 },
       caccia: { pagato: 0 },
@@ -34,8 +37,9 @@ function statoIniziale() {
     secondarioMancano: null,                   // secondi al ritorno del boscaiolo secondario con la legna (null = non c'è)
     orologio: 0,                               // l'ora dell'ultimo salvataggio (millisecondi), per i guadagni mentre si è via
     bentornato: null,                          // guadagni di quando si era via, non ancora raccolti: { secondi, legna, monete }
-    cerchi: 4,                                 // 2 = con le due file di cerchi, 3 = con i due cerchi ECONOMIA,
-                                               // 4 = con il boscaiolo secondario come ultimo acquisto (vedi carica)
+    cerchi: 5,                                 // 2 = con le due file di cerchi, 3 = con i due cerchi ECONOMIA,
+                                               // 4 = con il boscaiolo secondario come ultimo acquisto,
+                                               // 5 = con il venditore della legna gratuito e i cantieri (Gruppo 7; vedi carica)
     sportelli: { legna: 0, carne: 0 },         // merce esposta negli sportelli di vendita (unità; la carne della corsa arriva qui)
     soldiATerra: 0,                            // soldi lasciati dai clienti nel cerchio delle monete tra i due sportelli, da raccogliere
     vendute: { legna: 0, carne: 0 },           // unità vendute in tutto (serviranno per sbloccare le basi)
@@ -131,6 +135,17 @@ export function carica() {
       stato.file.secondario.pagato = 0;
       stato.cerchi = 4;
     }
+    // Salvataggi di prima del Gruppo 7: chi aveva già comprato il "Venditore" ha anche quello della legna (che ora è un acquisto
+    // a parte, gratuito); i prezzi sono cambiati ma le monete già messe nei cerchi restano (se sono più del nuovo prezzo il cerchio
+    // si completa con una moneta)
+    if (!salvato.cerchi || salvato.cerchi < 5) {
+      if ((stato.miglioramenti.venditore?.comprati ?? 0) > 0) stato.miglioramenti.venditoreLegna = { comprati: 1, pagato: 0 };
+      stato.cerchi = 5;
+    }
+    // I cantieri: solo quelli scritti bene
+    stato.cantieri = (Array.isArray(stato.cantieri) ? stato.cantieri : [])
+      .filter((c) => c && typeof c.cerchio === 'string' && Number.isFinite(c.rimasto) && Number.isFinite(c.durata))
+      .map((c) => ({ cerchio: c.cerchio, rimasto: Math.max(0, c.rimasto), durata: Math.max(1, c.durata) }));
     return stato;
   } catch {
     return statoIniziale();

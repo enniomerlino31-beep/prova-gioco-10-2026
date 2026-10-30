@@ -26,7 +26,7 @@ import { suoni } from './motore/suoni.js';
 export const AVVISI = {
   primoLupo: {
     titolo: 'Arrivano i lupi!',
-    testo: 'Gli arcieri delle torrette li fermano (puoi colpirli anche tu con l’ascia). La carne che lasciano a terra si raccoglie e si vende allo sportello.',
+    testo: 'Gli arcieri delle torrette li fermano (puoi colpirli anche tu con l’ascia). La carne che lasciano a terra si raccoglie e, con il venditore della carne, si vende allo sportello.',
   },
   muraDanneggiate: {
     titolo: 'Le mura sono danneggiate!',
@@ -52,9 +52,26 @@ export const AVVISI = {
     titolo: 'Il boscaiolo secondario',
     testo: 'Fa le corse da solo e riporta la legna alla catasta, anche quando il gioco è chiuso. Il conto alla rovescia vicino al cancello dice quando torna.',
   },
+  // --- Gruppo 7: nuova economia ---
+  venditoreLegna: {
+    titolo: 'Il venditore della legna',
+    testo: 'È gratis: resta sul cerchio finché si riempie. Da allora i clienti comprano la legna dello sportello e ti pagano; senza di lui la legna si accumula soltanto.',
+  },
+  primoCantiere: {
+    titolo: 'Lavori in corso!',
+    testo: 'Pagato! I lavori partono sulla costruzione: la barra si riempie e solo alla fine vedi il miglioramento. Nel frattempo funziona come prima.',
+  },
+  legnaInEsaurimento: {
+    titolo: 'Legna in esaurimento!',
+    testo: 'Nella catasta restano meno di 10 pezzi (l’icona lampeggia): senza legna non hai niente da vendere. Fai una corsa per portarne di nuova.',
+  },
+  venditoreCarne: {
+    titolo: 'Il venditore della carne',
+    testo: 'Costa monete. Finché non c’è, la carne dei lupi si accumula e non si vende; con lui i clienti la comprano allo sportello CARNE.',
+  },
   ritornoAssenza: {
     titolo: 'Bentornato!',
-    testo: 'La tua segheria lavora anche quando il gioco è chiuso: il boscaiolo secondario porta la legna e i venditori la vendono. Qui sotto vedi quanto hai guadagnato.',
+    testo: 'La tua segheria lavora anche quando il gioco è chiuso: il boscaiolo secondario porta la legna alla catasta e i venditori la vendono. Qui sotto vedi quanto hai guadagnato.',
   },
 };
 

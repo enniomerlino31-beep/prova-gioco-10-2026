@@ -21,7 +21,6 @@ import { suoni } from '../motore/suoni.js';
 
 const RAGGIO = 1.2;           // come gli altri cerchi a terra (es. il deposito degli sportelli)
 const LARGHEZZA_BARRA = 0.24; // spessore della barra circolare
-const PASSI_PAGAMENTO = 12;   // in quanti "voli" di monete si paga un livello
 const ALTEZZA_SCRITTA = 0.95; // la scritta a terra sopra il cerchio (metri)
 
 export class CerchioMiglioramento {
@@ -50,6 +49,7 @@ export class CerchioMiglioramento {
     this.nascosto = false; // aspetta di essere sbloccato (es. i potenziamenti dei lavoratori)
     this.presenza = 1;    // 1 = si vede tutto, 0 = rimpicciolito e nascosto (per comparire e scomparire dolcemente)
     this.spento = false;  // grigio e trasparente, non si può comprare (es. durante il tutorial)
+    this.inCantiere = false; // pagato: ci sono i lavori in corso (il cerchio sparisce finché non finiscono, vedi Segheria.iniziaCantiere)
 
     this.gruppo = new THREE.Group();
     this.gruppo.position.copy(this.posizione).setY(0.02);
@@ -109,7 +109,7 @@ export class CerchioMiglioramento {
 
   // Il cerchio non si vede (nascosto, oppure sospeso per fare posto a un altro)
   get fuori() {
-    return this.nascosto || this.sospeso;
+    return this.nascosto || this.sospeso || this.inCantiere;
   }
 
   // Toglie il cerchio di mezzo per un po' (si rimpicciolisce) e poi lo rimette com'era, senza suoni
@@ -168,18 +168,47 @@ export class CerchioMiglioramento {
     return Math.hypot(posizione.x - this.posizione.x, posizione.z - this.posizione.z) < this.raggio;
   }
 
-  // Quanti soldi mandare nel prossimo volo (0 = niente da pagare adesso)
+  // Quante gocce di monete servono per pagare un livello intero (Gruppo 7: le monete entrano nel cerchio una alla volta)
+  static gocce(prezzo) {
+    const M = CONFIG.miglioramenti;
+    return Math.min(M.gocceMassime, Math.max(M.gocceMinime, Math.round(prezzo / M.monetePerGoccia)));
+  }
+
+  // Quanti soldi mandare nella prossima goccia (0 = niente da pagare adesso)
   prossimaRata(soldiInTasca, dt) {
-    if (!this.attivo) return 0;
+    if (!this.attivo || this.livello.gratis) return 0;
     this.attesa -= dt;
     if (this.attesa > 0) return 0;
     const prezzo = this.livello.prezzo;
     const mancante = prezzo - this.pagato - this.inArrivo;
-    const rata = Math.min(mancante, Math.floor(soldiInTasca), Math.ceil(prezzo / PASSI_PAGAMENTO));
+    const rata = Math.min(mancante, Math.floor(soldiInTasca), Math.ceil(prezzo / CerchioMiglioramento.gocce(prezzo)));
     if (rata <= 0) return 0;
-    this.attesa = CONFIG.miglioramenti.tempoPagamento / PASSI_PAGAMENTO;
+    this.attesa = CONFIG.miglioramenti.intervalloGoccia;
     this.inArrivo += rata;
     return rata;
+  }
+
+  // Un livello gratuito (il venditore della legna): stando sul cerchio la barra si riempie con il tempo.
+  // Restituisce true quando è piena.
+  riempiGratis(dt) {
+    if (!this.attivo || !this.livello.gratis) return false;
+    this.pagato = Math.min(this.livello.prezzo, this.pagato + (dt / CONFIG.miglioramenti.tempoGratis) * this.livello.prezzo);
+    this.aggiornaBarra();
+    return this.pagato >= this.livello.prezzo;
+  }
+
+  // Parte il cantiere: il cerchio sparisce (si rimpicciolisce) finché non finiscono i lavori. Le monete sono già state pagate.
+  iniziaCantiere() {
+    this.inCantiere = true;
+    this.pagato = 0;
+    this.inArrivo = 0;
+    this.aggiornaBarra();
+  }
+
+  // Finiti i lavori: il cerchio può passare al livello successivo (vedi passaAlSuccessivo) e ricompare
+  finisciCantiere() {
+    this.inCantiere = false;
+    if (this.livello) this.gruppo.visible = true;
   }
 
   // Una rata è arrivata nel cerchio: restituisce true se il livello è pagato tutto
@@ -283,19 +312,20 @@ export class CerchioMiglioramento {
     ctx.fill();
     disegnaIcona(ctx, this.livello.icona, l / 2 - 52, 40, 104);
 
-    const testo = String(Math.max(0, Math.ceil(this.livello.prezzo - this.pagato)));
+    const gratis = Boolean(this.livello.gratis);
+    const testo = gratis ? 'GRATIS' : String(Math.max(0, Math.ceil(this.livello.prezzo - this.pagato)));
     ctx.font = '62px "Lilita One", "Arial Black", sans-serif';
     ctx.textBaseline = 'middle';
-    const latoMoneta = 50;
-    const larghezzaRiga = latoMoneta + 8 + ctx.measureText(testo).width;
+    const latoMoneta = gratis ? 0 : 50; // il livello gratuito non ha l'icona della moneta
+    const larghezzaRiga = latoMoneta + (gratis ? 0 : 8) + ctx.measureText(testo).width;
     const inizio = (l - larghezzaRiga) / 2;
-    disegnaIcona(ctx, this.iconaPrezzo, inizio, 200 - latoMoneta / 2, latoMoneta);
+    if (!gratis) disegnaIcona(ctx, this.iconaPrezzo, inizio, 200 - latoMoneta / 2, latoMoneta);
     ctx.lineJoin = 'round';
     ctx.lineWidth = 10;
     ctx.strokeStyle = 'rgba(20,60,30,0.9)';
-    ctx.strokeText(testo, inizio + latoMoneta + 8, 203);
+    ctx.strokeText(testo, inizio + latoMoneta + (gratis ? 0 : 8), 203);
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(testo, inizio + latoMoneta + 8, 203);
+    ctx.fillText(testo, inizio + latoMoneta + (gratis ? 0 : 8), 203);
     if (this.spento) grigio(ctx); // cerchio spento: anche l'icona e il prezzo diventano grigi
     this.texture.needsUpdate = true;
   }

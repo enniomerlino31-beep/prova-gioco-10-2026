@@ -108,7 +108,7 @@ export const CONFIG = {
     resistenza: 14,          // "vita" di un albero: colpi d'ascia necessari per abbatterlo
     forzaAscia: 1,           // colpi d'ascia al secondo di ogni boscaiolo
     tempoMinimoTaglio: 0.25, // anche con tantissimi boscaioli il taglio dura almeno questi secondi
-    legnaPerAlbero: 12,      // legna che finisce sul carro per ogni albero abbattuto (come in origine; per un po' erano 16)
+    legnaPerAlbero: 10,      // legna che finisce sul carro per ogni albero abbattuto (Gruppo 7: la legna arriva più lentamente; prima 12, per un po' 16)
     raggio: 0.9,             // ingombro di un albero (metri)
   },
 
@@ -205,7 +205,7 @@ export const CONFIG = {
     unitaPerPezzo: 5,            // quante unità di legna (o carne) vale ogni pezzo trasportato
     intervalloRaccolta: 0.1,     // secondi tra un pezzo e l'altro quando raccoglie o scarica
     voliPerTrasferimento: 12,    // una pila grande si sposta in circa questi voli (pezzi più "grossi"), così non serve aspettare minuti
-    velocitaAiutante: 3,         // velocità dell'aiutante che porta la legna dalla catasta allo sportello (metri al secondo)
+    velocitaAiutante: 2.4,       // velocità dell'aiutante che porta la legna dalla catasta allo sportello (metri al secondo; Gruppo 7: prima 3)
     raggioRaccolta: 1.5,         // quanto vicino alla catasta (o alla pila di soldi) bisogna stare (metri)
     raggioSportello: 1.2,        // quanto vicino al punto di deposito di uno sportello bisogna stare per scaricare (metri)
     tempoCancello: 1.0,          // secondi da passare sul sentiero per partire per una nuova corsa
@@ -295,15 +295,18 @@ export const CONFIG = {
 
   // ---------------- CLIENTI ----------------
   clienti: {
-    intervalloMinimo: 1.2,       // secondi minimi tra l'arrivo di un cliente e il successivo
-    intervalloMassimo: 2.2,      // secondi massimi tra l'arrivo di un cliente e il successivo
+    // Gruppo 7, economia più lenta: i clienti arrivano più di rado (prima 1,2-2,2 secondi), comprano un po' meno
+    // (prima 5-15 unità) e ogni acquisto dura di più (prima 0,7 e 0,3 secondi). Senza il venditore di quello sportello
+    // non viene nessun cliente (vedi Clienti.vende), tranne durante il tutorial.
+    intervalloMinimo: 2.2,       // secondi minimi tra l'arrivo di un cliente e il successivo
+    intervalloMassimo: 3.2,      // secondi massimi tra l'arrivo di un cliente e il successivo
     filaPerSportello: 5,         // quanti clienti al massimo aspettano in fila davanti allo sportello LEGNA
     filaCarne: 3,                // quanti clienti al massimo aspettano in fila davanti allo sportello CARNE
     velocita: 2.8,               // velocità dei clienti che camminano (metri al secondo)
     acquistoMinimo: 5,           // unità minime che compra un cliente
-    acquistoMassimo: 15,         // unità massime che compra un cliente
-    tempoAcquisto: 0.7,          // secondi che il cliente aspetta allo sportello prima di iniziare a comprare
-    intervalloPezzi: 0.3,        // secondi tra un pezzo e l'altro che il cliente prende dal bancone
+    acquistoMassimo: 13,         // unità massime che compra un cliente
+    tempoAcquisto: 1.0,          // secondi che il cliente aspetta allo sportello prima di iniziare a comprare
+    intervalloPezzi: 0.4,        // secondi tra un pezzo e l'altro che il cliente prende dal bancone
     probabilitaCarne: 0.2,       // probabilità che un cliente voglia carne invece di legna (la carne ha meno clienti)
     // Inizio più veloce: finché non si comprano le mura di pietra i clienti arrivano più spesso, comprano
     // di più e più in fretta: tornando dalla prima corsa con la fila vuota, si incassano circa 250 monete
@@ -325,14 +328,19 @@ export const CONFIG = {
   // prossimo acquisto, nell'ordine scritto lì. Il pavimento ha il suo cerchio.
   miglioramenti: {
     // --- Difesa ---
+    // Gruppo 7: i livelli che migliorano una COSTRUZIONE (mura, riparazione, torrette, pavimento) hanno un "cantiere" (secondi di
+    // lavori sulla cosa migliorata dopo il pagamento, vedi CONFIG.cantieri): pochi secondi per i primi, fino a 30-60 per i più
+    // importanti; nel frattempo la costruzione funziona al livello vecchio. I livelli che assumono un lavoratore (o lo migliorano)
+    // non hanno cantiere: dopo il pagamento il lavoratore arriva a piedi da un cancello (CONFIG.lavoratori.arrivo).
+    // I prezzi sono pensati per arrivare al boscaiolo secondario in circa 15-20 minuti (il primo acquisto dopo circa 1 minuto).
     mura: [
-      { nome: 'Mura di pietra', prezzo: 250, icona: 'pietra', hpMura: 800 },       // rocce appuntite alla base, verso fuori
-      { nome: 'Rinforzo in metallo', prezzo: 600, icona: 'metallo', hpMura: 1500 }, // assi di ferro con i bulloni tra i pali
+      { nome: 'Mura di pietra', prezzo: 250, icona: 'pietra', hpMura: 800, cantiere: 6 },       // rocce appuntite alla base, verso fuori (passaggio del tutorial: prezzo e cantiere bassi)
+      { nome: 'Rinforzo in metallo', prezzo: 450, icona: 'metallo', hpMura: 1500, cantiere: 45 }, // assi di ferro con i bulloni tra i pali
     ],
     riparazione: [ // le mura recuperano vita da sole, lentamente (vita al secondo)
-      { nome: 'Riparazione', prezzo: 100, icona: 'martello', vitaAlSecondo: 0.8 },
-      { nome: 'Riparazione veloce', prezzo: 200, icona: 'martello', vitaAlSecondo: 1.6 },
-      { nome: 'Riparazione esperta', prezzo: 400, icona: 'martello', vitaAlSecondo: 3.2 },
+      { nome: 'Riparazione', prezzo: 250, icona: 'martello', vitaAlSecondo: 0.8, cantiere: 10 },
+      { nome: 'Riparazione veloce', prezzo: 350, icona: 'martello', vitaAlSecondo: 1.6, cantiere: 20 },
+      { nome: 'Riparazione esperta', prezzo: 700, icona: 'martello', vitaAlSecondo: 3.2, cantiere: 30 },
     ],
     // Torri di legno sulle mura con un arciere che tira frecce ai lupi: due torri per lato (quattro in tutto),
     // poi "Potenzia arcieri" per tutte. torri = quante torri ci sono (nell'ordine di MAPPA.torri).
@@ -342,30 +350,38 @@ export const CONFIG = {
     // aspetto = arcieri, archi, frecce e parte alta delle torri (0 stoffa, 1 cuoio e scudi blu, 2 metallo e oro);
     // la parte bassa delle torri invece segue il materiale delle mura (legno, pietra, metallo)
     torretta: [
-      { nome: 'Torretta sinistra 1', prezzo: 150, icona: 'torre', torri: 1, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 }, // 5 frecce per lupo
-      { nome: 'Torretta destra 1', prezzo: 150, icona: 'torre', torri: 2, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 },
-      { nome: 'Torretta sinistra 2', prezzo: 250, icona: 'torre', torri: 3, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 },
-      { nome: 'Torretta destra 2', prezzo: 250, icona: 'torre', torri: 4, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0 },
-      { nome: 'Potenzia arcieri', prezzo: 600, icona: 'arco', torri: 4, ricarica: 1.2, gittata: 9, danno: 5, aspetto: 1 },     // 3 frecce per lupo
-      { nome: 'Potenzia arcieri 2', prezzo: 1200, icona: 'arcoOro', torri: 4, ricarica: 0.8, gittata: 10, danno: 8, aspetto: 2 }, // 2 frecce per lupo
+      { nome: 'Torretta sinistra 1', prezzo: 250, icona: 'torre', torri: 1, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0, cantiere: 8 }, // 5 frecce per lupo
+      { nome: 'Torretta destra 1', prezzo: 250, icona: 'torre', torri: 2, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0, cantiere: 10 },
+      { nome: 'Torretta sinistra 2', prezzo: 400, icona: 'torre', torri: 3, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0, cantiere: 15 },
+      { nome: 'Torretta destra 2', prezzo: 400, icona: 'torre', torri: 4, ricarica: 1.6, gittata: 8, danno: 3, aspetto: 0, cantiere: 20 },
+      { nome: 'Potenzia arcieri', prezzo: 800, icona: 'arco', torri: 4, ricarica: 1.2, gittata: 9, danno: 5, aspetto: 1, cantiere: 35 },     // 3 frecce per lupo
+      { nome: 'Potenzia arcieri 2', prezzo: 1500, icona: 'arcoOro', torri: 4, ricarica: 0.8, gittata: 10, danno: 8, aspetto: 2, cantiere: 50 }, // 2 frecce per lupo
     ],
     // --- Lavoratori ---
     aiutante: [
-      { nome: 'Aiutante', prezzo: 120, icona: 'ascia' }, // porta da solo la legna dalla catasta allo sportello
+      { nome: 'Aiutante', prezzo: 250, icona: 'ascia' }, // porta da solo la legna dalla catasta allo sportello
     ],
     // i cacciatori combattono i lupi (finché non ci sono tutte e quattro le torrette) e portano la carne allo sportello CARNE:
     // il primo esce dal cancello di sinistra, il secondo da quello di destra; "Cacciatore esperto" vale per tutti e due
     cacciatore: [
-      { nome: 'Cacciatore', prezzo: 200, icona: 'cacciatore', ricarica: 0.9, velocita: 3.2 },          // ricarica = secondi tra un colpo e l'altro
-      { nome: 'Cacciatore esperto', prezzo: 400, icona: 'cacciatore', ricarica: 0.5, velocita: 4.2 },
+      { nome: 'Cacciatore', prezzo: 250, icona: 'cacciatore', ricarica: 0.9, velocita: 3.2 },          // ricarica = secondi tra un colpo e l'altro
+      { nome: 'Cacciatore esperto', prezzo: 500, icona: 'cacciatore', ricarica: 0.5, velocita: 4.2 },
     ],
     secondoCacciatore: [ // lavora allo stesso banco del primo e difende il lato destro
       { nome: 'Secondo cacciatore', prezzo: 300, icona: 'cacciatore' },
     ],
-    venditore: [ // un venditore dietro ogni sportello passa la merce ai clienti: vengono serviti (e arrivano) più in fretta
-      { nome: 'Venditore', prezzo: 100, icona: 'venditore', rapidita: 1.6 },        // 1.6 = una volta e mezza più veloce
-      { nome: 'Venditore svelto', prezzo: 200, icona: 'venditore', rapidita: 2.2 },
-      { nome: 'Venditore esperto', prezzo: 400, icona: 'venditore', rapidita: 3 },
+    // Gruppo 7: la merce si vende solo se c'è il venditore di quello sportello (senza, si accumula soltanto).
+    // Il VENDITORE DELLA LEGNA è gratuito ed è il primo cerchio in assoluto dopo il tutorial (non si paga: basta stare sul
+    // cerchio qualche istante); gli altri cerchi compaiono solo dopo di lui.
+    venditoreLegna: [
+      { nome: 'Venditore della legna', etichetta: 'Venditore legna', prezzo: 1, gratis: true, icona: 'venditore' },
+    ],
+    // Il VENDITORE DELLA CARNE compare dopo l'aiutante e si paga. I due livelli dopo di lui servono i clienti (di tutti e
+    // due gli sportelli) più in fretta: rapidita = quante volte più veloce (1 = ritmo normale)
+    venditore: [
+      { nome: 'Venditore della carne', etichetta: 'Venditore carne', prezzo: 250, icona: 'venditore', rapidita: 1 },
+      { nome: 'Venditore svelto', prezzo: 450, icona: 'venditore', rapidita: 2 },
+      { nome: 'Venditore esperto', prezzo: 900, icona: 'venditore', rapidita: 3 },
     ],
     // fa le corse da solo e porta la legna alla catasta (quanta e ogni quanto: vedi "lavoratori" più giù);
     // è l'ultimo acquisto: il suo cerchio compare solo quando è stato comprato tutto il resto
@@ -374,9 +390,33 @@ export const CONFIG = {
     ],
     // --- Pavimento della base (solo aspetto) ---
     pavimentoPietra: [
-      { nome: 'Pavimento in pietra', etichetta: 'Pietra', prezzo: 300, icona: 'pavimento' }, // etichetta: scritta sopra il cerchio
+      { nome: 'Pavimento in pietra', etichetta: 'Pietra', prezzo: 250, icona: 'pavimento', cantiere: 30 }, // etichetta: scritta sopra il cerchio
     ],
-    tempoPagamento: 1.5,     // secondi per pagare un livello intero stando sul cerchio (le monete volano dentro)
+    // Il pagamento a goccia (Gruppo 7): le monete entrano nel cerchio una alla volta, ogni "intervalloGoccia" secondi.
+    // Ogni goccia vale prezzo / numero di gocce; le gocce sono tante quanto il prezzo diviso "monetePerGoccia", ma mai meno di
+    // "gocceMinime" né più di "gocceMassime" (così un acquisto da 5000 non dura più di 1-2 minuti).
+    intervalloGoccia: 0.25,
+    monetePerGoccia: 25,
+    gocceMinime: 8,
+    gocceMassime: 60,
+    tempoGratis: 1.2,        // il cerchio gratuito (venditore della legna) si riempie in questi secondi stando sopra
+  },
+
+  // ---------------- CANTIERI ----------------
+  // Pagato un miglioramento parte un cantiere nel posto del cerchio: un cartello "Lavori in corso" con una barra che si riempie.
+  // Solo alla fine arriva il lavoratore o il miglioramento. La durata di ogni cantiere è in "cantiere" di ogni livello
+  // (CONFIG.miglioramenti). Il cantiere va avanti anche con il gioco chiuso (come il boscaiolo secondario).
+  cantieri: {
+    ognuno: 1,               // quanto sono lunghi i cantieri in generale (moltiplica tutte le durate: 1 = come scritte, 0.5 = metà)
+  },
+
+  // ---------------- LA CATASTA ----------------
+  // La legna delle corse e del boscaiolo secondario si accumula nella catasta, che NON ha limite (nessuno aspetta mai).
+  // Sopra c'è un contatore con il numero. Il disegno cresce fino a "pezziDisegnati" pezzi (ognuno vale "unitaPerPezzo" unità,
+  // vedi CONFIG.segheria): oltre, la catasta non cresce più e aumenta solo il numero.
+  catasta: {
+    pezziDisegnati: 36,      // altezza massima del disegno (36 pezzi = 7 file di 5, circa 2 metri)
+    esaurimentoPezzi: 10,    // sotto questi pezzi (meno di 10 pezzi = meno di 50 unità) la catasta è "in esaurimento": l'icona lampeggia
   },
 
   // ---------------- LE FILE DI CERCHI ----------------
@@ -388,7 +428,12 @@ export const CONFIG = {
   // Il cerchio "secondario" (anche lui della fila ECONOMIA) è l'ultimo: compare solo quando sono finite tutte le
   // altre file (DIFESA ed ECONOMIA, potenziamenti compresi) ed è stato comprato il pavimento.
   // Il pavimento compare (con il suo cerchio) solo quando sono stati assunti aiutante, venditore e cacciatore.
+  // Il cerchio "legna" (Gruppo 7) è il primo in assoluto dopo il tutorial: il venditore della legna, gratuito. Finché non è
+  // comprato tutti gli altri cerchi restano nascosti (vedi aggiornaVisibilita).
   file: {
+    legna: [
+      ['venditoreLegna', 0], // Venditore della legna (gratuito)
+    ],
     difesa: [
       ['mura', 0],        // Mura di pietra (è il passaggio del tutorial)
       ['torretta', 0],    // Torretta sinistra 1
@@ -404,7 +449,7 @@ export const CONFIG = {
     ],
     economia: [
       ['aiutante', 0],    // Aiutante
-      ['venditore', 0],   // Venditore
+      ['venditore', 0],   // Venditore della carne
       ['venditore', 1],   // Venditore svelto
       ['venditore', 2],   // Venditore esperto
     ],
@@ -429,14 +474,18 @@ export const CONFIG = {
   lavoratori: {
     velocitaFreccia: 16,     // velocità delle frecce degli arcieri (metri al secondo)
     raggioColpoCacciatore: 1.2, // da quanto vicino il cacciatore colpisce un lupo (metri)
-    caricoMassimo: 20,       // unità di legna che l'aiutante porta al massimo a ogni viaggio
+    caricoMassimo: 15,       // unità di legna che l'aiutante porta al massimo a ogni viaggio (Gruppo 7: prima 20)
     caricoCacciatore: 30,    // unità di carne che ogni cacciatore porta al massimo a ogni viaggio
     // Boscaiolo secondario: ogni "minutiSecondario" minuti torna dalla foresta con "legnaSecondario" unità di legna
-    // (anche durante le corse e quando il gioco è chiuso). Con 40 unità ogni 5 minuti, vendute tutte,
-    // fanno circa 960 monete all'ora.
-    minutiSecondario: 5,
-    legnaSecondario: 40,
+    // (anche durante le corse e quando il gioco è chiuso). Gruppo 7: prima 40 unità ogni 5 minuti (circa 960 monete
+    // all'ora vendute tutte); adesso 15 unità ogni 3 minuti, cioè circa 600 monete all'ora.
+    minutiSecondario: 3,
+    legnaSecondario: 15,
     velocitaSecondario: 3.2, // metri al secondo, mentre va e torna dalla foresta con la slitta
+    // Gruppo 7: un lavoratore appena pagato arriva a piedi da un cancello (niente cantiere): compare fuori dal cancello dopo
+    // "ritardo" secondi (con il tempo che la telecamera impiega ad arrivare sono 2-3 secondi dal pagamento) e cammina fino al
+    // suo posto a "velocita" metri al secondo
+    arrivo: { ritardo: 1.6, velocita: 3.2 },
   },
 
   // ---------------- GUADAGNI MENTRE SI È VIA ----------------

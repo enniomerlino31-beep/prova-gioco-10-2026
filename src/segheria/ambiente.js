@@ -64,6 +64,7 @@ export const MAPPA = {
     torretta: [CERCHIO_TORRE(0), CERCHIO_TORRE(1), CERCHIO_TORRE(2), CERCHIO_TORRE(3), CERCHIO_TORRE(1), CERCHIO_TORRE(1)],
     aiutante: sotto(new THREE.Vector3(-2.6, 0, -1.6)), // accanto alla catasta, verso la corsia (non sulla strada catasta-sportello)
     venditore: new THREE.Vector3(0, 0, 2.65),          // al centro, tra i due sportelli dove lavorano i venditori
+    venditoreLegna: new THREE.Vector3(0, 0, 2.65),     // il venditore gratuito della legna è il primo cerchio: stesso posto del venditore della carne, che arriva dopo
     cacciatore: new THREE.Vector3(5.8, 0, -4.5),       // accanto al banco del cacciatore, in alto a destra: non è sulla strada di nessuno
     secondoCacciatore: new THREE.Vector3(5.8, 0, -4.5), // nello stesso posto: si compra dopo il primo
     // l'ultimo acquisto (quando compare tutti gli altri cerchi sono spariti): accanto alla catasta dove scarica la

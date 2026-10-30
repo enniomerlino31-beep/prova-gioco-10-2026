@@ -35,6 +35,7 @@ export class Giocatore {
     this.colpo = null;      // a che punto è il colpo d'ascia (da 0 a 1); null = non sta colpendo
     this.versoColpo = 0;    // verso dove si gira per colpire il lupo
     this.saltoPila = 0;     // saltello della pila quando arriva un pezzo (da 1 a 0)
+    this.chino = 0;         // quanto è piegato in avanti per raccogliere o lasciare i tronchi (da 1 a 0, vedi chinati)
 
     // Le pile sulla schiena: un gruppo attaccato al boscaiolo (alla sua "molla", così rimbalza con lui), dietro le spalle.
     // Il carico NON ha limiti: si disegnano al massimo "pezziVisibiliSchiena" pezzi per pila
@@ -230,10 +231,17 @@ export class Giocatore {
       if (this.colpo >= 1) this.colpo = null;
       else animaColpo(this.modello, this.colpo);
     }
-    // la pila ondeggia un po' mentre cammina e fa un saltello quando arriva un pezzo
+    // la pila ondeggia mentre cammina e fa un saltello quando arriva un pezzo; più legna e carne porta, più ondeggia e pesa
+    // (il boscaiolo si piega un po' all'indietro e la pila sale e scende a ogni passo)
     const { fase, moto } = this.modello.userData.anim;
-    this.schiena.rotation.x = -Math.abs(Math.sin(fase)) * 0.06 * moto;
-    this.schiena.rotation.z = Math.sin(fase * 0.5) * 0.04 * moto;
+    const peso = Math.min(1, (this.carico.legna + this.carico.carne) / 200);
+    this.schiena.rotation.x = -Math.abs(Math.sin(fase)) * (0.05 + 0.08 * peso) * moto;
+    this.schiena.rotation.z = Math.sin(fase * 0.5) * (0.04 + 0.07 * peso) * moto;
+    this.schiena.position.y = 0.55 - Math.abs(Math.sin(fase)) * 0.04 * peso * moto;
+    // si china a raccogliere o a lasciare i tronchi (vedi chinati), poi si rialza
+    this.chino = Math.max(0, this.chino - dt * 3.5);
+    this.modello.rotation.order = 'YXZ';
+    this.modello.rotation.x = -Math.sin(Math.min(1, this.chino) * Math.PI * 0.5) * 0.42 + peso * 0.08 * moto;
     this.saltoPila = Math.max(0, this.saltoPila - dt * 5);
     const salto = Math.sin(this.saltoPila * Math.PI);
     this.schiena.scale.set(1 + salto * 0.12, 1 + salto * 0.2, 1 + salto * 0.12);
@@ -244,6 +252,11 @@ export class Giocatore {
       colonna.gruppo.position.z = colonna.z;
     }
     this.sistemaEtichette();
+  }
+
+  // Il boscaiolo si china in avanti per un attimo (a ogni pezzo che prende o lascia: restando fermo a lavorare resta piegato)
+  chinati() {
+    this.chino = 1;
   }
 
   // Inizia il colpo d'ascia verso il lupo che si trova in (x, z)

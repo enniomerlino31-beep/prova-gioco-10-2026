@@ -39,6 +39,8 @@ import { BoscaioloSecondario, durataGiro } from './secondario.js';
 import { lavoroOffline, secondiDiAssenza } from './offline.js';
 import { creaBarraGigante } from './barraGigante.js';
 import { CerchioRiparazione } from './cerchioRiparazione.js';
+import { Cantiere } from './cantiere.js';
+import { ArrivoLavoratore, durataArrivo } from './arrivo.js';
 import { Avvisi } from '../avvisi.js';
 import { suoni } from '../motore/suoni.js';
 import { creaLupo } from '../modelli/lupo.js';
@@ -57,6 +59,17 @@ const PAVIMENTI = { pavimentoPietra: 'pietra' };
 
 // Opzioni dei voli dentro la segheria (più brevi e piccoli di quelli della corsa)
 const VOLO_CORTO = { durata: 0.35, altezza: 1.4, scala: 0.55, sbuffo: false };
+// quando il boscaiolo lascia i tronchi sulla rastrelliera: uno alla volta, con un arco e un piccolo rimbalzo
+const VOLO_CADUTA = { durata: 0.42, altezza: 1.2, scala: 0.55, sbuffo: false, rimbalzo: true };
+
+// A quale catena appartiene il livello che si sta costruendo nel cerchio "nomeCerchio" (null = fila finita).
+// Una fila ha tanti passi di catene diverse; il pavimento ha il cerchio e la catena con lo stesso nome.
+function catenaDelCerchio(stato, nomeCerchio) {
+  const passi = CONFIG.file[nomeCerchio];
+  if (!passi) return nomeCerchio;
+  const i = passi.findIndex(([catena, indice]) => (stato.miglioramenti[catena]?.comprati ?? 0) <= indice);
+  return i < 0 ? null : passi[i][0];
+}
 
 // Toglie un comando di prova (come ?gigante) dall'indirizzo, così ricaricando la pagina non si ripete
 function togliDallIndirizzo(nome) {
@@ -131,6 +144,13 @@ export class Segheria {
     this.moneteInfinite = indirizzo.has('moneteinfinite');
     // Per le prove: con ?tuttocomprato è già comprato tutto tranne il boscaiolo secondario, con 5000 monete in tasca
     if (indirizzo.has('tuttocomprato')) this.compraTuttoPerProva();
+    // Per le prove: con ?ricco si parte con tante monete e legna (e il tutorial fatto), per provare l'economia senza giocare mezz'ora
+    if (indirizzo.has('ricco')) this.partiRicco();
+    // Per le prove: con ?cantieri=0.1 i lavori durano un decimo (1 = come sempre)
+    if (indirizzo.has('cantieri')) {
+      CONFIG.cantieri.ognuno = THREE.MathUtils.clamp(Number(indirizzo.get('cantieri')) || 1, 0.01, 5);
+      togliDallIndirizzo('cantieri');
+    }
     // Gli avvisi delle novità (vedi src/avvisi.js). Per le prove: con ?avvisi si rivedono tutti da capo
     if (indirizzo.has('avvisi')) {
       s.avvisiVisti = [];
@@ -236,6 +256,10 @@ export class Segheria {
     }
     this.torrette = new Torrette(this.radice, this.effetti, MAPPA.torri, this.mura);
     this.pavimento = new Pavimento(this.radice, this.effetti);
+    // I lavori in corso (cantieri) rimasti dall'ultima volta: ognuno sta sulla sua costruzione (il suo cerchio è nascosto)
+    this.cantieri = [];
+    this.arrivi = []; // i lavoratori che stanno arrivando a piedi da un cancello (vedi arrivaALavorare)
+    for (const lavori of s.cantieri) this.avviaCantiere(lavori.cerchio, lavori.durata, lavori.rimasto, false);
     this.cacciatori = []; // il primo esce dal cancello di sinistra, il secondo da quello di destra
     this.venditori = [];
     this.attesaScintille = 0;
@@ -245,18 +269,18 @@ export class Segheria {
     this.banco = new BancoCacciatore(this.radice, MAPPA.bancoCacciatore, this.effetti);
     this.bancoAperto = this.livelli.mura >= 1 || this.livelli.cacciatore >= 1;
     if (this.bancoAperto) this.banco.mostra(false);
+    this.tutorial = new Tutorial(this.radice, schermate, s.tutorial);
+    this.festaDopoLaRegia = false; // finito il tutorial, quando la telecamera torna sul boscaiolo arriva la schermata di festa
+    this.inFesta = false;          // la schermata di festa è aperta: il gioco aspetta il pulsante "Gioca"
     this.ripristinaMiglioramenti();
     this.aggiornaVisibilita(true);
     if (indirizzo.has('mura')) {
       this.mura.hp = this.mura.maxHp * THREE.MathUtils.clamp(Number(indirizzo.get('mura')) / 100, 0, 1);
       togliDallIndirizzo('mura');
     }
-    this.tutorial = new Tutorial(this.radice, schermate, s.tutorial);
     // Durante il tutorial si può comprare solo il primo acquisto della fila DIFESA (le mura di pietra): gli altri
     // cerchi sono spenti (grigi); il cerchio DIFESA si accende solo al terzo passaggio, vedi aggiorna
     for (const [nome, cerchio] of Object.entries(this.cerchi)) cerchio.spegni(!this.tutorial.finito && (nome !== 'difesa' || this.tutorial.passo < 2));
-    this.festaDopoLaRegia = false; // finito il tutorial, quando la telecamera torna sul boscaiolo arriva la schermata di festa
-    this.inFesta = false;          // la schermata di festa è aperta: il gioco aspetta il pulsante "Gioca"
     // Inizio più veloce: finché non ci sono le mura di pietra i clienti sono di più e comprano più in fretta
     this.clienti.spinta = this.livelli.mura === 0 ? 1 : 0;
 
@@ -289,11 +313,25 @@ export class Segheria {
     }
     for (const fila of Object.keys(CONFIG.file)) s.file[fila] = { pagato: 0 };
     s.secondarioMancano = null;
+    s.cantieri = [];
     s.soldi = CONFIG.miglioramenti.boscaioloSecondario[0].prezzo;
     s.tutorial = 3;
     const indirizzo = new URL(window.location.href);
     indirizzo.searchParams.delete('tuttocomprato');
     window.history.replaceState(null, '', indirizzo);
+    salva(s);
+  }
+
+  // Per le prove (?ricco): tutorial fatto, 20.000 monete in tasca, 500 legna in catasta e un po' di legna e carne sugli sportelli.
+  // Poi ?ricco sparisce dall'indirizzo (le monete restano salvate: per tornare a una partita normale si ricomincia con ?reset).
+  partiRicco() {
+    const s = this.stato;
+    s.tutorial = 3;
+    s.soldi = Math.max(s.soldi, 20000);
+    s.catasta = Math.max(s.catasta, 500);
+    s.sportelli.legna += 200;
+    s.sportelli.carne += 60;
+    togliDallIndirizzo('ricco');
     salva(s);
   }
 
@@ -316,6 +354,14 @@ export class Segheria {
     // l'ora salvata non torna mai indietro (se l'orologio del telefono va indietro non si guadagna due volte
     // lo stesso tempo), ma non resta nemmeno più avanti di "massimoOre" rispetto a adesso
     s.orologio = Math.min(Math.max(Number(s.orologio) || 0, adesso), adesso + massimo * 1000);
+    // i cantieri vanno avanti anche a gioco chiuso: quelli finiti nel frattempo sono già comprati (vedi ripristinaMiglioramenti)
+    s.cantieri = s.cantieri.filter((cantiere) => {
+      cantiere.rimasto -= Math.min(via, massimo);
+      if (cantiere.rimasto > 0) return true;
+      const catena = catenaDelCerchio(s, cantiere.cerchio);
+      if (catena) s.miglioramenti[catena].comprati += 1;
+      return false;
+    });
     if (s.tutorial < 3 || via < CONFIG.offline.minimoMinuti * 60) return;
     const secondi = Math.min(via, massimo);
     const fatto = lavoroOffline(s, secondi);
@@ -365,6 +411,7 @@ export class Segheria {
   // Durante una corsa la base non si vede, ma il boscaiolo secondario continua i suoi giri
   lavoraDuranteLaCorsa(dt) {
     this.secondario?.avanza(dt, false);
+    for (const voce of this.cantieri) voce.cantiere.passa(dt); // anche i lavori vanno avanti (a fine corsa arrivano i miglioramenti pronti)
   }
 
   // Il bottino della corsa vinta finisce nella catasta (la legna) e sul tavolo dello sportello CARNE (la carne),
@@ -373,6 +420,7 @@ export class Segheria {
   // (se ne serve, si aggiunge un bonus). Restituisce il bonus, da mostrare nella schermata di fine corsa.
   aggiungiBottino(legna, carne) {
     const bonus = this.tutorial.passo === 0 ? Math.max(0, CONFIG.tutorial.legnaPrimaCorsa - legna) : 0;
+    // la catasta non ha limite
     this.catasta.aggiungi(legna + bonus);
     this.sportelli.carne.aggiungi(carne);
     this.ultimoBottino = { legna: legna + bonus, carne };
@@ -847,10 +895,16 @@ export class Segheria {
   // Il pavimento compare quando sono stati assunti tutti i lavoratori base.
   // subito: all'avvio, senza l'animazione del cerchio che compare
   aggiornaVisibilita(subito) {
+    // Il primo cerchio in assoluto dopo il tutorial è il venditore della legna (gratuito): finché non è comprato
+    // tutti gli altri cerchi restano nascosti. Compare dopo la festa di fine tutorial (e dopo i lavori delle mura di pietra).
+    const dopoTutorial = this.tutorial.finito && !this.festaDopoLaRegia && !this.inFesta;
+    this.cerchi.legna.nascondi(!dopoTutorial, subito);
+    const attesaVenditore = this.tutorial.finito && this.livelli.venditoreLegna === 0;
+    this.cerchi.difesa.nascondi(attesaVenditore, subito);
     for (const fila of CERCHI_ECONOMIA) {
       const passo = Math.min(this.cerchi[fila].comprati, PASSI_INSIEME);
       const coppiaPronta = CERCHI_ECONOMIA.every((altra) => this.cerchi[altra].comprati >= passo);
-      this.cerchi[fila].nascondi(!this.bancoAperto || !coppiaPronta, subito);
+      this.cerchi[fila].nascondi(!this.bancoAperto || !coppiaPronta || attesaVenditore, subito);
     }
     // il boscaiolo secondario (anche lui della fila ECONOMIA) è l'ultimo acquisto: compare quando tutte le altre
     // file sono finite (potenziamenti compresi) ed è stato comprato il pavimento
@@ -883,19 +937,98 @@ export class Segheria {
     for (const [nome, cerchio] of Object.entries(this.cerchi)) {
       cerchio.aggiorna(dt);
       if (this.regia || !cerchio.contiene(pos)) continue;
+      // il cerchio gratuito (il venditore della legna) si riempie con il tempo passato sopra
+      if (cerchio.livello?.gratis) {
+        if (cerchio.riempiGratis(dt)) this.pagatoMiglioramento(nome);
+        continue;
+      }
       const rata = cerchio.prossimaRata(this.stato.soldi, dt);
       if (rata <= 0) continue;
       this.stato.soldi -= rata;
-      // le monete che entrano nel cerchio
+      // una goccia di monete entra nel cerchio (una alla volta)
       suoni.suona('pagamento');
       const partenza = this.giocatore.cimaSchiena(new THREE.Vector3(), 'monete'); // le monete partono dalla pila sulla schiena
       this.effetti.lancia('soldi', partenza, cerchio, 0, () => {
-        if (cerchio.riceviRata(rata)) this.completaMiglioramento(nome);
+        if (cerchio.riceviRata(rata)) this.pagatoMiglioramento(nome);
       }, { durata: 0.35, altezza: 1.2, scala: 0.8, sbuffo: false });
     }
   }
 
-  // Un livello è pagato tutto: il miglioramento compare e il cerchio passa al prossimo acquisto
+  // ---------------- CANTIERI ----------------
+
+  // Un livello è pagato tutto. Se migliora una COSTRUZIONE (mura, riparazione, torrette, pavimento: ha "cantiere" in CONFIG)
+  // parte il cantiere sulla cosa migliorata, e solo alla fine compare il miglioramento (vedi finisceCantiere); nel frattempo
+  // funziona al livello vecchio. Se assume o migliora un lavoratore non c'è cantiere: il lavoratore arriva a piedi da un cancello
+  // (vedi arrivaALavorare). Nel tutorial, pagate le mura di pietra il passaggio è fatto.
+  pagatoMiglioramento(nomeCerchio) {
+    const cerchio = this.cerchi[nomeCerchio];
+    const livello = cerchio.livello;
+    const { x, z } = cerchio.posizione;
+    suoni.suona('acquisto');
+    if (!livello.cantiere) {
+      this.effetti.testo(x, 2.2, z, 'Pagato!', 'buono');
+      this.completaMiglioramento(nomeCerchio);
+      this.completaTutorial('miglioramento');
+      return;
+    }
+    const durata = Math.max(1, livello.cantiere * CONFIG.cantieri.ognuno);
+    this.effetti.testo(x, 2.2, z, 'Pagato! Lavori in corso', 'buono');
+    this.avviaCantiere(nomeCerchio, durata, durata, true);
+    this.completaTutorial('miglioramento');
+    this.salvaOra();
+  }
+
+  // Dove sta il cantiere di un livello: sulla cosa migliorata. Mura e riparazione: impalcature intorno alla palizzata;
+  // torretta: sulle torri nuove (o su tutte, con "Potenzia arcieri"); pavimento: nel punto del cerchio, al centro della base.
+  cantierePer(cerchio) {
+    const livello = cerchio.livello;
+    const catena = livello.catena ?? cerchio.nomeCatena;
+    if (catena === 'mura' || catena === 'riparazione') return { tipo: 'mura', punti: [] };
+    if (catena === 'torretta') {
+      const prima = CONFIG.miglioramenti.torretta[livello.indice - 1];
+      const nuove = [];
+      for (let i = prima?.torri ?? 0; i < livello.torri; i++) nuove.push(i);
+      const indici = nuove.length > 0 ? nuove : this.torrette.torri.map((_, i) => i).filter((i) => i < livello.torri);
+      return { tipo: 'locale', punti: indici.map((i) => this.torrette.torri[i].posizione) };
+    }
+    return { tipo: 'locale', punti: [cerchio.posizione] };
+  }
+
+  // Mette in piedi il cantiere di un cerchio. conAnimazione: appena pagato spunta con un saltello;
+  // dal salvataggio c'è subito (rimasto = i secondi che mancano ancora)
+  avviaCantiere(nomeCerchio, durata, rimasto, conAnimazione) {
+    const cerchio = this.cerchi[nomeCerchio];
+    if (!cerchio) return;
+    cerchio.nomeCatena = nomeCerchio; // per il pavimento (il cerchio e la catena hanno lo stesso nome)
+    const cantiere = new Cantiere(this.radice, this.effetti, { ...this.cantierePer(cerchio), durata, rimasto });
+    if (!conAnimazione) cantiere.comparsa = 1;
+    cerchio.iniziaCantiere();
+    if (!conAnimazione) {
+      cerchio.presenza = 0;
+      cerchio.gruppo.visible = false;
+    }
+    this.cantieri.push({ cerchio: nomeCerchio, cantiere });
+  }
+
+  // A ogni fotogramma i cantieri vanno avanti; finiti i lavori (e quando la telecamera non sta mostrando un'altra cosa)
+  // arriva il miglioramento
+  aggiornaCantieri(dt) {
+    for (const voce of [...this.cantieri]) {
+      voce.cantiere.aggiorna(dt);
+      if (voce.cantiere.finito && !this.regia) this.finisceCantiere(voce);
+    }
+  }
+
+  // Lavori finiti: il cantiere sparisce e il miglioramento compare, come prima del Gruppo 7 appena pagato
+  finisceCantiere(voce) {
+    this.cantieri.splice(this.cantieri.indexOf(voce), 1);
+    for (const punto of voce.cantiere.punti) this.effetti.sbuffo(punto.x, 0.5, punto.z, 0xd9c8a8, 20, 3);
+    voce.cantiere.distruggi();
+    this.cerchi[voce.cerchio].finisciCantiere();
+    this.completaMiglioramento(voce.cerchio);
+  }
+
+  // Il miglioramento compare e il cerchio passa al prossimo acquisto
   // Se compare lontano o fuori dallo schermo, la telecamera va a vederlo (vedi aggiornaRegia).
   // nomeCerchio: 'difesa', 'economia' o un pavimento
   completaMiglioramento(nomeCerchio) {
@@ -912,7 +1045,6 @@ export class Segheria {
     const daMostrare = tappe.filter((tappa) => tappa.sempre || !tappa.punti.every((punto) => this.visibile(punto)));
     for (const tappa of tappe) if (!daMostrare.includes(tappa)) tappa.azione();
     if (daMostrare.length > 0) this.regia = { tappe: daMostrare, indice: 0, tempo: 0, nome: livello.nome };
-    this.completaTutorial('miglioramento');
     this.salvaOra();
   }
 
@@ -998,9 +1130,13 @@ export class Segheria {
       }
       return tappe;
     }
+    // Gruppo 7: i lavoratori non hanno cantiere: dopo il pagamento arrivano a piedi da un cancello (vedi arrivaALavorare);
+    // la telecamera resta a guardare finché non sono al loro posto
+    const arrivo = (posto) => ({ sosta: durataArrivo(posto) + 0.6 });
     if (nome === 'aiutante') {
       if (this.aiutante) return [];
-      return [tappa(this.catasta.posizione.clone().add(new THREE.Vector3(0, 0, 1)), () => (this.aiutante = this.creaAiutante(true)))];
+      const posto = this.catasta.posizione.clone().add(new THREE.Vector3(0, 0, 1));
+      return [tappa(posto, () => this.arrivaALavorare('aiutante', posto, () => (this.aiutante = this.creaAiutante(false))), arrivo(posto))];
     }
     if (nome === 'cacciatore') {
       // "Cacciatore esperto" rende più svelti tutti e due
@@ -1008,26 +1144,45 @@ export class Segheria {
         for (const cacciatore of this.cacciatori) cacciatore.livello = livello;
         return [];
       }
-      return [tappa(MAPPA.casaCacciatore, () => this.cacciatori.push(new Cacciatore(this, livello, 0)))];
+      return [tappa(MAPPA.casaCacciatore, () => this.arrivaALavorare('cacciatore', MAPPA.casaCacciatore, () => this.nuovoCacciatore(livello, 0)), arrivo(MAPPA.casaCacciatore))];
     }
     if (nome === 'secondoCacciatore') {
       // il secondo cacciatore lavora allo stesso banco, con la bravura del primo
-      return [tappa(MAPPA.casaCacciatore, () => this.cacciatori.push(new Cacciatore(this, this.livelloComprato('cacciatore'), 1)))];
+      return [tappa(MAPPA.casaCacciatore, () => this.arrivaALavorare('cacciatore', MAPPA.casaCacciatore, () => this.nuovoCacciatore(this.livelloComprato('cacciatore'), 1)), arrivo(MAPPA.casaCacciatore))];
     }
     if (nome === 'boscaioloSecondario') {
-      // compare accanto alla catasta e parte subito per il suo primo giro
+      // arriva a piedi, si ferma accanto alla catasta e parte subito per il suo primo giro
       if (this.secondario) return [];
-      return [tappa(MAPPA.giroSecondario[0], () => (this.secondario = this.creaSecondario(durataGiro(), true)))];
+      const posto = MAPPA.giroSecondario[0];
+      return [tappa(posto, () => this.arrivaALavorare('secondario', posto, () => (this.secondario = this.creaSecondario(durataGiro(), false))), arrivo(posto))];
+    }
+    // Gruppo 7: il venditore della legna (gratuito) sta allo sportello LEGNA, quello della carne allo sportello CARNE;
+    // "Venditore svelto" e "esperto" non portano nessuno di nuovo: servono più in fretta i clienti di tutti e due
+    if (nome === 'venditoreLegna' || (nome === 'venditore' && comprati === 1)) {
+      const sportello = this.sportelli[nome === 'venditoreLegna' ? 'legna' : 'carne'];
+      if (sportello.venditore) return [];
+      // la telecamera guarda un po' più dentro la base, così la tettoia dello sportello non copre il venditore
+      const posto = postoVenditore(sportello);
+      return [tappa(posto.clone().add(new THREE.Vector3(0, 0, -3.5)), () => this.arrivaALavorare('venditore', posto, () => this.venditori.push(this.creaVenditore(sportello, false))), arrivo(posto))];
     }
     if (nome === 'venditore') {
       this.clienti.rapidita = livello.rapidita;
-      if (this.venditori.length > 0) return [];
-      return Object.values(this.sportelli).map((sportello) =>
-        // la telecamera guarda un po' più dentro la base, così la tettoia dello sportello non copre il venditore
-        tappa(postoVenditore(sportello).add(new THREE.Vector3(0, 0, -3.5)), () => this.venditori.push(this.creaVenditore(sportello, true)))
-      );
+      return [];
     }
     return [];
+  }
+
+  // Un cacciatore nuovo, già al suo posto (arrivato a piedi)
+  nuovoCacciatore(livello, numero) {
+    const nuovo = new Cacciatore(this, livello, numero);
+    nuovo.comparsa = 1;
+    this.cacciatori.push(nuovo);
+  }
+
+  // Un lavoratore appena pagato arriva a piedi da un cancello (vedi arrivo.js): compare fuori dal cancello dopo un attimo,
+  // cammina fino al suo posto e lì prende il suo posto il lavoratore vero (creaVero)
+  arrivaALavorare(tipo, posto, creaVero) {
+    this.arrivi.push(new ArrivoLavoratore(this.radice, this.effetti, tipo, posto, creaVero));
   }
 
   // I cacciatori combattono i lupi solo finché non ci sono tutte e quattro le torrette:
@@ -1062,9 +1217,11 @@ export class Segheria {
         this.cacciatori.push(nuovo);
       }
     }
+    // i venditori: quello della legna (gratuito) e quello della carne; "svelto" e "esperto" cambiano solo la rapidità dei clienti
+    if (this.livelli.venditoreLegna > 0) this.venditori.push(this.creaVenditore(this.sportelli.legna, false));
     const venditore = this.livelloComprato('venditore');
     if (venditore) {
-      this.venditori = Object.values(this.sportelli).map((sportello) => this.creaVenditore(sportello, false));
+      this.venditori.push(this.creaVenditore(this.sportelli.carne, false));
       this.clienti.rapidita = venditore.rapidita;
     }
     for (const [nome, tipo] of Object.entries(PAVIMENTI)) {
@@ -1318,10 +1475,19 @@ export class Segheria {
     if (avvisi.attivo || this.regia || this.inFesta || !this.tutorial.finito || this.stato.bentornato) return;
     const lupoNormale = this.lupiBase.find((lupo) => lupo.vivo && !lupo.gigante);
     // [nome, la novità c'è?, dove guardare, zoom della telecamera]: in ordine di importanza
+    const cerchioLegna = this.cerchi.legna;
+    const cerchioCarne = this.cerchi.economia;
+    const cantiere = this.cantieri[0]?.cantiere;
     const candidati = [
+      // il primo cerchio dopo il tutorial: il venditore della legna (gratuito), quando è comparso del tutto
+      ['venditoreLegna', cerchioLegna.livello && !cerchioLegna.fuori && cerchioLegna.presenza > 0.9, cerchioLegna.posizione, 1],
       ['lupoGigante', this.lupoGigante.vivo && this.attesaAvvisoGigante === null, this.lupoGigante, CONFIG.lupoGigante.zoomTelecamera],
       ['muraDanneggiate', this.riparazioneAperta && this.cerchioMura.comparso, MAPPA.riparazioneMura, 1], // aspetta che il cerchio verde sia comparso del tutto
       ['primoLupo', !!lupoNormale, lupoNormale, 0.85],
+      // Gruppo 7: cantieri, catasta e venditore della carne
+      ['primoCantiere', !!cantiere && cantiere.tempo > 0.5, cantiere?.centro, cantiere ? this.zoomCantiere(cantiere) : 1], // aspetta che il cantiere sia spuntato del tutto
+      ['legnaInEsaurimento', this.livelli.venditoreLegna > 0 && this.catasta.inEsaurimento, this.catasta.posizione, 0.85],
+      ['venditoreCarne', cerchioCarne.livello?.catena === 'venditore' && !cerchioCarne.fuori && cerchioCarne.presenza > 0.9, cerchioCarne.posizione, 1],
       // se è nella foresta si guarda il conto alla rovescia, accanto al cancello della corsa
       ['boscaioloSecondario', !!this.secondario, this.secondario?.visibile ? this.secondario.posizione : { x: MAPPA.cancelli.corsa.x + 3.6, z: MAPPA.cancelli.corsa.z }, 0.8],
     ];
@@ -1337,12 +1503,20 @@ export class Segheria {
     }
   }
 
+  // Quanto allontanare la telecamera per vedere un cantiere: quello sulle mura deve far vedere tutta la palizzata e il cartello
+  zoomCantiere(cantiere) {
+    if (cantiere.tipo !== 'mura') return cantiere.zoom;
+    const M = MAPPA.mura;
+    const punti = [{ x: M.sinistra - 1, z: M.fondo - 1 }, { x: M.destra + 1, z: M.fondo - 1 }, { x: M.sinistra - 1, z: M.fronte + 2 }, { x: M.destra + 1, z: M.fronte + 2 }];
+    return Math.min(1.6, this.zoomPerVedere(punti, cantiere.centro)); // sul telefono (schermo stretto) non troppo lontano: si vedono le impalcature davanti e il cartello
+  }
+
   // Il gioco è fermo: la telecamera va sulla novità (o torna sul boscaiolo) e aspetta il tocco che chiude il riquadro
   aggiornaAvviso(dt) {
     this.avvisi.aggiorna(dt, (punto, zoom, passo, morbidezza) => {
       if (punto) {
         // la telecamera guarda un po' più in basso del punto, così la novità sta nella parte alta dello schermo, sopra il riquadro
-        const guarda = new THREE.Vector3(punto.x, 0, punto.z + CONFIG.avvisi.spostamentoBase * zoom);
+        const guarda = new THREE.Vector3(punto.x, 0, punto.z + CONFIG.avvisi.spostamentoBase * Math.min(zoom, 1.2));
         this.ambiente.segui(guarda, passo, { zoom, libero: true, morbidezza });
       } else {
         this.ambiente.segui(this.giocatore.posizione, passo, { morbidezza });
@@ -1429,6 +1603,10 @@ export class Segheria {
 
     // --- Tutto il resto ---
     for (const sportello of Object.values(this.sportelli)) sportello.aggiorna(dt);
+    this.catasta.aggiorna(dt);
+    this.aggiornaCantieri(dt);
+    for (const arrivo of this.arrivi) arrivo.aggiorna(dt); // i lavoratori che arrivano a piedi
+    this.arrivi = this.arrivi.filter((arrivo) => !arrivo.finito);
     this.aiutante?.aggiorna(dt);
     this.secondario?.aggiorna(dt);
     this.banco.aggiorna(dt);
@@ -1444,14 +1622,17 @@ export class Segheria {
     }
     if (this.regia) this.aggiornaRegia(dt);
     else this.ambiente.segui(pos, dt);
-    if (this.festaDopoLaRegia && !this.regia) this.apriFesta();
+    // la festa di fine tutorial arriva quando la telecamera è tornata sul boscaiolo e i lavori delle mura sono finiti
+    if (this.festaDopoLaRegia && !this.regia && this.cantieri.length === 0) this.apriFesta();
+    this.clienti.tuttiVendono = !this.tutorial.finito; // nel tutorial i clienti comprano anche senza venditore
 
     // Inizio più veloce: prima delle mura di pietra i clienti sono di più; dopo tornano piano piano al ritmo normale
     this.clienti.spinta = this.livelli.mura === 0 ? 1 : Math.max(0, this.clienti.spinta - dt / CONFIG.clienti.avvio.ritornoIn);
 
     // --- Cancelli: si aprono quando il boscaiolo si avvicina; da quello della corsa si parte ---
     // i cancelli dei lati si aprono anche per i cacciatori
-    const cacciatori = this.cacciatori.map((cacciatore) => cacciatore.posizione);
+    // (e per i lavoratori che arrivano a piedi)
+    const cacciatori = [...this.cacciatori.map((cacciatore) => cacciatore.posizione), ...this.arrivi.filter((arrivo) => arrivo.inCammino).map((arrivo) => arrivo.posizione)];
     this.cancelli.foresta.aggiorna(dt, pos, cacciatori);
     this.cancelli.destra.aggiorna(dt, pos, cacciatori);
     // quando il boscaiolo si avvicina al cerchio CORSA la corsa si prepara in anticipo (se si allontana, la si butta)
@@ -1502,6 +1683,7 @@ export class Segheria {
     const partenza = deposito.cima();
     const quantita = deposito.prendiPezzo(this.pezzoDelTrasferimento(`raccogli-${tipo}`, deposito.quantita));
     if (quantita <= 0) return false;
+    this.giocatore.chinati(); // si china a prendere il pezzo dalla catasta (e la catasta si abbassa)
     this.inVolo[tipo] += quantita;
     this.effetti.lancia(tipo, partenza, (v) => this.giocatore.cimaSchiena(v, tipo), 0, () => {
       this.inVolo[tipo] -= quantita;
@@ -1519,12 +1701,13 @@ export class Segheria {
     const quantita = this.giocatore.togli(tipo, this.pezzoDelTrasferimento(`scarica-${tipo}`, this.giocatore.carico[tipo]));
     if (quantita <= 0) return false;
     if (tipo === 'legna') this.completaTutorial('legna');
+    this.giocatore.chinati(); // si china a lasciare i tronchi: uno alla volta, cadono con un arco e rimbalzano sulla rastrelliera
     this.inVolo[tipo] += quantita;
     this.effetti.lancia(tipo, partenza, sportello, 0, () => {
       this.inVolo[tipo] -= quantita;
       sportello.aggiungi(quantita);
       suoni.suona(tipo === 'carne' ? 'carneDeposito' : 'legnaDeposito');
-    }, VOLO_CORTO);
+    }, VOLO_CADUTA);
     return true;
   }
 
@@ -1571,6 +1754,7 @@ export class Segheria {
     for (const fila of Object.keys(CONFIG.file)) s.file[fila] = { pagato: pagato(this.cerchi[fila]) };
     for (const nome of Object.keys(PAVIMENTI)) s.miglioramenti[nome].pagato = pagato(this.cerchi[nome]);
     s.secondarioMancano = this.secondario ? this.secondario.mancano : null;
+    s.cantieri = this.cantieri.map((voce) => ({ cerchio: voce.cerchio, rimasto: voce.cantiere.rimasto, durata: voce.cantiere.durata }));
     // l'ora del salvataggio, per i guadagni di quando si è via: non torna mai indietro (vedi lavoroMentreVia)
     s.orologio = Math.max(Number(s.orologio) || 0, Date.now());
     salva(s);
