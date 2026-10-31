@@ -18,6 +18,7 @@ import { creaZonaATerra } from './catasta.js';
 import { suoni } from '../motore/suoni.js';
 
 const DISTANZA_PALI = 1.5;            // distanza di ogni palo dal centro del varco
+export const DISTANZA_PALI_CANCELLO = DISTANZA_PALI; // (la usa il cantiere per avvolgere i pali grossi)
 const RAGGIO_PALO = 0.38;
 export const MEZZO_INGOMBRO_CANCELLO = DISTANZA_PALI + RAGGIO_PALO; // qui si ferma la palizzata
 const LARGHEZZA_ANTA = DISTANZA_PALI - RAGGIO_PALO;

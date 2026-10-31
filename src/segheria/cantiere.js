@@ -1,9 +1,11 @@
 // =====================================================================
 //  CANTIERE (Gruppo 7)
-//  Pagato il miglioramento di una COSTRUZIONE (mura, riparazione, torrette, pavimento) parte un cantiere SULLA COSA MIGLIORATA:
-//   - 'mura': la palizzata viene AVVOLTA da teli di tela, legati con travi e puntelli e con un piano di assi in cima;
-//   - 'torre': la torretta (o il posto della nuova torretta) viene avvolta nello stesso modo;
-//   - 'locale' (il pavimento): al centro due pali con il cartello e la barra, terreno smosso e assi che saltellano.
+//  Pagato il miglioramento di mura nuove o di torrette parte un cantiere SULLA COSA MIGLIORATA (la riparazione e il pavimento
+//  non hanno cantiere: valgono subito):
+//   - 'mura': la palizzata viene AVVOLTA da teli di tela, legati con travi e puntelli e con un piano di assi in cima. La
+//     copertura è continua: anche i pali grossi dei cancelli e degli sportelli hanno il loro telo, e sopra ogni cancello c'è un
+//     telo corto (sopra le ante, il passaggio resta libero);
+//   - 'torre': la torretta (o il posto della nuova torretta) viene avvolta nello stesso modo.
 //  FASI legate alla barra (FASI): puntelli 20%, travi 20%, piano di assi 20%, teli 40%. Si parte dal davanti (dove guarda la
 //  telecamera) e si va verso i lati, un telo dopo l'altro. Un cantiere ripreso a metà (salvataggio) mostra subito la fase giusta.
 //  Tutto è disegnato con pochi pezzi "istanziati" (puntelli, travi, assi, teli: 4 pezzi in tutto, qualunque sia la lunghezza).
@@ -25,12 +27,19 @@ import { creaLavoratore } from '../modelli/boscaiolo.js';
 import { animaPersona, animaColpo, COLPO } from '../modelli/animazioni.js';
 import { suoni } from '../motore/suoni.js';
 import { MAPPA } from './ambiente.js';
+import { DISTANZA_PALI_CANCELLO } from './cancello.js';
+import { MEZZA_APERTURA } from '../modelli/sportello.js';
 
 const LARGHEZZA_BARRA = 1.9;
 const MEZZO_TELO = 0.6;          // metà dello spessore della copertura intorno alla palizzata (metri): lascia libero il boscaiolo
 const ALTEZZA_TELO = 2.5;        // più alta dei pali con la punta (circa 2 metri): non spunta niente
 const CAMPATA = 3;               // lunghezza di ogni telo (metri): ogni telo si costruisce per conto suo
 const TORRE = { lato: 1.9, altezza: 3.3 }; // la copertura di una torretta (la ringhiera arriva a 3,3 metri)
+// la copertura attorno a un cancello: i pali grossi sono alti 2,8 m più la neve in cima (3,35 m), le ante 1,6 m. Il telo corto in alto
+// parte da 2,6 m: sotto resta tutto libero e si vede
+const CANCELLO = { distanzaPali: DISTANZA_PALI_CANCELLO, latoPalo: 0.9, profondita: 1.3, altezza: 3.4, luceLibera: 2 * DISTANZA_PALI_CANCELLO - 0.9, profonditaArchitrave: 1, altezzaArchitrave: 0.8 };
+// la copertura attorno ai pali di uno sportello (alti 2,7 m, larghi 36 cm, a 1,58 m dal centro)
+const SPORTELLO = { centroPalo: MEZZA_APERTURA + 0.18, latoPalo: 0.56, profondita: 0.7, altezza: 2.85 };
 const PIANO = 0.08;              // spessore del piano di assi in cima
 const SPORGENZA = 0.35;          // di quanto i puntelli superano il piano
 const SCALA_OPERAIO = CONFIG.segheria.dimensioneBoscaiolo * 0.6; // operai piccoli
@@ -488,7 +497,7 @@ class Operaio {
 }
 
 export class Cantiere {
-  // tipo: 'mura', 'torre' o 'locale'; punti: i punti del mondo dove stanno le cose (per 'torre' e 'locale'); durata e rimasto in
+  // tipo: 'mura' o 'torre'; punti: i punti del mondo dove stanno le torrette (per 'torre'); durata e rimasto in
   // secondi; file: le file di pali della palizzata (per 'mura'); ascolto(x, z): quanto si sente un rumore lì (0-1, vedi Segheria)
   constructor(genitore, effetti, { tipo, punti = [], durata, rimasto = durata, file = [], ascolto = () => 1 }) {
     this.effetti = effetti;
@@ -506,9 +515,8 @@ export class Cantiere {
     this.tempo = 0;
     this.svelando = null;  // secondi da quando sono finiti i lavori (null = i lavori sono in corso)
     this.scatola = BOX;
-    this.segnali = [];     // i cartelli con la barra (uno per punto, uno solo per le mura)
+    this.segnali = [];     // i cartelli con la barra (uno per torretta, uno solo per le mura)
     this.cartelli = [];    // i gruppi dei cartelli (si rimpiccioliscono a fine lavori)
-    this.assi = [];        // le assi che saltellano (solo nel cantiere del pavimento)
     this.tessere = [];     // i teli: dove stanno, a che punto è ogni parte
     this.catene = [];      // i tratti di piano dove lavorano gli operai
     this.operai = [];
@@ -530,26 +538,20 @@ export class Cantiere {
       this.zoom = 1.6;
       this.punti = [new THREE.Vector3(0, 0, MAPPA.mura.fronte)];
     } else {
-      for (const punto of punti) {
-        if (tipo === 'torre') this.copriTorre(punto);
-        else this.creaStruttura(punto);
-      }
+      for (const punto of punti) this.copriTorre(punto);
       this.punti = punti.map((p) => new THREE.Vector3(p.x, 0, p.z));
       this.centro = this.punti.reduce((somma, p) => somma.add(p), new THREE.Vector3()).multiplyScalar(1 / Math.max(1, this.punti.length));
       this.zoom = punti.length > 1 ? 1.5 : 0.85;
       this.suoni = this.punti.map((p) => ({ x: p.x, z: p.z }));
     }
-    if (this.tessere.length > 0) {
-      this.creaIstanze();
-      this.creaOperai();
-    }
+    this.creaIstanze();
+    this.creaOperai();
     this.aggiornaBarra();
   }
 
   // Dopo quanti secondi dall'inizio dello svelamento il miglioramento vero diventa effettivo: quando i primi teli cominciano ad alzarsi
-  // (il pavimento e le strutture senza teli: subito)
   get attesaEffetto() {
-    return this.tessere.length > 0 ? SVELAMENTO.attesa : 0;
+    return SVELAMENTO.attesa;
   }
 
   get progresso() {
@@ -569,8 +571,10 @@ export class Cantiere {
   // --------------------------------------------------------------------- teli e fasi ---
 
   // Un telo (una "tessera" della copertura): x, z il centro; lunghezza lungo il telo, larghezza attraverso, altezza = piano in cima
-  aggiungiTessera(x, z, lunghezza, larghezza, altezza, { lungoZ = false, latiCorti = false, normale, ritardo = 0 } = {}) {
-    const tessera = { x, z, lunghezza, larghezza, altezza, giro: lungoZ ? Math.PI / 2 : 0, latiCorti, normale, ritardo, ordine: 0, parti: {}, soglie: {}, attiva: true, indici: {} };
+  // altoTelo: quanto è alto il telo (dal piano in cima verso il basso): di solito tutta l'altezza, ma sopra un cancello è un telo corto;
+  // senzaPuntelli / senzaTravi: niente pali e travi a terra (sopra un cancello non devono stare nel passaggio)
+  aggiungiTessera(x, z, lunghezza, larghezza, altezza, { lungoZ = false, latiCorti = false, normale, ritardo = 0, altoTelo = altezza, senzaPuntelli = false, senzaTravi = false } = {}) {
+    const tessera = { x, z, lunghezza, larghezza, altezza, altoTelo, senzaPuntelli, senzaTravi, giro: lungoZ ? Math.PI / 2 : 0, latiCorti, normale, ritardo, ordine: 0, parti: {}, soglie: {}, attiva: true, indici: {} };
     for (const nome of NOMI_PARTI) tessera.parti[nome] = null; // quando è spuntata la parte (secondi del cantiere); null = non ancora
     this.tessere.push(tessera);
     return tessera;
@@ -610,11 +614,42 @@ export class Cantiere {
       // la fila davanti al centro è dove lavorano gli operai (si vede meglio e non ci sono varchi in mezzo)
       if (lungoX && riga.normale.z === 1 && riga.x1 <= 0 && riga.x2 >= 0) catenaDavanti = { fila, lungoX, fisso, normale: riga.normale };
     }
+    // la palizzata si ferma ai varchi, ma il cantiere no: attorno a ogni cancello e a ogni sportello i pali grossi sono avvolti
+    // da un telo e sopra ogni cancello c'è un telo corto; il passaggio sotto resta libero
+    for (const cancello of Object.values(MAPPA.cancelli)) this.copriCancello(cancello, ritardo);
+    for (const sportello of Object.values(MAPPA.sportelli)) this.copriSportello(sportello, ritardo);
     // ordine di costruzione: dal davanti (al centro) verso i lati
     const centroDavanti = new THREE.Vector3(0, 0, M.fronte);
     const lontano = Math.max(...this.tessere.map((t) => Math.hypot(t.x - centroDavanti.x, t.z - centroDavanti.z)));
     for (const t of this.tessere) t.ordine = Math.hypot(t.x - centroDavanti.x, t.z - centroDavanti.z) / lontano;
     if (catenaDavanti) this.catene.push(this.creaCatena(catenaDavanti.fila, catenaDavanti.fisso, catenaDavanti.normale, 3));
+  }
+
+  // Un cancello: un telo attorno a ciascuno dei due pali grossi (con la neve in cima) e un telo corto in alto tra i due,
+  // sopra le ante (alte 1,6 m): chi passa non lo tocca e si vede bene
+  copriCancello(centro, ritardo) {
+    const lungoZ = Math.abs(centro.z - MAPPA.mura.fondo) > 0.01; // i cancelli dei lati hanno il varco lungo z
+    const lato = (spostamento) => (lungoZ ? { x: centro.x, z: centro.z + spostamento } : { x: centro.x + spostamento, z: centro.z });
+    for (const segno of [-1, 1]) {
+      const p = lato(segno * CANCELLO.distanzaPali);
+      const tessera = this.aggiungiTessera(p.x, p.z, CANCELLO.latoPalo, CANCELLO.profondita, CANCELLO.altezza, { lungoZ, latiCorti: true, ritardo: ritardo(p.x, p.z) });
+      tessera.rialzo = 0.004;
+    }
+    const sopra = lato(0);
+    const architrave = this.aggiungiTessera(sopra.x, sopra.z, CANCELLO.luceLibera, CANCELLO.profonditaArchitrave, CANCELLO.altezza, {
+      lungoZ, ritardo: ritardo(sopra.x, sopra.z), altoTelo: CANCELLO.altezzaArchitrave, senzaPuntelli: true, senzaTravi: true,
+    });
+    architrave.rialzo = 0.004;
+  }
+
+  // Uno sportello di vendita: un telo attorno ai due pali grossi. Il bancone, il venditore e la tettoia con l'insegna restano
+  // scoperti (altrimenti si perderebbe di vista chi serve i clienti)
+  copriSportello(centro, ritardo) {
+    for (const segno of [-1, 1]) {
+      const x = centro.x + segno * SPORTELLO.centroPalo;
+      const tessera = this.aggiungiTessera(x, centro.z, SPORTELLO.latoPalo, SPORTELLO.profondita, SPORTELLO.altezza, { latiCorti: true, ritardo: ritardo(x, centro.z) });
+      tessera.rialzo = 0.004;
+    }
   }
 
   // Una torretta avvolta dai teli, con un operaio
@@ -704,6 +739,7 @@ export class Cantiere {
 
   travi(t) {
     const lista = [];
+    if (t.senzaTravi) return lista;
     const mz = t.larghezza / 2 + 0.03;
     for (const sz of [-1, 1]) {
       for (const y of [t.altezza - 1.7, t.altezza - 0.8]) lista.push({ lx: 0, ly: y, lz: sz * mz, lungo: 'x', misura: t.lunghezza, spess: 0.06 });
@@ -768,7 +804,7 @@ export class Cantiere {
         resta = 1 - limita((svela - inizio - 0.25) / SVELAMENTO.telaio) ** 2;
         roll = limita((svela - inizio) / SVELAMENTO.telo);
       }
-      const fP = this.fattore(t.parti.puntelli) * resta;
+      const fP = t.senzaPuntelli ? 0 : this.fattore(t.parti.puntelli) * resta;
       const fT = this.fattore(t.parti.travi) * resta;
       const fA0 = this.fattore(t.parti.assi);
       const sA = fA0 > 0 ? resta : 0.0001;
@@ -793,7 +829,7 @@ export class Cantiere {
       // piano di assi: cala dall'alto e rimbalza
       assi.setMatrixAt(t.indici.assi, matrice(t, 0, t.altezza + PIANO / 2 + (t.rialzo ?? 0) + (1 - Math.min(1, fA0)) * 0.9 * (fA0 > 0 ? 1 : 0), 0, (t.lunghezza + 0.04) * sA, PIANO * sA, (t.larghezza + 0.12) * sA));
       // telo: si srotola dall'alto (fissato in cima); a fine lavori si arrotola verso l'alto, con un'ondina
-      const alto = t.altezza * Math.max(0.0001, (fL > 0 ? Math.min(1.04, fL) : 0) * (1 - roll * roll));
+      const alto = t.altoTelo * Math.max(0.0001, (fL > 0 ? Math.min(1.04, fL) : 0) * (1 - roll * roll));
       const onda = roll > 0 ? Math.sin(roll * Math.PI * 2.5) * 0.12 * (1 - roll) : 0;
       const presente = fL > 0 && roll < 1 ? 1 : 0; // finché non spunta (o dopo che si è arrotolato) non si vede niente
       teli.setMatrixAt(t.indici.teli, matrice(t, 0, t.altezza - alto / 2 + (t.rialzo ?? 0), onda, t.lunghezza * (1 + (roll > 0 ? 0.04 * Math.sin(roll * 9) : 0)) * presente, alto * presente, (t.larghezza - 0.02) * presente));
@@ -917,7 +953,7 @@ export class Cantiere {
     }
   }
 
-  // --------------------------------------------------------------------- cartelli e pavimento ---
+  // --------------------------------------------------------------------- cartelli ---
 
   // Un cartello "LAVORI IN CORSO" con la barra che si riempie e i secondi che mancano, in (x, z)
   creaSegnale(x, z, scala = 1) {
@@ -947,24 +983,6 @@ export class Cantiere {
     gruppo.add(conto.sprite);
     this.segnali.push({ riempimento, conto });
     return gruppo;
-  }
-
-  // Una struttura di cantiere in un punto (il pavimento): terreno smosso, assi che saltellano, cartello e barra
-  creaStruttura(punto) {
-    const terra = new THREE.Mesh(new THREE.CircleGeometry(1.2, 28), new THREE.MeshBasicMaterial({ color: 0x6b4a2d, transparent: true, opacity: 0.85, depthWrite: false }));
-    terra.rotation.x = -Math.PI / 2;
-    terra.position.set(punto.x, 0.03, punto.z);
-    this.gruppo.add(terra);
-    const gruppo = this.creaSegnale(punto.x, punto.z + 1.2, 1);
-    const assi = [
-      this.pezzo(this.legno, [-0.45, 0.07, -0.6], [0.9, 0.08, 0.2], [0, 0.25, 0], gruppo),
-      this.pezzo(this.legno, [0.4, 0.07, -0.55], [0.8, 0.08, 0.2], [0, -0.3, 0], gruppo),
-      this.pezzo(this.legno, [0.0, 0.16, -0.58], [0.7, 0.08, 0.2], [0, 0.05, 0], gruppo),
-    ];
-    for (const asse of assi) {
-      asse.userData.y0 = asse.position.y;
-      this.assi.push(asse);
-    }
   }
 
   get finito() {
@@ -1004,19 +1022,11 @@ export class Cantiere {
     this.comparsa = Math.min(1, this.comparsa + dt * 3);
     const c = this.comparsa;
     const salto = Math.max(0.001, c < 1 ? c + Math.sin(c * Math.PI) * 0.25 : 1);
-    if (this.tessere.length > 0) for (const cartello of this.cartelli) cartello.scale.setScalar(cartello.userData.scala * salto); // la struttura cresce a fasi
-    else this.gruppo.scale.setScalar(salto);
-    if (this.istanze) {
-      this.avanzaFasi();
-      this.aggiornaIstanze();
-    }
+    for (const cartello of this.cartelli) cartello.scale.setScalar(cartello.userData.scala * salto); // la struttura cresce a fasi
+    this.avanzaFasi();
+    this.aggiornaIstanze();
     for (const operaio of this.operai) operaio.aggiorna(dt);
     this.aggiornaCadute(dt);
-    // le assi saltellano un po', a turno (solo nel cantiere del pavimento)
-    this.assi.forEach((asse, i) => {
-      const onda = Math.max(0, Math.sin(this.tempo * 7 + i * 2.1));
-      asse.position.y = asse.userData.y0 + onda * onda * 0.12;
-    });
     this.attesaPolvere -= dt;
     if (this.attesaPolvere <= 0) {
       this.attesaPolvere = 0.6 + Math.random() * 0.5;
@@ -1046,7 +1056,7 @@ export class Cantiere {
     if (this.attesaSega <= 0) {
       this.attesaSega = 9 + Math.random() * 8;
       const p = this.progresso;
-      if (this.tessere.length > 0 && p >= FASI.travi[0] && p < FASI.assi[1]) {
+      if (p >= FASI.travi[0] && p < FASI.assi[1]) {
         const { volume } = this.rumoreA();
         if (volume > 0.02) suoni.suona('sega', { volume });
       }
@@ -1092,7 +1102,7 @@ export class Cantiere {
       if (catena.meshScala) catena.meshScala.visible = false;
       if (catena.meshPila) catena.meshPila.visible = false;
     }
-    this.durataSvelamento = Math.max(fine, this.tessere.length === 0 ? 0.6 : 0);
+    this.durataSvelamento = fine;
   }
 
   get svelato() {
@@ -1127,15 +1137,6 @@ export class Cantiere {
       this.suonoSvelamento = true;
       const { volume } = this.rumoreA();
       if (volume > 0.02) suoni.suona('comparsa', { volume: Math.min(1, volume * 1.2) });
-    }
-    // il pavimento (e simili): la struttura si rimpicciolisce in una nuvola di polvere
-    if (this.tessere.length === 0) {
-      const k = Math.min(1, t / 0.6);
-      this.gruppo.scale.setScalar(Math.max(0.001, 1 - morbido(k)));
-      if (!this.suonoSvelamento) {
-        this.suonoSvelamento = true;
-        for (const punto of this.punti) this.effetti.sbuffo(punto.x, 0.5, punto.z, 0xd9c8a8, 20, 3);
-      }
     }
   }
 

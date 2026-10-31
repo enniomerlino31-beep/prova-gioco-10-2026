@@ -980,12 +980,11 @@ export class Segheria {
     this.salvaOra();
   }
 
-  // Dove sta il cantiere di un livello: sulla cosa migliorata. Mura: la palizzata avvolta dai teli (la riparazione non ha cantiere);
-  // torretta: sulle torri nuove (o su tutte, con "Potenzia arcieri"), avvolte dai teli; pavimento: nel punto del cerchio,
-  // al centro della base.
+  // Dove sta il cantiere di un livello: sulla cosa migliorata. Mura: la palizzata avvolta dai teli; torretta: sulle torri nuove
+  // (o su tutte, con "Potenzia arcieri"), avvolte dai teli. La riparazione e il pavimento non hanno cantiere (null).
   cantierePer(cerchio) {
     const livello = cerchio.livello;
-    const catena = livello.catena ?? cerchio.nomeCatena;
+    const catena = livello.catena;
     if (catena === 'mura') return { tipo: 'mura', punti: [], file: this.fileMura };
     if (catena === 'torretta') {
       const prima = CONFIG.miglioramenti.torretta[livello.indice - 1];
@@ -994,16 +993,16 @@ export class Segheria {
       const indici = nuove.length > 0 ? nuove : this.torrette.torri.map((_, i) => i).filter((i) => i < livello.torri);
       return { tipo: 'torre', punti: indici.map((i) => this.torrette.torri[i].posizione) };
     }
-    return { tipo: 'locale', punti: [cerchio.posizione] };
+    return null;
   }
 
   // Mette in piedi il cantiere di un cerchio. conAnimazione: appena pagato spunta con un saltello;
   // dal salvataggio c'è subito (rimasto = i secondi che mancano ancora)
   avviaCantiere(nomeCerchio, durata, rimasto, conAnimazione) {
     const cerchio = this.cerchi[nomeCerchio];
-    if (!cerchio) return;
-    cerchio.nomeCatena = nomeCerchio; // per il pavimento (il cerchio e la catena hanno lo stesso nome)
-    const cantiere = new Cantiere(this.radice, this.effetti, { ...this.cantierePer(cerchio), durata, rimasto, ascolto: (x, z) => this.ascoltoLavori(x, z) });
+    const dove = cerchio && this.cantierePer(cerchio);
+    if (!dove) return;
+    const cantiere = new Cantiere(this.radice, this.effetti, { ...dove, durata, rimasto, ascolto: (x, z) => this.ascoltoLavori(x, z) });
     if (!conAnimazione) cantiere.comparsa = 1;
     cerchio.iniziaCantiere();
     if (!conAnimazione) {
@@ -1089,7 +1088,7 @@ export class Segheria {
     cerchio.passaAlSuccessivo(nomeCerchio in CONFIG.file ? this.prossimoPasso(nomeCerchio) : undefined);
     const { x, z } = cerchio.posizione;
     this.effetti.testo(x, 2.2, z, `${livello.nome}!`, 'buono');
-    this.effetti.sbuffo(x, 0.4, z, 0x9be37a, 24, 3.5);
+    if (!(nomeCerchio in PAVIMENTI)) this.effetti.sbuffo(x, 0.4, z, 0x9be37a, 24, 3.5); // il pavimento ha il suo effetto, più sobrio
     suoni.suona('acquisto');
     const tappe = this.tappeDelMiglioramento(nome, livello);
     if (daCantiere) {
@@ -1168,10 +1167,11 @@ export class Segheria {
       this.effettoRipristino();
       return [];
     }
+    // Il pavimento non ha cantiere né telecamera: compare subito dopo il pagamento, con un'onda di pietra che si allarga dal cerchio
+    // (dove sta il boscaiolo) fino a coprire tutta la base
     if (nome in PAVIMENTI) {
-      // la telecamera si alza e guarda il pavimento nuovo che si allarga dal cerchio fino a coprire tutta la base
-      const punto = this.cerchi[nome].posizione.clone();
-      return [tappa(new THREE.Vector3(0, 0, 0), () => this.pavimento.posa(PAVIMENTI[nome], punto, true), { zoom: 1.5, sempre: true, sosta: 2.6 })];
+      this.pavimento.posa(PAVIMENTI[nome], this.cerchi[nome].posizione, true);
+      return [];
     }
     if (nome === 'torretta') {
       this.torrette.imposta(comprati);
@@ -1564,8 +1564,8 @@ export class Segheria {
     const lupoNormale = this.lupiBase.find((lupo) => lupo.vivo && !lupo.gigante);
     // [nome, la novità c'è?, dove guardare, zoom della telecamera]: in ordine di importanza
     const cerchioLegna = this.cerchi.legna;
-    const cerchioCarne = this.cerchi.economia;
     const cantiere = this.cantieri[0]?.cantiere;
+    const venditoreCarne = this.sportelli.carne.venditore; // c'è solo dopo l'acquisto, quando è arrivato a piedi al suo posto
     const candidati = [
       // il primo cerchio dopo il tutorial: il venditore della legna (gratuito), quando è comparso del tutto
       ['venditoreLegna', cerchioLegna.livello && !cerchioLegna.fuori && cerchioLegna.presenza > 0.9, cerchioLegna.posizione, 1],
@@ -1575,7 +1575,10 @@ export class Segheria {
       // Gruppo 7: cantieri, catasta e venditore della carne
       ['primoCantiere', !!cantiere && cantiere.tempo > 0.5, cantiere?.centro, cantiere ? this.zoomCantiere(cantiere) : 1], // aspetta che il cantiere sia spuntato del tutto
       ['legnaInEsaurimento', this.livelli.venditoreLegna > 0 && this.catasta.inEsaurimento, this.catasta.posizione, 0.85],
-      ['venditoreCarne', cerchioCarne.livello?.catena === 'venditore' && !cerchioCarne.fuori && cerchioCarne.presenza > 0.9, cerchioCarne.posizione, 1],
+      // ogni acquisto ha il suo avviso quando il lavoratore (o il miglioramento) è arrivato, non quando compare il cerchio del successivo
+      ['aiutante', !!this.aiutante, this.catasta.posizione, 0.85],
+      ['venditoreCarne', !!venditoreCarne, postoVenditore(this.sportelli.carne), 1],
+      ['pavimento', this.livelli.pavimentoPietra > 0 && this.pavimento.finito, { x: 0, z: 0 }, 1.5],
       // se è nella foresta si guarda il conto alla rovescia, accanto al cancello della corsa
       ['boscaioloSecondario', !!this.secondario, this.secondario?.visibile ? this.secondario.posizione : { x: MAPPA.cancelli.corsa.x + 3.6, z: MAPPA.cancelli.corsa.z }, 0.8],
     ];

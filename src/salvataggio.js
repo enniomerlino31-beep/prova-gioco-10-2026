@@ -146,6 +146,20 @@ export function carica() {
     stato.cantieri = (Array.isArray(stato.cantieri) ? stato.cantieri : [])
       .filter((c) => c && typeof c.cerchio === 'string' && Number.isFinite(c.rimasto) && Number.isFinite(c.durata))
       .map((c) => ({ cerchio: c.cerchio, rimasto: Math.max(0, c.rimasto), durata: Math.max(1, c.durata) }));
+    // Cantieri di acquisti che adesso non ne hanno più (il pavimento e la riparazione, tolti il 2026-10-30/31): il lavoro risulta
+    // già finito, cioè l'acquisto vale subito (un cantiere di cui non si sa più niente si scarta)
+    stato.cantieri = stato.cantieri.filter((c) => {
+      const passi = CONFIG.file[c.cerchio];
+      const catena = passi
+        ? (passi.find(([nome, indice]) => (stato.miglioramenti[nome]?.comprati ?? 0) <= indice) ?? [null])[0]
+        : c.cerchio; // il pavimento ha il cerchio e la catena con lo stesso nome
+      const voce = stato.miglioramenti[catena];
+      const livello = voce ? CONFIG.miglioramenti[catena]?.[voce.comprati] : null;
+      if (!livello) return false;
+      if (livello.cantiere) return true;
+      voce.comprati += 1;
+      return false;
+    });
     return stato;
   } catch {
     return statoIniziale();

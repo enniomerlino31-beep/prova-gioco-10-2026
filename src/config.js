@@ -328,10 +328,10 @@ export const CONFIG = {
   // prossimo acquisto, nell'ordine scritto lì. Il pavimento ha il suo cerchio.
   miglioramenti: {
     // --- Difesa ---
-    // Gruppo 7: i livelli che migliorano una COSTRUZIONE (mura, riparazione, torrette, pavimento) hanno un "cantiere" (secondi di
-    // lavori sulla cosa migliorata dopo il pagamento, vedi CONFIG.cantieri): pochi secondi per i primi, fino a 30-60 per i più
-    // importanti; nel frattempo la costruzione funziona al livello vecchio. I livelli che assumono un lavoratore (o lo migliorano)
-    // non hanno cantiere: dopo il pagamento il lavoratore arriva a piedi da un cancello (CONFIG.lavoratori.arrivo).
+    // Gruppo 7: i livelli che migliorano le MURA o le TORRETTE hanno un "cantiere" (secondi di lavori sulla cosa migliorata dopo
+    // il pagamento, vedi CONFIG.cantieri): pochi secondi per i primi, fino a 45-50 per i più importanti; nel frattempo la
+    // costruzione funziona al livello vecchio. Tutto il resto non ha cantiere: la riparazione e il pavimento valgono subito, e i
+    // livelli che assumono un lavoratore (o lo migliorano) fanno arrivare il lavoratore a piedi da un cancello (CONFIG.lavoratori.arrivo).
     // I prezzi sono pensati per arrivare al boscaiolo secondario in circa 15-20 minuti (il primo acquisto dopo circa 1 minuto).
     mura: [
       { nome: 'Mura di pietra', prezzo: 250, icona: 'pietra', hpMura: 800, cantiere: 6 },       // rocce appuntite alla base, verso fuori (passaggio del tutorial: prezzo e cantiere bassi)
@@ -390,7 +390,7 @@ export const CONFIG = {
     ],
     // --- Pavimento della base (solo aspetto) ---
     pavimentoPietra: [
-      { nome: 'Pavimento in pietra', etichetta: 'Pietra', prezzo: 250, icona: 'pavimento', cantiere: 30 }, // etichetta: scritta sopra il cerchio
+      { nome: 'Pavimento in pietra', etichetta: 'Pietra', prezzo: 250, icona: 'pavimento' }, // etichetta: scritta sopra il cerchio; niente cantiere: compare subito dopo il pagamento
     ],
     // Il pagamento: tutti i livelli (lavoratori e costruzioni) si pagano in questi secondi stando sul cerchio, in 12 voli di monete,
     // qualunque sia il prezzo (era a goccia nel Gruppo 7, poi ripristinato). Non c'entra con la durata dei cantieri.

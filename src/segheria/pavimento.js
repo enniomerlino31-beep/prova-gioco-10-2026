@@ -2,9 +2,10 @@
 //  PAVIMENTO DELLA BASE (si compra con il cerchio "Pavimento in pietra",
 //  al centro della base)
 //  All'inizio dentro la base c'è la neve, come fuori. Comprato un
-//  pavimento, compare con un cerchio che si allarga dal punto d'acquisto
-//  (con il bordo che luccica e un po' di polvere) fino a coprire tutta
-//  la base. Cambia solo l'aspetto.
+//  pavimento, compare subito (senza cantiere né telecamera) con un cerchio
+//  che si allarga dal punto d'acquisto in circa 1,4 secondi (con il bordo
+//  che luccica e un solo suono di pietra) fino a coprire tutta la base.
+//  Cambia solo l'aspetto.
 //  Leggero per il telefono: una sola forma piatta, con il disegno delle
 //  lastre fatto una volta sola su una tela e ripetuto.
 // =====================================================================
@@ -13,7 +14,7 @@ import * as THREE from 'three';
 import { MAPPA, R_PALO } from './ambiente.js';
 import { suoni } from '../motore/suoni.js';
 
-const DURATA = 2.2;  // secondi perché il pavimento copra tutta la base
+const DURATA = 1.4;  // secondi perché il pavimento copra tutta la base (effetto sobrio: niente polvere, un solo suono)
 const ALTEZZA = 0.008; // appena sopra la neve (e sopra le impronte: sul pavimento non restano)
 
 // Un numero "a caso" ma sempre uguale per lo stesso seme (così il disegno è sempre lo stesso)
@@ -61,7 +62,7 @@ function disegnaPietra() {
 
 // Come è fatto il pavimento: il disegno e quanti metri copre una tela
 const TIPI = {
-  pietra: { disegna: disegnaPietra, metri: 3, polvere: 0x9aa2ad },
+  pietra: { disegna: disegnaPietra, metri: 3 },
 };
 
 export class Pavimento {
@@ -70,7 +71,6 @@ export class Pavimento {
     this.tipo = null;
     this.raggio = 0;
     this.centro = new THREE.Vector2();
-    this.attesaPolvere = 0;
     // il pavimento copre l'interno delle mura (fino ai pali, così non si vede il bordo)
     const M = MAPPA.mura;
     const bordo = R_PALO * 0.8;
@@ -86,7 +86,6 @@ export class Pavimento {
     // il raggio che serve per coprire tutto, partendo da qualsiasi punto della base
     this.raggioMassimo = Math.hypot(this.larghezza, this.profondita) + 1;
     this.uniformi = { centro: { value: this.centro }, raggio: { value: 0 } };
-    this.attesaLastra = 0;
   }
 
   // Il punto è sul pavimento? (dentro le mura e già raggiunto dal pavimento che si allarga; serve per i passi)
@@ -125,27 +124,17 @@ export class Pavimento {
     this.centro.set(punto.x, punto.z);
     this.raggio = conAnimazione ? 0 : this.raggioMassimo;
     uniformi.raggio.value = conAnimazione ? 0 : 1000; // 1000 = tutto coperto, senza il bordo che luccica
+    if (conAnimazione) suoni.suona('lastra'); // un solo suono di pietra appoggiata, all'inizio
+  }
+
+  // Il pavimento ha finito di allargarsi (o è già tutto lì, come dopo il caricamento)?
+  get finito() {
+    return Boolean(this.tipo) && this.raggio >= this.raggioMassimo;
   }
 
   aggiorna(dt) {
     if (!this.tipo || this.raggio >= this.raggioMassimo) return;
     this.raggio = Math.min(this.raggioMassimo, this.raggio + (this.raggioMassimo / DURATA) * dt);
     this.uniformi.raggio.value = this.raggio >= this.raggioMassimo ? 1000 : this.raggio;
-    // mentre si allarga, ogni tanto si sente una lastra di pietra appoggiata
-    this.attesaLastra -= dt;
-    if (this.attesaLastra <= 0) {
-      this.attesaLastra = 0.32 + Math.random() * 0.12;
-      suoni.suona('lastra');
-    }
-    // un po' di polvere lungo il bordo che avanza (solo dentro la base)
-    this.attesaPolvere -= dt;
-    if (this.attesaPolvere > 0) return;
-    this.attesaPolvere = 0.05;
-    const angolo = Math.random() * Math.PI * 2;
-    const x = this.centro.x + Math.cos(angolo) * this.raggio;
-    const z = this.centro.y + Math.sin(angolo) * this.raggio;
-    if (Math.abs(x - this.mesh.position.x) < this.larghezza / 2 && Math.abs(z - this.mesh.position.z) < this.profondita / 2) {
-      this.effetti.sbuffo(x, 0.15, z, TIPI[this.tipo].polvere, 3, 1.2);
-    }
   }
 }

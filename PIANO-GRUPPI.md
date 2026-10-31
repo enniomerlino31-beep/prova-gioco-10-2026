@@ -49,7 +49,7 @@ Gruppo 6, com'è fatto: vedi README, “Avvisi delle novità”. Il sistema è i
 
 1. Passare al ramo di bozza: `git checkout bozza-gruppo7` (il lavoro di oggi è solo lì; `main` è fermo a 6c699b5).
 2. Riaccendere il server di prova: `npm run dev` e aprire `http://localhost:5173/?reset&ricco&cantieri=1` (sul telefono: l'indirizzo di rete che stampa Vite).
-3. L'utente prova: cantieri (mura di pietra, torrette, pavimento), riparazione senza cantiere, pagamenti da 1,5 s, suono della sega, avviso "Lavori in corso!". Eventuali correzioni si fanno sullo stesso ramo.
+3. L'utente prova: cantieri (mura di pietra, torrette, con teli continui anche su cancelli e sportelli), riparazione e pavimento senza cantiere, pagamenti da 1,5 s, suono della sega, avvisi (aiutante, venditore della carne, pavimento, "Lavori in corso!"). Eventuali correzioni si fanno sullo stesso ramo. Le proposte per lo svelamento e per i cantieri durante la corsa (sezione "Proposte in attesa") aspettano l'ok dell'utente.
 4. Dopo l'ok dell'utente: unire a `main` (`git checkout main`, `git merge bozza-gruppo7`) con un commit finale, inviare su GitHub (`git push`) e aggiornare README e questo piano (togliere "da provare").
 5. Poi: decidere la proposta di durata dei lavori (tabella più sotto, non applicata) e iniziare il Gruppo 8.
 
@@ -74,15 +74,51 @@ Versione definitiva della richiesta (2026-10-30, dopo la prima prova): **catasta
 | Riparazione 1-3 | 100, 200, 400 | 250, 350, 700; **nessun cantiere** (vale subito, con un piccolo effetto di ripristino; tolto il 2026-10-30) |
 | Aiutante | 120 | 250; arriva a piedi (niente cantiere) |
 | Cacciatore / secondo / esperto | 200 / 300 / 400 | 250 / 300 / 500; a piedi, niente cantiere |
-| Pavimento in pietra | 300 | 250; cantiere 30 s |
+| Pavimento in pietra | 300 | 250; **nessun cantiere** (compare subito dopo i 1,5 s di pagamento, onda di lastre di 1,4 s; tolto il 2026-10-31) |
 | Boscaiolo secondario | 5000 | 5000 (sempre l'ultimo); arriva a piedi |
 | Pagamento | 12 voli di monete in 1,5 s | prima a goccia (da 2 a 15 s), poi **di nuovo 12 voli in 1,5 s per tutti** (lavoratori e costruzioni), 2026-10-30 |
 | Cantieri | nessuno (subito) | solo per le costruzioni, sulla cosa migliorata, da 6 a 50 s (durata indipendente dal pagamento); mura e torrette **avvolte da teli** costruiti a fasi legate alla barra (puntelli 20%, travi 20%, assi 20%, teli 40%), operai che salgono, camminano, portano assi e martellano, svelamento sotto i 3 s, suoni dei lavori e sega (rifatto il 2026-10-30; prima erano impalcature intorno) |
 | Tempo per arrivare al boscaiolo secondario | pochi minuti | circa 17-18 minuti (modello di calcolo; primo acquisto a pagamento dopo circa 40 s di vendite, circa 1 minuto giocando) |
 
+### STATO A FINE SESSIONE DEL 2026-10-31 (salvataggio di sicurezza sul ramo `bozza-gruppo7`, non su `main`)
+
+**Fatto e provato con Chrome (telefono, processore 4 volte più lento, 57-60 fotogrammi al secondo, console senza errori, `npm run build` ok):**
+1. Avvisi: nuovi “L'aiutante” e “Il pavimento in pietra”; “Il venditore della carne” (testo nuovo) ora parte quando il venditore è arrivato (prima partiva quando compariva il suo cerchio, cioè subito dopo l'aiutante: era la causa dell'avviso sbagliato). “Lavori in corso!” nomina solo mura nuove e torrette. Provati acquisti veri: ognuno una volta sola, nell'ordine giusto.
+2. Teli su tutto il cantiere: pali dei 3 cancelli e dei 2 sportelli avvolti, telo corto sopra ogni cancello, passaggio libero (provato camminando dal cancello laterale).
+4. Pavimento senza cantiere: vale subito, onda di lastre di 1,4 s; vecchi salvataggi con cantiere del pavimento in corso lo trovano già fatto (provato).
+
+**NON fatto (progetto approvato dall'utente, nessun codice scritto):**
+- 3. Svelamento più fluido (onda continua).
+- 5. Cantieri che finiscono durante la corsa (svelamento mostrato al ritorno).
+
+**Da non dimenticare / segnalato all'utente:** chi ha già pavimento, aiutante o venditore della carne vedrà una volta sola il loro avviso al primo avvio (decisione presa da solo); gli sportelli hanno il telo solo sui pali (decisione presa da solo, per non nascondere il venditore); il telo corto sopra i cancelli può nascondere per un attimo la testa di chi passa subito dietro (accettato).
+
+**Cosa resta da fare, in ordine:**
+1. L'utente prova il ramo (teli, pavimento, avvisi).
+2. Scrivere la richiesta 5 (vedi progetto sotto), poi la 3, e riprovarle con Chrome (telefono, CPU x4, fine lavori senza fotogrammi lenti, console pulita).
+3. Dopo l'ok dell'utente: unire a `main` con un commit finale, `git push`, togliere “da provare” da README e piano.
+4. Decidere la proposta di durata dei lavori (tabella più sotto) e iniziare il Gruppo 8.
+
+**Progetto della richiesta 5 (approvato: “svelamento mostrato al ritorno”):**
+- I lavori avanzano già durante la corsa alla stessa velocità (solo tempo: `passa` chiamato da `lavoraDuranteLaCorsa` in `segheria.js`); si fermano solo con un avviso aperto o con il menu impostazioni.
+- In `lavoraDuranteLaCorsa`: se `cantiere.finito` e senza `fase`, chiamare un nuovo `finisceInCorsa(voce)`: toglie la voce da `this.cantieri`, mette il cantiere in una nuova lista `this.finitiInCorsa`, `cerchi[..].finisciCantiere()` e `completaMiglioramento(cerchio, { silenzioso: true })` (nuovo parametro: niente testi, suoni, telecamera, sbuffi; tutte le azioni subito e senza animazione, quindi `tappeDelMiglioramento(nome, livello, animato)` con `applicaLivello(.., animato)`, `mostraTorre(i, animato)`, `aggiornaAspetto(i, animato)`, `banco.mostra(animato)`; poi `salvaOra()`).
+- In `entra()` (dopo `chiudiRegia()`): per ogni cantiere ancora in corso chiamare un nuovo `riallinea()` in `cantiere.js` (le parti già raggiunte dalla barra compaiono subito con `parti[nome] = -100`, scala e pila uguale, `comparsa = 1`, cartelli a grandezza piena, `aggiornaIstanze(true)`): oggi, al ritorno, tutte le fasi “scattano” insieme perché `tempo` non avanza in corsa. Per ogni cantiere in `finitiInCorsa`: `riallinea()` e poi un solo giro di telecamera (`this.regia`) con una tappa per cantiere (sosta = `DURATA_SVELAMENTO_MASSIMA + 0.2`) la cui azione fa `cantiere.svela()` e lo mette in `this.svelamenti` (poi `aggiornaCantieri` lo toglie quando `svelato`). Il miglioramento è già effettivo, non c'è onda dei pali nuovi (restano sotto i teli).
+- Suoni dei lavori e telecamera non cambiano (`ascoltoLavori`: solo se visibile o a meno di 7 metri; la telecamera parte da `reimpostaTelecamera` + `segui(giocatore, 0)` e poi viaggia piano: niente salti).
+- Provare: cantiere che finisce durante una corsa (salvataggio con `rimasto` di pochi secondi e `?corsa`), più cantieri insieme (mura + torrette), salvataggio ripreso a metà, cantiere che finisce nella base come prima.
+
+**Progetto della richiesta 3 (approvato: “onda continua”), tutto in `cantiere.js`:**
+- Il telo è una scatola con 12 segmenti in lunghezza (`new THREE.BoxGeometry(1,1,1,12,1,1)`, una per cantiere, da liberare in `geometrie`) con un attributo per telo `aSvela` (vec3: secondi dall'inizio dello svelamento o -1, ritardo del primo telo, durata dell'onda; 0 per le torrette). Nel vertex shader del materiale `telo` (e in un `customDepthMaterial` `MeshDepthMaterial` con `RGBADepthPacking`, così anche l'ombra segue) per ogni vertice col y < 0: ritardo = |angolo(x,z) − angolo dell'origine `MAPPA.miglioramenti.mura`| / π (come `ritardo` in `copriMura`), `k = clamp((tempo − 0,35 − (ritardo − primo)·onda) / 0,55)`, `e = k²(1,9k − 0,9)` (piccolo “respiro” verso il basso e poi sale veloce), `y' = mix(y, 0.5, e)` più un'ondina in z; `ritardo = max(ritardo, primo)` così il primo telo parte esattamente a 0,35 s (quando il miglioramento diventa effettivo).
+- `SVELAMENTO.onda` da 1,8 a 1,6 e `telo` 0,55: l'ultimo blocco finisce a circa 2,6 s (< 3 s). Il telaio (puntelli, travi, assi) resta come oggi, per blocchi, appena dietro il fronte. Togliere dal codice CPU `roll`/`onda`/`presente` del telo in `aggiornaIstanze`; aggiornare `aSvela` in `aggiornaSvelamento`.
+- Provare: nessuno scuotimento, lampo o fontane; fotogrammi in fine lavori con CPU 4x; telo corto sopra i cancelli e torrette (onda 0: salgono tutte insieme).
+
+### Proposte in attesa dell'ok dell'utente (2026-10-31): le due qui sotto sono ora **APPROVATE dall'utente** ma **non ancora scritte nel codice** (progetto sopra)
+
+- **Svelamento più fluido (richiesta 3)**: oggi ogni telo (blocchi di circa 3 m) si arrotola per conto suo quando l'onda delle mura nuove lo raggiunge, quindi il movimento va "a blocchi". L'onda originaria delle mura (`mura.js`) parte dal cerchio di acquisto e fa il giro della base in 1,8 s: ogni palo ha un ritardo secondo la distanza angolare dal cerchio, quando l'onda arriva il pezzo nuovo spunta con un rimbalzo (easeOutBack, 0,4 s) e il palo fa un saltello di +25%. Proposta: stessa onda (stessa origine, stessa durata, stesso ritardo), ma calcolata dalla scheda grafica per ogni punto del telo, così il bordo basso del telo sale lungo una linea continua che segue il fronte dell'onda; il telo sale con un piccolo sorpasso verso l'alto e poi si ferma, il telaio si rimpicciolisce appena dietro il fronte, il palo vero fa il suo saltello subito dopo. Totale circa 2,6 s, nessuno scuotimento, lampo o fontana; il miglioramento resta effettivo quando parte il primo telo.
+- **Cantieri durante la corsa (richiesta 5)**: i lavori avanzano già alla stessa velocità durante la corsa (dipendono solo dal tempo, `passa` in `cantiere.js`, chiamato da `lavoraDuranteLaCorsa`; si fermano solo con un avviso aperto o con il menu delle impostazioni, come tutto il gioco). Quello che non va è il ritorno: i pezzi "scattano" tutti insieme e poi parte subito lo svelamento. Proposta: se il tempo finisce durante la corsa il miglioramento diventa effettivo subito (dati e disegno, senza animazione); al ritorno compare il cantiere già finito (senza rifare la costruzione), la telecamera ci va e lo svelamento parte una volta sola; con più cantieri finiti insieme, un solo giro di telecamera con una tappa per ognuno.
+
 ### Proposta durata dei cantieri (2026-10-30, **NON applicata**: aspetta l'ok dell'utente)
 
-Oggi (a velocità normale, senza `?cantieri`): mura di pietra 6 s, rinforzo in metallo 45 s; (la riparazione non ha più il cantiere); torrette 8 / 10 / 15 / 20 / 35 / 50 s; pavimento 30 s. Con 4 fasi (20-20-20-40%) i lavori sotto i 15 secondi passano troppo in fretta: ogni fase dura meno di 3 secondi.
+Oggi (a velocità normale, senza `?cantieri`): mura di pietra 6 s, rinforzo in metallo 45 s; (la riparazione e il pavimento non hanno più il cantiere); torrette 8 / 10 / 15 / 20 / 35 / 50 s. Con 4 fasi (20-20-20-40%) i lavori sotto i 15 secondi passano troppo in fretta: ogni fase dura meno di 3 secondi.
 
 | Cosa | Oggi | Proposta |
 |---|---|---|
@@ -91,9 +127,8 @@ Oggi (a velocità normale, senza `?cantieri`): mura di pietra 6 s, rinforzo in m
 | Torretta sinistra 1 / destra 1 | 8 / 10 s | **15 / 15 s** |
 | Torretta sinistra 2 / destra 2 | 15 / 20 s | **18 / 20 s** |
 | Potenzia arcieri 1 / 2 | 35 / 50 s | **30 / 40 s** |
-| Pavimento in pietra | 30 s | **30 s** (invariato: non ha fasi) |
 
-Equilibrio: la durata dei lavori non blocca i guadagni (le monete si accumulano mentre si aspetta), ma ritarda l'effetto di quello che si compra. **La somma dei tempi è poco più bassa** (219 s oggi, 218 s con la proposta, senza la riparazione): cambia solo come sono distribuiti, più lunghi all'inizio (mura +14 s, torrette +7 e +5 s) e più corti verso la fine (rinforzo -15 s, potenzia arcieri -5 e -10 s). Il punto più sensibile è il primo: le mura di pietra portano i lupi e il banco del cacciatore (da cui compaiono aiutante e cacciatore), quindi 20 s invece di 6 spostano la catena di circa 14 s; ma la fine è più veloce, quindi il boscaiolo secondario resta intorno ai 16-17 minuti, dentro l'obiettivo 15-20. Il primo acquisto a pagamento (dopo circa 1 minuto) non cambia. Stima fatta a mano, non con il modello di calcolo.
+Equilibrio: la durata dei lavori non blocca i guadagni (le monete si accumulano mentre si aspetta), ma ritarda l'effetto di quello che si compra. **Senza più la riga del pavimento (30 s), la somma dei tempi scende di 30 secondi** (189 s oggi, 188 s con la proposta; con il pavimento erano 219 e 218): tra oggi e proposta cambia solo come sono distribuiti, più lunghi all'inizio (mura +14 s, torrette +7 e +5 s) e più corti verso la fine (rinforzo -15 s, potenzia arcieri -5 e -10 s). Il punto più sensibile è il primo: le mura di pietra portano i lupi e il banco del cacciatore (da cui compaiono aiutante e cacciatore), quindi 20 s invece di 6 spostano la catena di circa 14 s; ma la fine è più veloce, quindi il boscaiolo secondario resta intorno ai 16-17 minuti, dentro l'obiettivo 15-20. Il primo acquisto a pagamento (dopo circa 1 minuto) non cambia. Stima fatta a mano, non con il modello di calcolo.
 
 ```
 GRUPPO 6 - Avvisi e mini tutorial
@@ -105,8 +140,8 @@ in assoluto = venditore della legna GRATUITO (la legna non si vende più da
 sola); venditore della carne dopo l'aiutante e a pagamento; vendite più
 lente e prezzi più alti (boscaiolo secondario in 15-20 minuti, primo
 acquisto dopo 1 minuto); monete a goccia; lavoratori senza cantiere (arrivano
-a piedi da un cancello dopo 2-3 secondi); costruzioni (mura, torrette,
-pavimento): cantiere SULLA COSA MIGLIORATA, che lavora al livello vecchio
+a piedi da un cancello dopo 2-3 secondi); costruzioni (mura e torrette; dal
+2026-10-31 il pavimento e la riparazione NON hanno cantiere): cantiere SULLA COSA MIGLIORATA, che lavora al livello vecchio
 finché non finisce (6-50 secondi); corsa del boscaiolo secondario da 5 a 3
 minuti con meno legna; avvisi (venditore della legna, legna in esaurimento,
 primo cantiere, venditore della carne)

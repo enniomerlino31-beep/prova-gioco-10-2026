@@ -59,7 +59,15 @@ export const AVVISI = {
   },
   primoCantiere: {
     titolo: 'Lavori in corso!',
-    testo: 'Pagato in un attimo! La costruzione cresce a fasi mentre la barra si riempie: puntelli, travi, assi e infine i teli, con gli operai al lavoro. Alla fine i teli si alzano e compare il miglioramento. Nel frattempo funziona come prima.',
+    testo: 'Pagato in un attimo! Le mura nuove e le torrette si costruiscono con i lavori: puntelli, travi, assi e infine i teli, con gli operai al lavoro. Alla fine i teli si alzano e compare il miglioramento. Nel frattempo tutto funziona come prima.',
+  },
+  aiutante: {
+    titolo: 'L’aiutante',
+    testo: 'Porta da solo la legna dalla catasta allo sportello, così tu puoi fare le corse. Ogni viaggio porta 15 unità di legna.',
+  },
+  pavimento: {
+    titolo: 'Il pavimento in pietra',
+    testo: 'Cambia solo l’aspetto della base: le lastre si sono allargate dal cerchio fino a coprire tutta la radura. Non ci sono lavori da aspettare: compare subito.',
   },
 
   legnaInEsaurimento: {
@@ -68,7 +76,7 @@ export const AVVISI = {
   },
   venditoreCarne: {
     titolo: 'Il venditore della carne',
-    testo: 'Costa monete. Finché non c’è, la carne dei lupi si accumula e non si vende; con lui i clienti la comprano allo sportello CARNE.',
+    testo: 'Adesso la carne dei lupi si vende: i clienti la comprano allo sportello CARNE e ti pagano. Con i miglioramenti “svelto” ed “esperto” servono più in fretta.',
   },
   ritornoAssenza: {
     titolo: 'Bentornato!',
