@@ -18,6 +18,7 @@ Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il g
 | 4 | Corsa: 10 coppie di porte, più alberi, orso gigante con scontro dinamico, scalinata fino a ×20 | 0b4c5f9 |
 | 5 | Grafica della segheria (capanno, tettoia con sega, tre aspetti con le mura) | a7d4df2 |
 | 6 | Avvisi con mini tutorial per le novità (`src/avvisi.js`) | 734bc33 |
+| 7 | Nuova economia e rallentamenti, cantieri con teli e svelamento a onda, cantieri anche in corsa | 6c699b5 + ramo bozza-gruppo7 unito a main (2026-10-31) |
 
 
 ## Note già decise (dalle sessioni precedenti)
@@ -42,7 +43,7 @@ Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il g
 ## Cosa resta da fare
 
 Piano dato dall'utente il 2026-10-30 (testo originale). Si lavora un gruppo alla volta, nell'ordine 6 → 11.
-**Stato (fine sessione del 2026-10-30): il Gruppo 6 è fatto, approvato e salvato (734bc33). Il Gruppo 7 è fatto ma NON ancora provato dall'utente. Il commit 6c699b5 (su `main`, già inviato) ha la prima versione. Tutte le correzioni del 2026-10-30 sono salvate nel ramo separato `bozza-gruppo7` (su GitHub), NON ancora unite a `main`: pagamenti tutti da 1,5 s, cantieri rifatti (fasi, operai, svelamento, suoni dei lavori, sega), riparazione senza cantiere, torrette tutte insieme, miglioramento effettivo quando i teli si alzano. Restano da fare: la prova dell'utente, poi l'unione a `main` con un commit finale; la proposta di durata dei lavori (sotto, NON applicata, aspetta l'ok dell'utente); il Gruppo 8 (non iniziato). Per riprendere: vedi la sezione "Come riprendere" qui sotto.**
+**Stato (aggiornato il 2026-10-31, dopo l'ok dell'utente): il Gruppo 6 è fatto, approvato e salvato (734bc33). Il Gruppo 7 è fatto, PROVATO E APPROVATO dall'utente, unito a `main` e inviato su GitHub (il ramo `bozza-gruppo7` si può considerare chiuso). Resta da fare: la proposta di durata dei lavori (sotto, NON applicata, aspetta l'ok dell'utente) e il Gruppo 8 (non iniziato). Il testo che segue è lo storico scritto prima della prova: **Stato (fine sessione del 2026-10-30): il Gruppo 7 era fatto ma NON ancora provato dall'utente. Il commit 6c699b5 (su `main`, già inviato) ha la prima versione. Tutte le correzioni del 2026-10-30 sono salvate nel ramo separato `bozza-gruppo7` (su GitHub), NON ancora unite a `main`: pagamenti tutti da 1,5 s, cantieri rifatti (fasi, operai, svelamento, suoni dei lavori, sega), riparazione senza cantiere, torrette tutte insieme, miglioramento effettivo quando i teli si alzano. Restano da fare: la prova dell'utente, poi l'unione a `main` con un commit finale; la proposta di durata dei lavori (sotto, NON applicata, aspetta l'ok dell'utente); il Gruppo 8 (non iniziato). Per riprendere: vedi la sezione "Come riprendere" qui sotto.**
 Gruppo 6, com'è fatto: vedi README, “Avvisi delle novità”. Il sistema è in `src/avvisi.js`: per aggiungere un avviso (anche nei Gruppi 8-11: giornata, personale, nuove zone, affumicatoio, clienti...) basta un testo in `AVVISI` e una riga in `controllaAvvisi` (`segheria.js` per la base, `corsa.js` per la corsa).
 
 ### Come riprendere (scritto a fine sessione, 2026-10-30)
@@ -53,7 +54,7 @@ Gruppo 6, com'è fatto: vedi README, “Avvisi delle novità”. Il sistema è i
 4. Dopo l'ok dell'utente: unire a `main` (`git checkout main`, `git merge bozza-gruppo7`) con un commit finale, inviare su GitHub (`git push`) e aggiornare README e questo piano (togliere "da provare").
 5. Poi: decidere la proposta di durata dei lavori (tabella più sotto, non applicata) e iniziare il Gruppo 8.
 
-### Gruppo 7: com'è fatto (da provare) e tabella prima / dopo
+### Gruppo 7: com'è fatto (provato e approvato il 2026-10-31) e tabella prima / dopo
 
 Versione definitiva della richiesta (2026-10-30, dopo la prima prova): **catasta senza limite** (niente avviso “catasta piena”, nessuno aspetta mai), **boscaiolo secondario in circa 15-20 minuti**, **lavoratori senza cantiere** (arrivano a piedi da un cancello dopo 2-3 secondi), **cantieri solo per le costruzioni e sulla cosa migliorata** (la costruzione funziona al livello vecchio finché non finiscono), **animazione della legna**. Dettagli nel README (sezioni Economia, Catasta, Cantieri, Lavoratori, Animazione).
 
@@ -87,16 +88,19 @@ Versione definitiva della richiesta (2026-10-30, dopo la prima prova): **catasta
 2. Teli su tutto il cantiere: pali dei 3 cancelli e dei 2 sportelli avvolti, telo corto sopra ogni cancello, passaggio libero (provato camminando dal cancello laterale).
 4. Pavimento senza cantiere: vale subito, onda di lastre di 1,4 s; vecchi salvataggi con cantiere del pavimento in corso lo trovano già fatto (provato).
 
-**NON fatto (progetto approvato dall'utente, nessun codice scritto):**
-- 3. Svelamento più fluido (onda continua).
-- 5. Cantieri che finiscono durante la corsa (svelamento mostrato al ritorno).
+**Fatto dopo, nella stessa giornata (2026-10-31, sessione successiva; provate e approvate dall'utente, committate e unite a `main`):**
+- 5. Cantieri che finiscono durante la corsa: `lavoraDuranteLaCorsa` → `finisceInCorsa` (miglioramento effettivo subito e in silenzio: `completaMiglioramento(.., { silenzioso: true })`, `tappeDelMiglioramento(.., animato)`), `finitiInCorsa`, `riprendiCantieri` (chiamato da `entra`: un solo giro di telecamera, una tappa per cantiere, `svela` + `svelamenti`), `Cantiere.riallinea()` (fasi già raggiunte subito, operai già sul piano).
+- 3. Svelamento a onda continua: in `cantiere.js`, teli = `BoxGeometry(1,1,1,12,1,1)` per cantiere con attributo istanziato `aSvela` (secondi di svelamento, ritardo del primo, durata dell'onda), `GLSL_ARROTOLA` nel vertex shader del telo e del suo `customDepthMaterial` (ombra); `SVELAMENTO.onda` 1,6, `telo` 0,55; tolto dalla CPU il calcolo `roll`/`onda`/`presente` dei teli; `svela()` mette prima tutto al suo posto con `aggiornaIstanze(true)`. Durata misurata 2,58 s.
+- Provato con Chrome (telefono, CPU x4): 59-60 fps, console pulita, mura e torrette finite in corsa (effettive subito, salvate, svelate al ritorno), cantiere ripreso a metà senza scatti, immagini dell'onda controllate a mano (il bordo del telo sale inclinato, la parete in fondo si scopre prima di quella davanti).
+- **Correzione dello svelamento (2026-10-31, provata e approvata)**: i teli restavano visibili in alto per circa 1 secondo dopo l'onda perché la scatola del telo, a fine salita, lasciava il suo "coperchio" piatto (facce alta e bassa) largo come prima fino alla distruzione del cantiere a 2,58 s. Ora `GLSL_ARROTOLA` toglie lo spessore del telo (e della sua ombra) negli ultimi 10% della salita di ogni punto, quindi sparisce quando l'onda lo scopre. Niente altro è cambiato. Misura (telefono, CPU x4, tende dipinte di magenta): pixel di tenda a 2,5 s prima 53.627, dopo 0; dopo la fine 0 pixel e 0 oggetti del cantiere nella scena in tutti i casi (mura, torrette, due cantieri insieme, finito in corsa, ripreso da salvataggio, uscita e rientro nella pagina). Nota: il gioco oggi ha un solo cantiere alla volta (c'è una sola fila che li produce, DIFESA); i "due insieme" sono stati provati con un salvataggio costruito a mano.
+- Decisioni prese da sole: vedi il messaggio di fine sessione (le nuvolette e le scintille ai piedi dei teli restano come prima, il telaio si rimpicciolisce per blocchi appena dietro il fronte, gli operai già saliti compaiono sul piano al ritorno, i cantieri finiti in corsa non ripartono se si chiude la pagina durante la corsa: il miglioramento è già salvato).
 
 **Da non dimenticare / segnalato all'utente:** chi ha già pavimento, aiutante o venditore della carne vedrà una volta sola il loro avviso al primo avvio (decisione presa da solo); gli sportelli hanno il telo solo sui pali (decisione presa da solo, per non nascondere il venditore); il telo corto sopra i cancelli può nascondere per un attimo la testa di chi passa subito dietro (accettato).
 
 **Cosa resta da fare, in ordine:**
 1. L'utente prova il ramo (teli, pavimento, avvisi).
-2. Scrivere la richiesta 5 (vedi progetto sotto), poi la 3, e riprovarle con Chrome (telefono, CPU x4, fine lavori senza fotogrammi lenti, console pulita).
-3. Dopo l'ok dell'utente: unire a `main` con un commit finale, `git push`, togliere “da provare” da README e piano.
+2. ~~Scrivere la richiesta 5 (vedi progetto sotto), poi la 3~~: **fatto** (vedi sopra); l'utente le prova: fine lavori nella base, fine lavori durante una corsa (per provare: `?reset&ricco&cantieri=3`, cioè lavori 3 volte più lunghi: le mura di pietra durano 18 s; comprarle e partire subito per la corsa, restare in corsa almeno 20 s e tornare alla base), più cantieri insieme.
+3. ~~Dopo l'ok dell'utente: unire a `main`, `git push`~~: **fatto il 2026-10-31**.
 4. Decidere la proposta di durata dei lavori (tabella più sotto) e iniziare il Gruppo 8.
 
 **Progetto della richiesta 5 (approvato: “svelamento mostrato al ritorno”):**
@@ -111,7 +115,7 @@ Versione definitiva della richiesta (2026-10-30, dopo la prima prova): **catasta
 - `SVELAMENTO.onda` da 1,8 a 1,6 e `telo` 0,55: l'ultimo blocco finisce a circa 2,6 s (< 3 s). Il telaio (puntelli, travi, assi) resta come oggi, per blocchi, appena dietro il fronte. Togliere dal codice CPU `roll`/`onda`/`presente` del telo in `aggiornaIstanze`; aggiornare `aSvela` in `aggiornaSvelamento`.
 - Provare: nessuno scuotimento, lampo o fontane; fotogrammi in fine lavori con CPU 4x; telo corto sopra i cancelli e torrette (onda 0: salgono tutte insieme).
 
-### Proposte in attesa dell'ok dell'utente (2026-10-31): le due qui sotto sono ora **APPROVATE dall'utente** ma **non ancora scritte nel codice** (progetto sopra)
+### Proposte del 2026-10-31: le due qui sotto sono **APPROVATE dall'utente e ora scritte nel codice** (provate e approvate; progetto sopra)
 
 - **Svelamento più fluido (richiesta 3)**: oggi ogni telo (blocchi di circa 3 m) si arrotola per conto suo quando l'onda delle mura nuove lo raggiunge, quindi il movimento va "a blocchi". L'onda originaria delle mura (`mura.js`) parte dal cerchio di acquisto e fa il giro della base in 1,8 s: ogni palo ha un ritardo secondo la distanza angolare dal cerchio, quando l'onda arriva il pezzo nuovo spunta con un rimbalzo (easeOutBack, 0,4 s) e il palo fa un saltello di +25%. Proposta: stessa onda (stessa origine, stessa durata, stesso ritardo), ma calcolata dalla scheda grafica per ogni punto del telo, così il bordo basso del telo sale lungo una linea continua che segue il fronte dell'onda; il telo sale con un piccolo sorpasso verso l'alto e poi si ferma, il telaio si rimpicciolisce appena dietro il fronte, il palo vero fa il suo saltello subito dopo. Totale circa 2,6 s, nessuno scuotimento, lampo o fontana; il miglioramento resta effettivo quando parte il primo telo.
 - **Cantieri durante la corsa (richiesta 5)**: i lavori avanzano già alla stessa velocità durante la corsa (dipendono solo dal tempo, `passa` in `cantiere.js`, chiamato da `lavoraDuranteLaCorsa`; si fermano solo con un avviso aperto o con il menu delle impostazioni, come tutto il gioco). Quello che non va è il ritorno: i pezzi "scattano" tutti insieme e poi parte subito lo svelamento. Proposta: se il tempo finisce durante la corsa il miglioramento diventa effettivo subito (dati e disegno, senza animazione); al ritorno compare il cantiere già finito (senza rifare la costruzione), la telecamera ci va e lo svelamento parte una volta sola; con più cantieri finiti insieme, un solo giro di telecamera con una tappa per ognuno.

@@ -13,8 +13,10 @@
 //  prendono un'asse da una pila, la posano e martellano; ogni tanto cambiano postazione. Restano sempre sul piano che c'è già e
 //  non vanno mai oltre i teli, quindi mai oltre i cancelli. Ogni martellata fa una nuvoletta e qualche truciolo e si sente
 //  (solo se il cantiere si vede o è vicino: Segheria.ascoltoLavori). Ogni tanto cade un'asse, che sparisce nella neve.
-//  A fine lavori (svela): gli operai esultano con un salto, scendono e se ne vanno; i teli si arrotolano verso l'alto, uno dopo
-//  l'altro, con le scintille; poi sparisce anche la struttura. Meno di 3 secondi in tutto.
+//  A fine lavori (svela): gli operai esultano con un salto, scendono e se ne vanno; i teli si arrotolano verso l'alto con un'ONDA
+//  CONTINUA (il bordo basso sale lungo una linea che segue l'onda delle mura nuove, calcolata dalla scheda grafica: GLSL_ARROTOLA);
+//  poi sparisce anche la struttura. Meno di 3 secondi in tutto, nessuno scuotimento, lampo o fontana.
+//  Se i lavori finiscono durante una corsa il miglioramento è già effettivo e lo svelamento si vede al ritorno (riallinea).
 //  Nel frattempo la costruzione funziona al livello vecchio. La durata è in "cantiere" di ogni livello (CONFIG.miglioramenti) e
 //  passa anche con il gioco chiuso. Non dipende dal pagamento. I lavoratori invece non hanno cantiere: arrivano a piedi (arrivo.js).
 // =====================================================================
@@ -48,7 +50,7 @@ const DURATA_COMPARSA = 0.4;     // secondi che ogni pezzo impiega a "spuntare" 
 // le fasi: da che parte della barra a che parte (0 = lavori appena partiti, 1 = finiti)
 const FASI = { puntelli: [0, 0.2], travi: [0.2, 0.4], assi: [0.4, 0.6], teli: [0.6, 1] };
 const NOMI_PARTI = Object.keys(FASI);
-const SVELAMENTO = { attesa: 0.35, onda: 1.8, telo: 0.5, telaio: 0.4, operai: 2.25 }; // tempi di fine lavori (secondi, in tutto meno di 3)
+const SVELAMENTO = { attesa: 0.35, onda: 1.6, telo: 0.55, telaio: 0.4, operai: 2.25 }; // tempi di fine lavori (secondi, in tutto meno di 3)
 // quanto dura al massimo lo svelamento (la telecamera resta a guardare per tutto questo tempo)
 export const DURATA_SVELAMENTO_MASSIMA = 3;
 const MAX_ASSI_CADENTI = 2;      // le assi che cadono dal piano: mai più di due insieme
@@ -110,23 +112,60 @@ function creaAssi() {
   return texture;
 }
 
+// A fine lavori il bordo basso di ogni telo sale lungo UNA linea continua che segue l'onda delle mura nuove (vedi mura.js: parte
+// dal cerchio di acquisto e fa il giro della base). Lo calcola la scheda grafica per ogni punto del telo, con l'attributo
+// aSvela di ogni telo: x = secondi dall'inizio dello svelamento (-1 = lavori in corso, non fa niente), y = ritardo del primo punto
+// (parte esattamente a "attesa"), z = durata dell'onda (0 per le torrette: salgono tutte insieme). Il telo è una scatola con
+// tanti segmenti nel senso della lunghezza (vedi creaIstanze): così anche dentro un telo il bordo è inclinato, non a gradini.
+// Prima un piccolo respiro verso il basso, poi sale veloce; in cima il telo è sparito.
+const GLSL_ARROTOLA = `
+  attribute vec3 aSvela;
+  uniform float uOrigine;
+  void arrotola(inout vec3 trasformato) {
+    if (aSvela.x < 0.0) return;
+    vec4 mondo = instanceMatrix * vec4(position, 1.0);
+    float d = atan(mondo.z, mondo.x) - uOrigine;
+    float ritardo = abs(atan(sin(d), cos(d))) / 3.14159265;
+    float k = clamp((aSvela.x - ${SVELAMENTO.attesa.toFixed(3)} - (max(ritardo, aSvela.y) - aSvela.y) * aSvela.z) / ${SVELAMENTO.telo.toFixed(3)}, 0.0, 1.0);
+    if (position.y < 0.0) {
+      float e = k * k * (1.9 * k - 0.9);
+      trasformato.y = mix(position.y, 0.5, e);
+      trasformato.z += sin(k * 6.2831853) * 0.04 * (1.0 - k);
+    }
+    // arrivato in cima il telo sparisce: tutti i punti (anche quelli in alto) perdono lo spessore. Senza questo resterebbe il
+    // "coperchio" piatto del telo, largo come prima, visibile fino alla fine dello svelamento
+    trasformato.z *= 1.0 - smoothstep(0.9, 1.0, k);
+  }`;
+
 function materialiCantiere() {
   if (materiali) return materiali;
   const telo = new THREE.MeshLambertMaterial({ map: creaTelo() });
+  const origine = Math.atan2(MAPPA.miglioramenti.mura.z, MAPPA.miglioramenti.mura.x); // da dove parte l'onda delle mura nuove
   // i teli ondeggiano piano: più in basso, più si muovono (ancorati in cima). Lo fa la scheda grafica, nessun calcolo in più per il gioco
   telo.onBeforeCompile = (shader) => {
     shader.uniforms.uTempo = { value: 0 };
+    shader.uniforms.uOrigine = { value: origine };
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\nuniform float uTempo;')
+      .replace('#include <common>', `#include <common>\nuniform float uTempo;${GLSL_ARROTOLA}`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
         float peso = clamp(0.5 - position.y, 0.0, 1.0);
         float fase = instanceMatrix[3].x * 0.9 + instanceMatrix[3].z * 0.9;
         transformed.z += sin(uTempo * 1.7 + fase + position.x * 2.5) * 0.05 * peso * peso;
-        transformed.x += sin(uTempo * 1.3 + fase * 1.3) * 0.02 * peso;`);
+        transformed.x += sin(uTempo * 1.3 + fase * 1.3) * 0.02 * peso;
+        arrotola(transformed);`);
     telo.userData.shader = shader;
+  };
+  // l'ombra del telo segue lo stesso movimento (altrimenti resterebbe a terra l'ombra di un telo già salito)
+  const profondita = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+  profondita.onBeforeCompile = (shader) => {
+    shader.uniforms.uOrigine = { value: origine };
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>${GLSL_ARROTOLA}`)
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\n        arrotola(transformed);');
   };
   materiali = {
     telo,
+    profondita,
     legno: new THREE.MeshLambertMaterial({ color: 0x7a4a24 }),
     assi: new THREE.MeshLambertMaterial({ map: creaAssi() }),
     vertici: new THREE.MeshLambertMaterial({ vertexColors: true }),
@@ -702,20 +741,27 @@ export class Cantiere {
       nPunt += 4;
       nTravi += t.travi.length;
     }
-    const crea = (materiale, quanti) => {
-      const mesh = new THREE.InstancedMesh(BOX, materiale, Math.max(1, quanti));
+    const crea = (materiale, quanti, forma = BOX) => {
+      const mesh = new THREE.InstancedMesh(forma, materiale, Math.max(1, quanti));
       mesh.frustumCulled = false;
       mesh.castShadow = true;
       mesh.count = quanti;
       this.gruppo.add(mesh);
       return mesh;
     };
+    // il telo è una scatola con 12 segmenti nel senso della lunghezza (una per cantiere: porta con sé aSvela, vedi GLSL_ARROTOLA)
+    const formaTelo = new THREE.BoxGeometry(1, 1, 1, 12, 1, 1);
+    this.aSvela = new THREE.InstancedBufferAttribute(new Float32Array(Math.max(1, this.tessere.length) * 3), 3);
+    for (let i = 0; i < this.tessere.length; i++) this.aSvela.setX(i, -1); // -1: lavori in corso
+    formaTelo.setAttribute('aSvela', this.aSvela);
+    this.geometrie.push(formaTelo);
     this.istanze = {
       puntelli: crea(m.legno, nPunt),
       travi: crea(m.legno, nTravi),
       assi: crea(m.assi, this.tessere.length),
-      teli: crea(m.telo, this.tessere.length),
+      teli: crea(m.telo, this.tessere.length, formaTelo),
     };
+    this.istanze.teli.customDepthMaterial = m.profondita;
     // quando spunta ogni parte: dentro la sua fase, un telo dopo l'altro (dal davanti verso i lati)
     for (const t of this.tessere) {
       for (const nome of NOMI_PARTI) {
@@ -796,14 +842,10 @@ export class Cantiere {
     const svela = this.svelando;
     let cambiato = false;
     for (const t of this.tessere) {
-      // il telaio (puntelli, travi, piano) a fine lavori si rimpicciolisce; il telo si arrotola verso l'alto (vedi sotto)
+      // il telaio (puntelli, travi, piano) a fine lavori si rimpicciolisce, appena dietro il fronte dell'onda; il telo si arrotola
+      // verso l'alto da solo, nella scheda grafica (GLSL_ARROTOLA): qui il suo disegno non si tocca più
       let resta = 1;
-      let roll = 0;
-      if (svela !== null) {
-        const inizio = t.inizioSvela;
-        resta = 1 - limita((svela - inizio - 0.25) / SVELAMENTO.telaio) ** 2;
-        roll = limita((svela - inizio) / SVELAMENTO.telo);
-      }
+      if (svela !== null) resta = 1 - limita((svela - t.inizioSvela - 0.25) / SVELAMENTO.telaio) ** 2;
       const fP = t.senzaPuntelli ? 0 : this.fattore(t.parti.puntelli) * resta;
       const fT = this.fattore(t.parti.travi) * resta;
       const fA0 = this.fattore(t.parti.assi);
@@ -828,11 +870,12 @@ export class Cantiere {
       }
       // piano di assi: cala dall'alto e rimbalza
       assi.setMatrixAt(t.indici.assi, matrice(t, 0, t.altezza + PIANO / 2 + (t.rialzo ?? 0) + (1 - Math.min(1, fA0)) * 0.9 * (fA0 > 0 ? 1 : 0), 0, (t.lunghezza + 0.04) * sA, PIANO * sA, (t.larghezza + 0.12) * sA));
-      // telo: si srotola dall'alto (fissato in cima); a fine lavori si arrotola verso l'alto, con un'ondina
-      const alto = t.altoTelo * Math.max(0.0001, (fL > 0 ? Math.min(1.04, fL) : 0) * (1 - roll * roll));
-      const onda = roll > 0 ? Math.sin(roll * Math.PI * 2.5) * 0.12 * (1 - roll) : 0;
-      const presente = fL > 0 && roll < 1 ? 1 : 0; // finché non spunta (o dopo che si è arrotolato) non si vede niente
-      teli.setMatrixAt(t.indici.teli, matrice(t, 0, t.altezza - alto / 2 + (t.rialzo ?? 0), onda, t.lunghezza * (1 + (roll > 0 ? 0.04 * Math.sin(roll * 9) : 0)) * presente, alto * presente, (t.larghezza - 0.02) * presente));
+      // telo: si srotola dall'alto (fissato in cima)
+      if (svela === null) {
+        const alto = t.altoTelo * Math.max(0.0001, fL > 0 ? Math.min(1.04, fL) : 0);
+        const presente = fL > 0 ? 1 : 0; // finché non spunta non si vede niente
+        teli.setMatrixAt(t.indici.teli, matrice(t, 0, t.altezza - alto / 2 + (t.rialzo ?? 0), 0, t.lunghezza * presente, alto * presente, (t.larghezza - 0.02) * presente));
+      }
       cambiato = true;
       if (!tutto && svela === null) {
         // finito di spuntare tutto quello che è già comparso: non serve più aggiornarlo ogni fotogramma
@@ -1080,29 +1123,69 @@ export class Cantiere {
     this.aggiornaBarra();
   }
 
-  // I lavori sono finiti: gli operai esultano e se ne vanno, il cartello sparisce e i teli si arrotolano uno dopo l'altro, nello
-  // stesso ordine con cui compaiono le mura nuove, poi sparisce anche la struttura. Poi il cantiere si può togliere (svelato).
+  // I lavori sono finiti: gli operai esultano e se ne vanno, il cartello sparisce e i teli si arrotolano con un'onda continua, che
+  // segue il giro delle mura nuove, poi sparisce anche la struttura. Poi il cantiere si può togliere (svelato).
   svela() {
     if (this.svelando !== null) return;
+    // tutto già al suo posto (si stava ancora costruendo? l'ultima parte arriva subito), con i teli alla loro altezza piena
+    for (const t of this.tessere) {
+      for (const nome of NOMI_PARTI) if (t.parti[nome] === null) t.parti[nome] = this.tempo - DURATA_COMPARSA;
+    }
+    this.aggiornaIstanze(true);
     this.svelando = 0;
     this.comparsa = 1;
     this.gruppo.scale.setScalar(1);
     for (const operaio of this.operai) operaio.finisci();
     let fine = this.operai.length > 0 ? SVELAMENTO.operai : 0;
     // il primo telo comincia ad alzarsi esattamente a "attesa" (è lì che il miglioramento diventa effettivo, vedi attesaEffetto)
+    const onda = this.tipo === 'mura' ? SVELAMENTO.onda : 0;
     const primo = this.tipo === 'mura' ? Math.min(...this.tessere.map((t) => t.ritardo)) : 0;
     for (const t of this.tessere) {
-      // tutto già al suo posto (si stava ancora costruendo? l'ultima parte arriva subito)
-      for (const nome of NOMI_PARTI) if (t.parti[nome] === null) t.parti[nome] = this.tempo - DURATA_COMPARSA;
-      t.inizioSvela = SVELAMENTO.attesa + (this.tipo === 'mura' ? (t.ritardo - primo) * SVELAMENTO.onda : 0);
+      t.inizioSvela = SVELAMENTO.attesa + (t.ritardo - (this.tipo === 'mura' ? primo : t.ritardo)) * onda;
       t.partito = false;
       fine = Math.max(fine, t.inizioSvela + 0.25 + SVELAMENTO.telaio);
     }
+    // l'onda dei teli (la calcola la scheda grafica): primo ritardo e durata uguali per tutti i teli di questo cantiere
+    for (let i = 0; i < this.tessere.length; i++) {
+      this.aSvela.setY(i, primo);
+      this.aSvela.setZ(i, onda);
+    }
+    // il bordo più lontano dall'origine (ritardo 1 al massimo) finisce per ultimo
+    fine = Math.max(fine, SVELAMENTO.attesa + (1 - primo) * onda + SVELAMENTO.telo);
     for (const catena of this.catene) {
       if (catena.meshScala) catena.meshScala.visible = false;
       if (catena.meshPila) catena.meshPila.visible = false;
     }
     this.durataSvelamento = fine;
+  }
+
+  // Si torna alla base (dopo una corsa): le parti che la barra ha già raggiunto compaiono subito, senza rifare l'animazione (altrimenti
+  // scatterebbero tutte insieme, perché in corsa il tempo del disegno non avanza). Gli operai già "saliti" stanno sul piano.
+  riallinea() {
+    if (this.svelando !== null) return;
+    const p = this.progresso;
+    this.comparsa = 1;
+    for (const cartello of this.cartelli) cartello.scale.setScalar(cartello.userData.scala);
+    for (const t of this.tessere) {
+      for (const nome of NOMI_PARTI) if (t.parti[nome] === null && p >= t.soglie[nome]) t.parti[nome] = -100;
+    }
+    for (const catena of this.catene) {
+      if (catena.scalaT0 === undefined && p >= FASI.travi[0]) catena.scalaT0 = -100;
+      if (catena.pilaT0 === undefined && p >= FASI.assi[0] + 0.05) catena.pilaT0 = -100;
+      if (catena.meshScala) catena.meshScala.scale.setScalar(Math.max(0.001, this.fattore(catena.scalaT0)));
+      if (catena.meshPila) catena.meshPila.scale.setScalar(Math.max(0.001, this.fattore(catena.pilaT0)));
+    }
+    this.aggiornaIstanze(true);
+    for (const operaio of this.operai) {
+      if (operaio.suPiano || !this.scalaPronta(operaio.catena)) continue;
+      const posti = this.stazioniPiano(operaio.catena);
+      if (posti.length === 0) continue;
+      const posto = posti[(operaio.indice * 3 + 1) % posti.length];
+      operaio.pos.set(posto.x, this.altezzaPiano(operaio.catena), posto.z);
+      operaio.suPiano = true;
+      operaio.giro = Math.PI;
+      operaio.applica();
+    }
   }
 
   get svelato() {
@@ -1133,6 +1216,9 @@ export class Cantiere {
       }
     }
     this.aggiornaIstanze();
+    // i teli salgono nella scheda grafica: basta dirle a che punto è lo svelamento
+    for (let i = 0; i < this.tessere.length; i++) this.aSvela.setX(i, t);
+    this.aSvela.needsUpdate = true;
     if (primo && !this.suonoSvelamento) {
       this.suonoSvelamento = true;
       const { volume } = this.rumoreA();
