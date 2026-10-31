@@ -43,16 +43,14 @@ Come si lavora: un gruppo alla volta; dopo ogni gruppo una verifica veloce (il g
 ## Cosa resta da fare
 
 Piano dato dall'utente il 2026-10-30 (testo originale). Si lavora un gruppo alla volta, nell'ordine 6 → 11.
-**Stato (aggiornato il 2026-10-31, dopo l'ok dell'utente): il Gruppo 6 è fatto, approvato e salvato (734bc33). Il Gruppo 7 è fatto, PROVATO E APPROVATO dall'utente, unito a `main` e inviato su GitHub (il ramo `bozza-gruppo7` si può considerare chiuso). Resta da fare: la proposta di durata dei lavori (sotto, NON applicata, aspetta l'ok dell'utente) e il Gruppo 8 (non iniziato). Il testo che segue è lo storico scritto prima della prova: **Stato (fine sessione del 2026-10-30): il Gruppo 7 era fatto ma NON ancora provato dall'utente. Il commit 6c699b5 (su `main`, già inviato) ha la prima versione. Tutte le correzioni del 2026-10-30 sono salvate nel ramo separato `bozza-gruppo7` (su GitHub), NON ancora unite a `main`: pagamenti tutti da 1,5 s, cantieri rifatti (fasi, operai, svelamento, suoni dei lavori, sega), riparazione senza cantiere, torrette tutte insieme, miglioramento effettivo quando i teli si alzano. Restano da fare: la prova dell'utente, poi l'unione a `main` con un commit finale; la proposta di durata dei lavori (sotto, NON applicata, aspetta l'ok dell'utente); il Gruppo 8 (non iniziato). Per riprendere: vedi la sezione "Come riprendere" qui sotto.**
+**Stato (aggiornato il 2026-10-31): il Gruppo 6 è FATTO, approvato e salvato (734bc33). Il Gruppo 7 è FATTO, provato e approvato dall'utente, unito a `main` (commit finale a15cb86, avanzamento semplice, cronologia non riscritta) e inviato su GitHub; il ramo `bozza-gruppo7` è chiuso (resta su GitHub, identico a `main`). Restano da fare: la proposta di durata dei lavori (sotto, NON applicata, aspetta l'ok dell'utente) e il Gruppo 8 (non iniziato: si comincia in una nuova sessione).**
 Gruppo 6, com'è fatto: vedi README, “Avvisi delle novità”. Il sistema è in `src/avvisi.js`: per aggiungere un avviso (anche nei Gruppi 8-11: giornata, personale, nuove zone, affumicatoio, clienti...) basta un testo in `AVVISI` e una riga in `controllaAvvisi` (`segheria.js` per la base, `corsa.js` per la corsa).
 
-### Come riprendere (scritto a fine sessione, 2026-10-30)
+### Come riprendere (aggiornato il 2026-10-31)
 
-1. Passare al ramo di bozza: `git checkout bozza-gruppo7` (il lavoro di oggi è solo lì; `main` è fermo a 6c699b5).
-2. Riaccendere il server di prova: `npm run dev` e aprire `http://localhost:5173/?reset&ricco&cantieri=1` (sul telefono: l'indirizzo di rete che stampa Vite).
-3. L'utente prova: cantieri (mura di pietra, torrette, con teli continui anche su cancelli e sportelli), riparazione e pavimento senza cantiere, pagamenti da 1,5 s, suono della sega, avvisi (aiutante, venditore della carne, pavimento, "Lavori in corso!"). Eventuali correzioni si fanno sullo stesso ramo. Le proposte per lo svelamento e per i cantieri durante la corsa (sezione "Proposte in attesa") aspettano l'ok dell'utente.
-4. Dopo l'ok dell'utente: unire a `main` (`git checkout main`, `git merge bozza-gruppo7`) con un commit finale, inviare su GitHub (`git push`) e aggiornare README e questo piano (togliere "da provare").
-5. Poi: decidere la proposta di durata dei lavori (tabella più sotto, non applicata) e iniziare il Gruppo 8.
+1. Si lavora su `main` (il Gruppo 7 è unito, commit a15cb86; il ramo `bozza-gruppo7` è chiuso). Per ogni gruppo nuovo conviene un ramo di bozza nuovo (`git checkout -b bozza-gruppo8`) e l'unione a `main` solo dopo il via dell'utente.
+2. Riaccendere il server di prova: `npm run dev` e aprire `http://localhost:5173/?reset&ricco&cantieri=1` (sul telefono: l'indirizzo di rete che stampa Vite). Per una partita pulita senza toccare il salvataggio della 5173: un secondo server su un'altra porta (`npx vite --host --port 5174`) con `?reset&senzatutorial`: il salvataggio del browser è separato per porta.
+3. Prima cosa da decidere con l'utente: la proposta di durata dei lavori (tabella più sotto, NON applicata). Poi iniziare il Gruppo 8 (giornata e personale).
 
 ### Gruppo 7: com'è fatto (provato e approvato il 2026-10-31) e tabella prima / dopo
 
