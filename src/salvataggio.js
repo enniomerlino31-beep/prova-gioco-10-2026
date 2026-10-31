@@ -48,7 +48,17 @@ function statoIniziale() {
     tutorial: 0,                               // a che passaggio del tutorial si è arrivati (3 = finito, non compare più)
     orso: { livello: 1, corseMancanti: 0 },    // l'orso di fine corsa: a che livello è e fra quante corse ricompare (0 = alla prossima)
     avvisiVisti: [],                           // gli avvisi delle novità già mostrati (nomi, vedi src/avvisi.js): ognuno compare una volta sola
+    giornata: { giorno: 1, tempo: 0 },          // Gruppo 8: il numero della giornata e i secondi già passati in questa giornata
+    personale: personaleIniziale(),            // Gruppo 8: come sta ogni lavoratore (vedi personaleIniziale)
   };
+}
+
+// Gruppo 8: per ogni lavoratore a pagamento lo stato: 'lavora', 'attesa' (non è stato pagato: ha ancora "attesa" secondi per essere
+// pagato con le prime monete), 'casa' (non pagato: aspetta di essere richiamato) o 'licenziato'. Conta solo se il lavoratore è stato
+// comprato (vedi miglioramenti). Il venditore della legna è gratuito e non compare qui.
+export const LAVORATORI = ['aiutante', 'cacciatore0', 'cacciatore1', 'venditoreCarne', 'secondario'];
+function personaleIniziale() {
+  return Object.fromEntries(LAVORATORI.map((nome) => [nome, { stato: 'lavora', attesa: 0 }]));
 }
 
 // Legge il salvataggio. Se non c'è (o è rovinato) riparte da una partita nuova.
@@ -141,6 +151,19 @@ export function carica() {
     if (!salvato.cerchi || salvato.cerchi < 5) {
       if ((stato.miglioramenti.venditore?.comprati ?? 0) > 0) stato.miglioramenti.venditoreLegna = { comprati: 1, pagato: 0 };
       stato.cerchi = 5;
+    }
+    // Gruppo 8: la giornata e il personale. Nei salvataggi vecchi: giorno 1 appena cominciato, e chi era già stato comprato lavora
+    // (nessuno è stanco, nessuno è licenziato). I valori strani si sistemano.
+    const giornata = stato.giornata && typeof stato.giornata === 'object' ? stato.giornata : {};
+    stato.giornata = {
+      giorno: Math.max(1, Math.floor(Number(giornata.giorno)) || 1),
+      tempo: Math.min(Math.max(0, Number(giornata.tempo) || 0), CONFIG.giornata.durata - 1),
+    };
+    const personale = stato.personale && typeof stato.personale === 'object' ? stato.personale : {};
+    stato.personale = personaleIniziale();
+    for (const nome of LAVORATORI) {
+      const p = personale[nome];
+      if (p && ['lavora', 'attesa', 'casa', 'licenziato'].includes(p.stato)) stato.personale[nome] = { stato: p.stato, attesa: Math.max(0, Number(p.attesa) || 0) };
     }
     // I cantieri: solo quelli scritti bene
     stato.cantieri = (Array.isArray(stato.cantieri) ? stato.cantieri : [])

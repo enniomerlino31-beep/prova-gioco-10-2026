@@ -484,6 +484,31 @@ export const CONFIG = {
     arrivo: { ritardo: 1.6, velocita: 3.2 },
   },
 
+  // ---------------- LA GIORNATA (Gruppo 8) ----------------
+  // Il tempo scorre nella base e durante le corse (non con avvisi, menu e festa; non durante il tutorial). A fine giornata si
+  // pagano i lavoratori e compare per un attimo lo schermo nero con "Giorno N". Da offline la giornata NON avanza.
+  giornata: {
+    durata: 270,             // secondi di una giornata (4 minuti e mezzo)
+    nero: { entrata: 0.5, fermo: 1.0, uscita: 0.5 }, // lo schermo nero: dissolvenza in entrata, fermo, dissolvenza in uscita (secondi)
+  },
+
+  // ---------------- IL PERSONALE: PAGA E STANCHEZZA (Gruppo 8) ----------------
+  // Paga al giorno scelta dall'utente (opzione "media", massimo 185 al giorno). Il venditore della legna è gratuito: niente paga,
+  // non si licenzia. Gli arcieri non sono personale (fanno parte delle torrette).
+  personale: {
+    paghe: {
+      aiutante: 25,
+      cacciatore: [25, 40],      // livello "Cacciatore", "Cacciatore esperto" (vale per tutti e due)
+      venditore: [25, 40, 60],   // "Venditore della carne", "svelto", "esperto"
+      secondario: 20,
+    },
+    margine: 30,             // secondi "in attesa di paga": chi non viene pagato resta al lavoro e viene pagato con le prime monete; poi va a casa
+    // Stanchezza: dopo "lavoro" secondi (a caso tra i due numeri) di lavoro un lavoratore in base (non il boscaiolo secondario)
+    // sbadiglia per "sbadiglio" secondi e poi dorme al suo posto, finché non lo si sveglia (tocco, avvicinandosi o dal menu) o
+    // comincia una nuova giornata. Mai più di uno addormentato alla volta.
+    stanchezza: { lavoro: [150, 210], sbadiglio: 5, raggioRisveglio: 1.7, raggioTocco: 56 },
+  },
+
   // ---------------- GUADAGNI MENTRE SI È VIA ----------------
   // Quando si riapre il gioco, la base ha continuato a lavorare: il boscaiolo secondario ha portato la legna
   // e aiutante e venditori l'hanno venduta (non più in fretta di come succede giocando). I lupi non fanno danni.

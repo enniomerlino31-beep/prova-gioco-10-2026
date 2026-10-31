@@ -568,3 +568,122 @@ h2 { font-size: 36px; }
 .interruttore[aria-checked='true'] .interruttore-pomello {
   transform: translateX(36px);
 }
+
+/* ---------------- Gruppo 8: giornata e personale ---------------- */
+/* Sotto l'ingranaggio: l'etichetta del giorno con la barretta che si riempie */
+.personale-hud {
+  position: fixed;
+  top: calc(max(12px, env(safe-area-inset-top)) + 106px);
+  left: 16px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+.personale-hud > * { pointer-events: auto; }
+.pillola-giorno {
+  min-width: 70px;
+  padding: 5px 10px 6px;
+  border-radius: 12px;
+  background: rgba(30, 45, 70, 0.6);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+}
+.giorno-barra {
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.25);
+  overflow: hidden;
+}
+#giorno-barra-valore {
+  height: 100%;
+  width: 0;
+  border-radius: 999px;
+  background: #ffd23f;
+}
+/* Lo schermo nero di fine giornata: sale, resta fermo, scende (la durata la imposta il gioco) */
+.schermata-giorno {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  color: #fff;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+}
+.schermata-giorno.in-corso { animation: giorno-nero 2s linear forwards; }
+.giorno-testo h2 { margin: 0 0 8px; font-size: 44px; font-weight: 800; letter-spacing: 1px; }
+.giorno-testo p { margin: 0; font-size: 20px; opacity: 0.85; }
+@keyframes giorno-nero {
+  0% { opacity: 0; }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* ---------------- Gruppo 8: il pulsante e il menu del personale ---------------- */
+.pulsante-personale {
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: rgba(30, 45, 70, 0.6) center / 32px 32px no-repeat;
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='11' cy='10' r='5' fill='%23ffffff'/><path d='M1.5 27c0-6 4-9.5 9.5-9.5s9.5 3.5 9.5 9.5z' fill='%23ffffff'/><circle cx='23' cy='11' r='4' fill='%23ffd23f'/><path d='M16 27c0-5 3-8 7-8s7 3 7 8z' fill='%23ffd23f'/></svg>");
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pulsante-personale:active { transform: scale(0.92); }
+.menu-personale { z-index: 80; background: rgba(20, 40, 70, 0.55); }
+.menu-personale .riquadro { width: min(100%, 380px); max-height: 92vh; display: flex; flex-direction: column; }
+.menu-personale h2 { margin: 0 0 4px; }
+.menu-personale .sottotitolo { margin: 0 0 10px; font-size: 15px; }
+.personale-elenco { display: flex; flex-direction: column; gap: 8px; overflow-y: auto; margin-bottom: 12px; }
+.personale-riga {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 64px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.12);
+  text-align: left;
+}
+.personale-riga--fissa { opacity: 0.8; }
+.personale-info { display: flex; flex-direction: column; min-width: 0; }
+.personale-nome { font-size: 17px; font-weight: 800; }
+.personale-stato { font-size: 13px; opacity: 0.9; }
+.personale-stato--casa, .personale-stato--licenziato { color: #ffb4a8; }
+.personale-stato--attesa { color: #ffd23f; }
+.personale-paga { font-size: 12px; opacity: 0.75; }
+.personale-azioni { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.pulsante-riga {
+  min-width: 112px;
+  min-height: 48px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.pulsante-riga:active { transform: scale(0.95); }
+.pulsante-riga:disabled { opacity: 0.4; cursor: default; }
+.pulsante-riga--rosso { background: #b84a3c; }
+.pulsante-riga--attenzione { background: #e25a24; outline: 3px solid #ffd23f; }
+.pulsante-riga--verde { background: #3f9a4c; }
+.pulsante-riga--sveglia { background: #3b78c4; }

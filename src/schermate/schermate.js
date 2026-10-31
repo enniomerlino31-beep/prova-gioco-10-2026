@@ -136,6 +136,48 @@ export class Schermate {
     $('avviso-segheria').classList.add('nascosto');
   }
 
+  // ---- Gruppo 8: giornata e personale ----
+
+  // Lo schermo nero di fine giornata: sale, resta fermo, scende. "paga" è il testo sotto "Giorno N" (vuoto = niente riga).
+  // nero: { entrata, fermo, uscita } in secondi (CONFIG.giornata.nero); alla fine chiama allaFine.
+  mostraGiorno(giorno, paga, nero, allaFine) {
+    const schermo = $('schermata-giorno');
+    $('giorno-titolo').textContent = `Giorno ${giorno}`;
+    $('giorno-paga').textContent = paga;
+    $('giorno-paga').classList.toggle('nascosto', !paga);
+    const totale = nero.entrata + nero.fermo + nero.uscita;
+    schermo.style.animationDuration = `${totale}s`;
+    schermo.classList.remove('nascosto', 'in-corso');
+    void schermo.offsetWidth; // trucco per far ripartire l'animazione da capo
+    schermo.classList.add('in-corso');
+    clearTimeout(this.timerGiorno);
+    this.timerGiorno = setTimeout(() => {
+      schermo.classList.remove('in-corso');
+      schermo.classList.add('nascosto');
+      allaFine();
+    }, totale * 1000);
+  }
+
+  // Sotto l'ingranaggio: l'etichetta del giorno (solo nella base, dopo il tutorial)
+  mostraPersonaleHud(visibile, conPulsante = false) {
+    $('personale-hud').classList.toggle('nascosto', !visibile);
+    $('pulsante-personale').classList.toggle('nascosto', !conPulsante);
+  }
+
+  // Il testo "Giorno N" e la barretta che si riempie (si scrive solo quando cambia qualcosa: nessun peso)
+  aggiornaGiorno(giorno, frazione) {
+    const testo = `Giorno ${giorno}`;
+    if (this.giornoMostrato !== testo) {
+      this.giornoMostrato = testo;
+      $('giorno-numero').textContent = testo;
+    }
+    const percento = Math.round(frazione * 100);
+    if (this.giornoPercento !== percento) {
+      this.giornoPercento = percento;
+      $('giorno-barra-valore').style.width = `${percento}%`;
+    }
+  }
+
   // "Le mura sono cadute!": la partita è persa; il pulsante "Ricomincia" chiama alRicomincia
   mostraMuraCadute(alRicomincia) {
     this.nascondiAvviso();

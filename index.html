@@ -125,6 +125,27 @@
     </div>
   </div>
 
+  <!-- Gruppo 8: sotto l'ingranaggio, nella base, la piccola etichetta con il giorno e quanto manca alla fine della giornata -->
+  <div id="personale-hud" class="personale-hud nascosto">
+    <button id="pulsante-personale" class="pulsante-personale nascosto" type="button" aria-label="Personale"></button>
+    <div id="pillola-giorno" class="pillola-giorno"><span id="giorno-numero">Giorno 1</span><div class="giorno-barra"><div id="giorno-barra-valore"></div></div></div>
+  </div>
+
+  <!-- Gruppo 8: lo schermo nero a fine giornata, con "Giorno N" e la paga -->
+  <div id="schermata-giorno" class="schermata-giorno nascosto" aria-live="polite">
+    <div class="giorno-testo"><h2 id="giorno-titolo"></h2><p id="giorno-paga"></p></div>
+  </div>
+
+  <!-- Gruppo 8: il menu del personale (paga, Licenzia, Richiama/Assumi, Sveglia). Mentre è aperto il gioco è in pausa -->
+  <div id="menu-personale" class="schermata menu-personale nascosto" role="dialog" aria-modal="true" aria-labelledby="titolo-personale">
+    <div class="riquadro">
+      <h2 id="titolo-personale">Personale</h2>
+      <p id="personale-titolo-giorno" class="sottotitolo"></p>
+      <div id="personale-elenco" class="personale-elenco"></div>
+      <button id="pulsante-chiudi-personale" class="pulsante" type="button">Chiudi</button>
+    </div>
+  </div>
+
   <!-- Impostazioni: l'ingranaggio è sempre visibile (anche sopra le schermate) e apre un piccolo menu con gli interruttori
        di effetti sonori e musica (restano salvati). Mentre il menu è aperto il gioco è in pausa -->
   <button id="pulsante-impostazioni" class="pulsante-impostazioni" type="button" aria-label="Impostazioni"></button>

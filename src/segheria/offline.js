@@ -63,13 +63,16 @@ export function ritmi(rapidita, conCarne = true) {
 // { legnaPortata, legnaVenduta, carneVenduta, monete } (le monete NON sono ancora date: vedi segheria.js)
 export function lavoroOffline(stato, secondi) {
   const m = stato.miglioramenti;
-  const conSecondario = (m.boscaioloSecondario?.comprati ?? 0) > 0;
-  const conAiutante = (m.aiutante?.comprati ?? 0) > 0;
+  // Gruppo 8: chi è stato licenziato o è a casa (non pagato) non lavora nemmeno mentre si è via. Da offline invece non c'è paga,
+  // non c'è stanchezza e la giornata non avanza: si guadagna come prima, "semplice".
+  const lavora = (chiave) => ['lavora', 'attesa'].includes(stato.personale?.[chiave]?.stato ?? 'lavora');
+  const conSecondario = (m.boscaioloSecondario?.comprati ?? 0) > 0 && lavora('secondario');
+  const conAiutante = (m.aiutante?.comprati ?? 0) > 0 && lavora('aiutante');
   // Gruppo 7: si vende solo dove c'è il venditore: la legna con quello della legna (gratuito), la carne con quello della carne
   const vendeLegna = (m.venditoreLegna?.comprati ?? 0) > 0;
-  const vendeCarne = (m.venditore?.comprati ?? 0) > 0;
+  const vendeCarne = (m.venditore?.comprati ?? 0) > 0 && lavora('venditoreCarne');
   const livelloVenditore = CONFIG.miglioramenti.venditore[(m.venditore?.comprati ?? 0) - 1] ?? null;
-  const ritmo = vendeLegna || vendeCarne ? ritmi(livelloVenditore?.rapidita ?? 1, vendeCarne) : null;
+  const ritmo = vendeLegna || vendeCarne ? ritmi(vendeCarne ? livelloVenditore?.rapidita ?? 1 : 1, vendeCarne) : null;
 
   // solo la legna del secondario può essere venduta: "inCatasta" è quella che l'aiutante deve ancora portare,
   // "sulBanco" quella già sul banco (la legna vera della catasta e del banco non si tocca)

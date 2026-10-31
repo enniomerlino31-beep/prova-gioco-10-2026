@@ -41,6 +41,10 @@ import { creaBarraGigante } from './barraGigante.js';
 import { CerchioRiparazione } from './cerchioRiparazione.js';
 import { Cantiere, DURATA_SVELAMENTO_MASSIMA } from './cantiere.js';
 import { ArrivoLavoratore, durataArrivo } from './arrivo.js';
+import { Giornata } from './giornata.js';
+import { Personale } from './personale.js';
+import { Riposo } from './riposo.js';
+import { LAVORATORI } from '../salvataggio.js';
 import { Avvisi } from '../avvisi.js';
 import { suoni } from '../motore/suoni.js';
 import { creaLupo } from '../modelli/lupo.js';
@@ -158,6 +162,22 @@ export class Segheria {
       salva(s);
     }
     this.avvisi = new Avvisi(s, () => this.salvaOra());
+    // Gruppo 8: la giornata. Per le prove: con ?giornata=30 la giornata dura 30 secondi (vale finché la pagina resta aperta)
+    if (indirizzo.has('giornata')) {
+      CONFIG.giornata.durata = THREE.MathUtils.clamp(Number(indirizzo.get('giornata')) || CONFIG.giornata.durata, 5, 3600);
+      togliDallIndirizzo('giornata');
+    }
+    // Per le prove: con ?stanchezza=10 i lavoratori si stancano dopo 10-15 secondi (e sbadigliano per 2)
+    if (indirizzo.has('stanchezza')) {
+      const lavoro = THREE.MathUtils.clamp(Number(indirizzo.get('stanchezza')) || 150, 3, 600);
+      CONFIG.personale.stanchezza.lavoro = [lavoro, lavoro + 5];
+      CONFIG.personale.stanchezza.sbadiglio = Math.min(CONFIG.personale.stanchezza.sbadiglio, 2);
+      togliDallIndirizzo('stanchezza');
+    }
+    this.giornata = new Giornata(s.giornata);
+    this.schermoNero = false;     // lo schermo nero di fine giornata è sullo schermo
+    this.giornoInSospeso = null;  // la giornata è finita durante una corsa: lo schermo nero compare al ritorno nella base
+    this.hudGiornoVisibile = false;
     // Mentre si era via la base ha lavorato (?offline=N finge N minuti di assenza, per provare)
     this.lavoroMentreVia(indirizzo.get('offline'));
 
@@ -275,6 +295,8 @@ export class Segheria {
     this.tutorial = new Tutorial(this.radice, schermate, s.tutorial);
     this.festaDopoLaRegia = false; // finito il tutorial, quando la telecamera torna sul boscaiolo arriva la schermata di festa
     this.inFesta = false;          // la schermata di festa è aperta: il gioco aspetta il pulsante "Gioca"
+    this.personale = new Personale(this); // Gruppo 8: paga, licenziare e assumere (prima di ripristinare i lavoratori: chi è a casa non compare)
+    this.riposo = new Riposo(this, document.getElementById('gioco')); // Gruppo 8: stanchezza e risveglio
     this.ripristinaMiglioramenti();
     this.aggiornaVisibilita(true);
     if (indirizzo.has('mura')) {
@@ -414,10 +436,54 @@ export class Segheria {
   // Durante una corsa la base non si vede, ma il boscaiolo secondario continua i suoi giri
   lavoraDuranteLaCorsa(dt) {
     this.secondario?.avanza(dt, false);
+    this.avanzaGiornata(dt);
+    this.personale.aggiorna(dt);
     for (const voce of [...this.cantieri]) {
       voce.cantiere.passa(dt); // anche i lavori vanno avanti, alla stessa velocità
       if (voce.cantiere.finito && !voce.fase) this.finisceInCorsa(voce);
     }
+  }
+
+  // ---------------- LA GIORNATA (Gruppo 8) ----------------
+
+  // Il tempo della giornata scorre (non durante il tutorial); a fine giornata si pagano i lavoratori e compare lo schermo nero
+  avanzaGiornata(dt) {
+    if (!this.tutorial.finito || this.muraCadute) return;
+    if (this.giornata.avanza(dt)) this.fineGiornata();
+  }
+
+  // Fine della giornata: la paga (vedi personale.js) e lo schermo nero con "Giorno N". Se si è in corsa lo schermo nero
+  // compare al ritorno nella base (la paga è già stata data).
+  fineGiornata() {
+    const paga = this.personale?.pagaFineGiornata() ?? 0;
+    this.personale?.nuovaGiornata();
+    this.riposo?.nuovaGiornata(); // si svegliano tutti
+    this.salvaOra();
+    const dati = { giorno: this.giornata.giorno, paga: paga + (this.giornoInSospeso?.paga ?? 0) };
+    if (this.attiva) this.mostraGiorno(dati);
+    else this.giornoInSospeso = dati;
+  }
+
+  // Lo schermo nero con "Giorno N" e (se c'è stata) la paga. Il gioco continua sotto, solo il boscaiolo sta fermo.
+  mostraGiorno({ giorno, paga }) {
+    this.schermoNero = true;
+    this.joystick.spegni();
+    this.schermate.mostraGiorno(giorno, paga > 0 ? `Paga: -${paga} monete` : '', CONFIG.giornata.nero, () => {
+      this.schermoNero = false;
+      this.joystick.attivo = this.attiva;
+    });
+  }
+
+  // L'etichetta del giorno sotto l'ingranaggio: c'è nella base, dopo il tutorial
+  aggiornaHudGiornata() {
+    const visibile = this.attiva && this.tutorial.finito;
+    const pulsante = visibile && this.personale.ciSono; // il pulsante del personale c'è solo con almeno un lavoratore a pagamento
+    if (visibile !== this.hudGiornoVisibile || pulsante !== this.hudPulsante) {
+      this.hudGiornoVisibile = visibile;
+      this.hudPulsante = pulsante;
+      this.schermate.mostraPersonaleHud(visibile, pulsante);
+    }
+    if (visibile) this.schermate.aggiornaGiorno(this.giornata.giorno, this.giornata.frazione);
   }
 
   // Un cantiere finisce mentre si corre: il miglioramento diventa effettivo subito (dati e disegno, senza animazione, senza suoni
@@ -502,6 +568,11 @@ export class Segheria {
     this.schermate.mostraSegheria(!this.haCamminato);
     this.schermate.aggiornaMura(this.mura.ratio);
     this.riprendiCantieri();
+    // la giornata è finita durante la corsa: adesso compare lo schermo nero
+    if (this.giornoInSospeso) {
+      this.mostraGiorno(this.giornoInSospeso);
+      this.giornoInSospeso = null;
+    }
     // Mostra cosa è arrivato dalla corsa
     if (this.ultimoBottino) {
       const { legna, carne } = this.ultimoBottino;
@@ -521,6 +592,7 @@ export class Segheria {
     this.tutorial.nascondi();
     suoni.impostaPaura(false); // durante la corsa c'è la musica della corsa
     this.attiva = false;
+    this.aggiornaHudGiornata();
     this.joystick.spegni();
     this.stato.corseFatte += 1;
     this.salvaOra();
@@ -1240,25 +1312,25 @@ export class Segheria {
     if (nome === 'aiutante') {
       if (this.aiutante) return [];
       const posto = this.catasta.posizione.clone().add(new THREE.Vector3(0, 0, 1));
-      return [tappa(posto, () => this.arrivaALavorare('aiutante', posto, () => (this.aiutante = this.creaAiutante(false))), arrivo(posto))];
+      return [tappa(posto, () => this.arrivaALavorare('aiutante', posto, () => { if (this.personale.lavora('aiutante')) this.aiutante = this.creaAiutante(false); }), arrivo(posto))];
     }
     if (nome === 'cacciatore') {
-      // "Cacciatore esperto" rende più svelti tutti e due
-      if (this.cacciatori.length > 0) {
+      // "Cacciatore esperto" rende più svelti tutti e due (anche se uno è a casa: non lo fa tornare)
+      if (comprati > 1) {
         for (const cacciatore of this.cacciatori) cacciatore.livello = livello;
         return [];
       }
-      return [tappa(MAPPA.casaCacciatore, () => this.arrivaALavorare('cacciatore', MAPPA.casaCacciatore, () => this.nuovoCacciatore(livello, 0)), arrivo(MAPPA.casaCacciatore))];
+      return [tappa(MAPPA.casaCacciatore, () => this.arrivaALavorare('cacciatore', MAPPA.casaCacciatore, () => { if (this.personale.lavora('cacciatore0')) this.nuovoCacciatore(livello, 0); }), arrivo(MAPPA.casaCacciatore))];
     }
     if (nome === 'secondoCacciatore') {
       // il secondo cacciatore lavora allo stesso banco, con la bravura del primo
-      return [tappa(MAPPA.casaCacciatore, () => this.arrivaALavorare('cacciatore', MAPPA.casaCacciatore, () => this.nuovoCacciatore(this.livelloComprato('cacciatore'), 1)), arrivo(MAPPA.casaCacciatore))];
+      return [tappa(MAPPA.casaCacciatore, () => this.arrivaALavorare('cacciatore', MAPPA.casaCacciatore, () => { if (this.personale.lavora('cacciatore1')) this.nuovoCacciatore(this.livelloComprato('cacciatore'), 1); }), arrivo(MAPPA.casaCacciatore))];
     }
     if (nome === 'boscaioloSecondario') {
       // arriva a piedi, si ferma accanto alla catasta e parte subito per il suo primo giro
       if (this.secondario) return [];
       const posto = MAPPA.giroSecondario[0];
-      return [tappa(posto, () => this.arrivaALavorare('secondario', posto, () => (this.secondario = this.creaSecondario(durataGiro(), false))), arrivo(posto))];
+      return [tappa(posto, () => this.arrivaALavorare('secondario', posto, () => { if (this.personale.lavora('secondario')) this.secondario = this.creaSecondario(durataGiro(), false); }), arrivo(posto))];
     }
     // Gruppo 7: il venditore della legna (gratuito) sta allo sportello LEGNA, quello della carne allo sportello CARNE;
     // "Venditore svelto" e "esperto" non portano nessuno di nuovo: servono più in fretta i clienti di tutti e due
@@ -1267,10 +1339,10 @@ export class Segheria {
       if (sportello.venditore) return [];
       // la telecamera guarda un po' più dentro la base, così la tettoia dello sportello non copre il venditore
       const posto = postoVenditore(sportello);
-      return [tappa(posto.clone().add(new THREE.Vector3(0, 0, -3.5)), () => this.arrivaALavorare('venditore', posto, () => this.venditori.push(this.creaVenditore(sportello, false))), arrivo(posto))];
+      return [tappa(posto.clone().add(new THREE.Vector3(0, 0, -3.5)), () => this.arrivaALavorare('venditore', posto, () => { if (nome === 'venditoreLegna' || this.personale.lavora('venditoreCarne')) this.venditori.push(this.creaVenditore(sportello, false)); }), arrivo(posto))];
     }
     if (nome === 'venditore') {
-      this.clienti.rapidita = livello.rapidita;
+      this.personale.aggiornaRapidita();
       return [];
     }
     return [];
@@ -1330,8 +1402,8 @@ export class Segheria {
   ripristinaMiglioramenti() {
     this.mura.applicaLivello(this.livelli.mura, false);
     this.ambiente.casa.userData.imposta(this.livelli.mura, false);
-    this.aiutante = this.livelli.aiutante > 0 ? this.creaAiutante(false) : null;
-    this.secondario = this.livelli.boscaioloSecondario > 0 ? this.creaSecondario(this.stato.secondarioMancano, false) : null;
+    this.aiutante = this.livelli.aiutante > 0 && this.personale.lavora('aiutante') ? this.creaAiutante(false) : null;
+    this.secondario = this.livelli.boscaioloSecondario > 0 && this.personale.lavora('secondario') ? this.creaSecondario(this.stato.secondarioMancano, false) : null;
     this.torrette.imposta(this.livelli.torretta);
     for (let i = 0; i < this.torrette.quanteTorri; i++) {
       this.torrette.mostraTorre(i, false);
@@ -1341,6 +1413,7 @@ export class Segheria {
     if (cacciatore) {
       const quanti = this.livelli.secondoCacciatore > 0 ? 2 : 1;
       for (let i = 0; i < quanti; i++) {
+        if (!this.personale.lavora('cacciatore' + i)) continue;
         const nuovo = new Cacciatore(this, cacciatore, i);
         nuovo.comparsa = 1;
         this.cacciatori.push(nuovo);
@@ -1350,8 +1423,8 @@ export class Segheria {
     if (this.livelli.venditoreLegna > 0) this.venditori.push(this.creaVenditore(this.sportelli.legna, false));
     const venditore = this.livelloComprato('venditore');
     if (venditore) {
-      this.venditori.push(this.creaVenditore(this.sportelli.carne, false));
-      this.clienti.rapidita = venditore.rapidita;
+      if (this.personale.lavora('venditoreCarne')) this.venditori.push(this.creaVenditore(this.sportelli.carne, false));
+      this.personale.aggiornaRapidita();
     }
     for (const [nome, tipo] of Object.entries(PAVIMENTI)) {
       if (this.livelli[nome] > 0) this.pavimento.posa(tipo, this.cerchi[nome].posizione, false);
@@ -1601,7 +1674,7 @@ export class Segheria {
   // e compare il riquadro; per aggiungere un avviso basta una riga in più qui sotto (e il testo in avvisi.js).
   controllaAvvisi() {
     const avvisi = this.avvisi;
-    if (avvisi.attivo || this.regia || this.inFesta || !this.tutorial.finito || this.stato.bentornato) return;
+    if (avvisi.attivo || this.regia || this.inFesta || this.schermoNero || !this.tutorial.finito || this.stato.bentornato) return;
     const lupoNormale = this.lupiBase.find((lupo) => lupo.vivo && !lupo.gigante);
     // [nome, la novità c'è?, dove guardare, zoom della telecamera]: in ordine di importanza
     const cerchioLegna = this.cerchi.legna;
@@ -1620,6 +1693,13 @@ export class Segheria {
       ['aiutante', !!this.aiutante, this.catasta.posizione, 0.85],
       ['venditoreCarne', !!venditoreCarne, postoVenditore(this.sportelli.carne), 1],
       ['pavimento', this.livelli.pavimentoPietra > 0 && this.pavimento.finito, { x: 0, z: 0 }, 1.5],
+      // Gruppo 8: dopo il primo schermo nero di fine giornata (la telecamera resta sul boscaiolo)
+      ['giornata', this.giornata.giorno > 1, this.giocatore.posizione, 1],
+      // il primo lavoratore a pagamento è al suo posto: compare il pulsante del personale; e chi non è stato pagato in tempo
+      ['personale', LAVORATORI.some((chiave) => this.personale.oggetto(chiave)), this.giocatore.posizione, 1],
+      ['pagaMancante', this.personale.elenco().some((voce) => voce.stato === 'casa'), this.giocatore.posizione, 1],
+      // il primo lavoratore che si addormenta: la telecamera va da lui
+      ['stanchezza', !!this.riposo.dormiente, this.riposo.dormiente?.oggetto.modello.position ?? this.giocatore.posizione, 0.85],
       // se è nella foresta si guarda il conto alla rovescia, accanto al cancello della corsa
       ['boscaioloSecondario', !!this.secondario, this.secondario?.visibile ? this.secondario.posizione : { x: MAPPA.cancelli.corsa.x + 3.6, z: MAPPA.cancelli.corsa.z }, 0.8],
     ];
@@ -1696,6 +1776,10 @@ export class Segheria {
     this.controllaMura(dt);
     this.gestisceRiparazione(pos, dt);
     this.controllaAvvisi();
+    this.avanzaGiornata(dt);
+    this.personale.aggiorna(dt);
+    this.riposo.aggiorna(dt);
+    this.aggiornaHudGiornata();
 
     // carne lasciata dai lupi (fuori dalle mura): si raccoglie passandoci sopra
     for (const drop of this.carneCadute) {

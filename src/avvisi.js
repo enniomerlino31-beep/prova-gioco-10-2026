@@ -78,9 +78,26 @@ export const AVVISI = {
     titolo: 'Il venditore della carne',
     testo: 'Adesso la carne dei lupi si vende: i clienti la comprano allo sportello CARNE e ti pagano. Con i miglioramenti “svelto” ed “esperto” servono più in fretta.',
   },
+  // --- Gruppo 8: giornata e personale ---
+  giornata: {
+    titolo: 'Una nuova giornata!',
+    testo: 'Ogni giornata dura circa 4 minuti e mezzo. A fine giornata i lavoratori ricevono la paga: la pago io da sola con le tue monete.',
+  },
+  personale: {
+    titolo: 'Il personale',
+    testo: 'In alto a sinistra c’è il pulsante del personale. Lì vedi i tuoi lavoratori, quanto costano ogni giorno e puoi licenziarli o richiamarli.',
+  },
+  pagaMancante: {
+    titolo: 'Non c’erano abbastanza monete!',
+    testo: 'Alcuni lavoratori non sono stati pagati e sono tornati a casa. Apri il pulsante del personale e richiamali: costa solo la paga di un giorno.',
+  },
+  stanchezza: {
+    titolo: 'Un lavoratore è stanco!',
+    testo: 'Si è addormentato (Zzz). Toccalo o avvicinati per svegliarlo: finché dorme non lavora.',
+  },
   ritornoAssenza: {
     titolo: 'Bentornato!',
-    testo: 'La tua segheria lavora anche quando il gioco è chiuso: il boscaiolo secondario porta la legna alla catasta e i venditori la vendono. Qui sotto vedi quanto hai guadagnato.',
+    testo: 'La tua segheria lavora anche quando il gioco è chiuso: il boscaiolo secondario porta la legna alla catasta e i venditori la vendono. Mentre sei via i lavoratori non si stancano e non ricevono la paga. Qui sotto vedi quanto hai guadagnato.',
   },
 };
 

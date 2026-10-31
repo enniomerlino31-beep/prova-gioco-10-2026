@@ -101,7 +101,8 @@ export class Clienti {
   // Allo sportello di questa merce si vende? Solo se c'è il suo venditore (Gruppo 7); durante il tutorial, quando ancora non
   // si può comprare niente, i clienti comprano da soli (serve a guadagnare le monete per le mura di pietra)
   vende(tipo) {
-    return this.tuttiVendono || Boolean(this.sportelli[tipo].venditore);
+    const venditore = this.sportelli[tipo].venditore;
+    return this.tuttiVendono || Boolean(venditore && !venditore.dorme); // Gruppo 8: un venditore che dorme non serve
   }
 
   // Arriva un cliente nuovo. Chi vuole carne e trova la fila piena va a comprare legna;

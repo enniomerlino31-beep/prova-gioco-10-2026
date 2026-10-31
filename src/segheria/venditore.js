@@ -57,6 +57,7 @@ export class Venditore {
   }
 
   aggiorna(dt) {
+    if (this.dorme) return; // Gruppo 8: dorme, la posa la decide Riposo (e i clienti non vengono serviti: vedi Clienti.vende)
     if (this.comparsa === 0) suoni.suona('comparsa'); // appena comprato: un suono breve mentre spunta
     this.comparsa = Math.min(1, this.comparsa + dt * 2);
     const c = this.comparsa;

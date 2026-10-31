@@ -15,6 +15,7 @@ import { Joystick } from './motore/joystick.js';
 import { Schermate } from './schermate/schermate.js';
 import { Corsa } from './corsa/corsa.js';
 import { Segheria } from './segheria/segheria.js';
+import { MenuPersonale } from './schermate/menuPersonale.js';
 import { cancella } from './salvataggio.js';
 import { suoni, ascoltaTocchi } from './motore/suoni.js';
 
@@ -52,14 +53,20 @@ const menuImpostazioni = document.getElementById('menu-impostazioni');
 const interruttoreEffetti = document.getElementById('interruttore-effetti');
 const interruttoreMusica = document.getElementById('interruttore-musica');
 let inPausa = false;
+let impostazioniAperte = false;
+let personaleAperto = false; // Gruppo 8: il menu del personale (anche lui mette il gioco in pausa)
+function aggiornaPausa() {
+  inPausa = impostazioniAperte || personaleAperto;
+  suoni.mettiInPausa(inPausa);
+}
 function mostraInterruttori() {
   interruttoreEffetti.setAttribute('aria-checked', String(suoni.conEffetti));
   interruttoreMusica.setAttribute('aria-checked', String(suoni.conMusica));
 }
 function impostaMenu(aperto) {
-  inPausa = aperto;
+  impostazioniAperte = aperto;
   menuImpostazioni.classList.toggle('nascosto', !aperto);
-  suoni.mettiInPausa(aperto);
+  aggiornaPausa();
   if (aperto) mostraInterruttori();
 }
 document.getElementById('pulsante-impostazioni').addEventListener('click', () => impostaMenu(true));
@@ -69,7 +76,7 @@ menuImpostazioni.addEventListener('click', (evento) => {
   if (evento.target === menuImpostazioni) impostaMenu(false);
 });
 window.addEventListener('keydown', (evento) => {
-  if (evento.key === 'Escape') impostaMenu(!inPausa);
+  if (evento.key === 'Escape' && !personaleAperto) impostaMenu(!impostazioniAperte);
 });
 interruttoreEffetti.addEventListener('click', () => {
   suoni.impostaEffetti(!suoni.conEffetti);
@@ -81,7 +88,7 @@ interruttoreMusica.addEventListener('click', () => {
 });
 // Tutti i pulsanti dei menu (Gioca, Alla segheria, Raccogli, ingranaggio...) fanno un piccolo clic
 document.addEventListener('click', (evento) => {
-  if (evento.target.closest?.('.pulsante, .pulsante-impostazioni, .interruttore')) suoni.suona('clic');
+  if (evento.target.closest?.('.pulsante, .pulsante-impostazioni, .interruttore, .pulsante-personale, .pulsante-riga')) suoni.suona('clic');
 });
 
 const contenitore = document.getElementById('gioco');
@@ -90,6 +97,11 @@ const controlli = new Controlli(contenitore);
 const joystick = new Joystick(contenitore);
 const schermate = new Schermate(mondo.telecamera);
 const segheria = new Segheria(mondo.renderer, schermate, joystick, avviaCorsa, preparaCorsaInAnticipo);
+// Gruppo 8: il menu del personale (pulsante sotto l'ingranaggio); mentre è aperto il gioco è in pausa
+new MenuPersonale(segheria, (aperto) => {
+  personaleAperto = aperto;
+  aggiornaPausa();
+});
 
 let modo = 'menu';let corsa = null;
 let corsaPronta = null; // { corsa, opzioni }: la corsa costruita un attimo prima di partire, quando il boscaiolo si avvicina al cerchio CORSA

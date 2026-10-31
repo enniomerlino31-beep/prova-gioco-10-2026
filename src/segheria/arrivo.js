@@ -95,3 +95,49 @@ export class ArrivoLavoratore {
     }
   }
 }
+
+// =====================================================================
+//  PARTENZA A PIEDI DI UN LAVORATORE (Gruppo 8)
+//  Un lavoratore licenziato (o mandato a casa perché non è stato pagato) esce a piedi dal cancello del suo lato, lo stesso da cui
+//  arriverebbe, e sparisce fuori dalle mura. Ha la stessa interfaccia dell'ArrivoLavoratore (aggiorna, finito, inCammino,
+//  posizione), così Segheria.arrivi li gestisce insieme e il cancello si apre da solo.
+// =====================================================================
+export class PartenzaLavoratore {
+  // tipo: 'aiutante', 'venditore', 'cacciatore'; da: dove si trova adesso il lavoratore
+  constructor(genitore, effetti, tipo, da) {
+    this.effetti = effetti;
+    this.genitore = genitore;
+    this.strada = stradaDiArrivo(da).reverse(); // dal suo posto, dentro il cancello, fuori dal cancello
+    this.strada[0] = new THREE.Vector3(da.x, 0, da.z);
+    this.indice = 1;
+    this.posizione = this.strada[0].clone();
+    this.finito = false;
+    this.inCammino = true;
+    this.modello = creaLavoratore(ASPETTO[tipo]);
+    this.modello.scale.setScalar(CONFIG.segheria.dimensioneBoscaiolo * 0.9);
+    this.modello.position.copy(this.posizione);
+    genitore.add(this.modello);
+  }
+
+  aggiorna(dt) {
+    if (this.finito) return;
+    const obiettivo = this.strada[this.indice];
+    const verso = obiettivo.clone().sub(this.posizione).setY(0);
+    const distanza = verso.length();
+    const passo = CONFIG.lavoratori.arrivo.velocita * dt;
+    if (distanza <= passo) {
+      this.posizione.copy(obiettivo);
+      this.indice += 1;
+    } else {
+      this.posizione.addScaledVector(verso, passo / distanza);
+      this.modello.rotation.y = Math.atan2(-verso.x, -verso.z);
+    }
+    if (animaPersona(this.modello, dt, 1)) this.effetti.passo(this.modello, { grandezza: 1.2 });
+    this.modello.position.set(this.posizione.x, 0, this.posizione.z);
+    if (this.indice >= this.strada.length) {
+      this.finito = true;
+      this.inCammino = false;
+      this.genitore.remove(this.modello);
+    }
+  }
+}

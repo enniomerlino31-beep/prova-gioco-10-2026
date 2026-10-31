@@ -106,6 +106,7 @@ export class Cacciatore {
   }
 
   aggiorna(dt) {
+    if (this.dorme) return; // Gruppo 8: dorme al banco, la posa la decide Riposo
     // compare con un piccolo salto
     if (this.comparsa === 0) suoni.suona('comparsa'); // appena comprato: un suono breve mentre spunta
     this.comparsa = Math.min(1, this.comparsa + dt * 2);
